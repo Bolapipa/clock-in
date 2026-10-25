@@ -1,0 +1,23 @@
+# Segredos e configuração local
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node (scripts de validação)
+node_modules/
+package-lock.json
+
+# Dados brutos e grandes
+validacao/dados/
+data/
+*.parquet
+*.dump
+
+# Editores e sistema
+.vscode/
+.idea/
+.DS_Store
