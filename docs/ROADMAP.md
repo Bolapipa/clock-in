@@ -34,7 +34,7 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 
 **Tarefas**
 1. Crie um ambiente virtual Python (`python3 -m venv .venv`) e um `requirements.txt` com versões fixadas. Comece pequeno: cliente HTTP (`httpx` ou `requests`), driver do Postgres (`psycopg` 3) e `python-dotenv`.
-2. Reaproveite o que aprendeu no `fleet-ops-db`: `docker-compose.yml` com `postgres:17`, volume nomeado, `healthcheck` com `pg_isready`, `.env` fora do Git e `.env.example` dentro.
+2. Crie o `docker-compose.yml` com `postgres:17` (versão major fixada), volume nomeado, `healthcheck` com `pg_isready`, `.env` fora do Git e `.env.example` dentro.
 3. Crie a estrutura de pastas (sugestão):
    ```text
    clock-in/
