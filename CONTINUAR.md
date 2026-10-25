@@ -12,15 +12,14 @@ O Clock-in é um projeto independente: não tem relação com outros repositóri
 |---|---|---|
 | Git | versionamento | `git --version` |
 | GitHub CLI | clonar o repositório privado | `gh auth status` (faça `gh auth login` antes) |
-| Docker e Docker Compose | PostgreSQL | `docker compose version` e `docker run hello-world` |
 | Python 3 com venv | o motor do Clock-in | `python3 -m venv --help` |
-| Cliente `psql` | conectar no banco | `psql --version` |
-| DBeaver | ver o banco visualmente | abrir o app |
 | VS Code | editor | abrir o app |
 | Claude Code | continuar com o Claude | `claude --version` |
 | Node.js (opcional) | só para rodar de novo os scripts de validação | `node --version` |
 
-No Linux Mint (base Ubuntu), o Docker deve ser instalado pelo repositório oficial usando o codinome do Ubuntu: https://docs.docker.com/engine/install/ubuntu/. Depois, `sudo usermod -aG docker $USER` e sair e entrar de novo na sessão.
+**Não é preciso Docker, PostgreSQL nem DBeaver.** O projeto usa DuckDB, que é instalado como pacote Python dentro do ambiente virtual (decisão 7 em `docs/DECISOES.md`), seguindo a regra de custo zero.
+
+No Linux Mint, se o `python3 -m venv` reclamar, instale o pacote: `sudo apt install python3-venv`.
 
 Clonar e configurar a identidade:
 
@@ -54,13 +53,14 @@ QUEM SOU EU E COMO QUERO TRABALHAR
 O PROJETO: CLOCK-IN (github.com/Bolapipa/clock-in, privado)
 Monitor de dados abertos do Brasil: verifica todo dia se cada base do dados.gov.br ainda está viva (link funcionando, conteúdo atualizado no prazo, formato estável), medindo pelo conteúdo real e não pelo metadado do portal.
 - Validação feita em 24/10/2026: censo de 19.602 bases e prova real em 119 bases. Resultados em docs/VALIDACAO.md.
-- Formato: motor de coleta (Bronze/Silver/Gold) -> API só leitura -> site público -> alertas.
+- Formato: motor de coleta (Bronze/Silver/Gold) -> API estática (JSON) -> site público -> alertas.
+- REGRA PRINCIPAL: CUSTO ZERO para mim e para quem usar. Stack: Python + DuckDB + Parquet, motor diário no GitHub Actions (repositório público a partir da Fase 2), API em arquivos JSON estáticos, site estático na Vercel (Hobby), alertas por RSS e webhook. Sem Docker, sem PostgreSQL, sem servidor, sem serviço pago. Antes de sugerir qualquer ferramenta, confirme que ela continua gratuita.
 - Documentação pronta: README.md, docs/IDEIA.md, docs/PESQUISA.md, docs/VALIDACAO.md, docs/API_DADOS_GOV.md, docs/ROADMAP.md, docs/DECISOES.md.
 - A pasta validacao/ tem scripts de pesquisa usados na validação. Não são código do produto: o motor será escrito do zero.
 - ONDE PAREI: nenhuma linha de código do produto foi escrita. O próximo passo é a FASE 0 (ambiente) do docs/ROADMAP.md.
 
 O QUE QUERO AGORA
-Leia o README.md e os arquivos em docs/. Depois verifique se o meu computador tem os requisitos da Fase 0 (git, gh, docker, docker compose, python3 com venv, psql) e me diga o que falta. Em seguida, me guie pela Fase 0 do docs/ROADMAP.md passo a passo, como professor, sem escrever o código por mim.
+Leia o README.md e os arquivos em docs/. Depois verifique se o meu computador tem os requisitos da Fase 0 (git, gh autenticado, python3 com venv) e me diga o que falta. Em seguida, me guie pela Fase 0 do docs/ROADMAP.md passo a passo, como professor, sem escrever o código por mim.
 ```
 
 ---

@@ -40,7 +40,7 @@ fontes ──▶ │ Bronze: catálogo + respostas cruas ─▶ Silver: padroniz
            │ (dados.gov.br, painel CGU)            (links, hash, schema)   (nota por órgão)     │
            └──────────────────────────────────────────────┬─────────────────────────────────────┘
                                                           ▼
-                                                API (só leitura)
+                                           API estática (arquivos JSON)
                                                  │           │
                                                  ▼           ▼
                                           Site público    Alertas
@@ -65,13 +65,13 @@ O prazo esperado vem da periodicidade declarada **ou**, quando não há (69% dos
 
 | Fase | Entrega |
 |---|---|
-| 0 | Ambiente: Python, PostgreSQL no Docker, estrutura do projeto |
+| 0 | Ambiente: Python, DuckDB, estrutura do projeto |
 | 1 | Inventário: coletor do catálogo do dados.gov.br (Bronze) |
-| 2 | Saúde dos links: testar todos os links com educação |
+| 2 | Saúde dos links e motor diário no GitHub Actions |
 | 3 | Conteúdo: hash e schema de cada arquivo |
 | 4 | Atualização real: prazo esperado e status de cada base |
 | 5 | Modelo Gold: histórico, nota e ranking por órgão |
-| 6 | API pública (só leitura) |
+| 6 | API estática (JSON gerado pelo motor) |
 | 7 | Site público |
 | 8 | Alertas |
 | 9 | Lançamento e impacto |
@@ -92,13 +92,21 @@ Guia completo, com tarefas, critério de pronto e o que estudar: [docs/ROADMAP.m
 
 ## Regras do projeto
 
+- **Custo zero:** gratuito para quem constrói e para quem usa. Sem servidor, sem banco hospedado, sem serviço pago. Detalhes no [roadmap](docs/ROADMAP.md#princípio-custo-zero).
 - O código do produto é escrito por mim, fase por fase. O roadmap diz **o que** fazer e **onde estudar**.
 - Coleta educada: pausas entre requisições, identificação no User-Agent, nada de sobrecarregar servidores públicos.
 - Ser justo no ranking: separar "não verificável" de "desatualizado" e publicar a regra.
 
-## Stack prevista
+## Stack prevista (custo zero)
 
-Python · PostgreSQL · SQL · Docker · GitHub Actions · (site estático na Vercel)
+| Peça | Ferramenta |
+|---|---|
+| Coleta e transformação | Python, DuckDB, SQL |
+| Armazenamento | Parquet (Bronze, Silver, Gold); histórico em arquivos de release do GitHub |
+| Motor diário | GitHub Actions agendado (repositório público a partir da Fase 2) |
+| API | Arquivos JSON estáticos gerados pelo motor |
+| Site | HTML, CSS e JavaScript na Vercel (plano Hobby) |
+| Alertas | RSS e webhook |
 
 ---
 

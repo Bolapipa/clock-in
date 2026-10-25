@@ -42,8 +42,10 @@ Disponibilidade do nome (24/10/2026): `clock-in` livre no PyPI. `clockin` (sem h
 
 ## Formato da ferramenta
 
-1. **Motor de coleta** (o coração): pipeline diário em camadas Bronze, Silver e Gold.
-2. **API pública** (só leitura): status de cada base, de cada órgão e histórico. O site é o primeiro cliente dela.
+Regra: **custo zero**, para quem constrói e para quem usa (ver [ROADMAP.md](ROADMAP.md#princípio-custo-zero)).
+
+1. **Motor de coleta** (o coração): pipeline diário em camadas Bronze, Silver e Gold, em Python e DuckDB, rodando no GitHub Actions.
+2. **API estática**: o motor gera arquivos JSON com o status de cada base, de cada órgão e o resumo do Brasil. Sem servidor e sem custo. O site é o primeiro cliente dela.
 3. **Site público** (o rosto): página por base, por órgão, visão geral e ranking. Gera impacto e pressão pública.
 4. **Alertas** (o dia a dia): seguir uma base e ser avisado quando atrasar, quebrar ou mudar de formato.
 
