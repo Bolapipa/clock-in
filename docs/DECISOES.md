@@ -17,7 +17,7 @@ Registre aqui cada decisão importante: **o que** decidiu, **as opções** e **o
 | 9 | API | Servidor (FastAPI) com banco; API estática (JSON) | API estática gerada pelo motor | Sem servidor e sem custo. Perde consultas livres, mas entrega respostas prontas por base, órgão e resumo |
 | 10 | Site | Vercel; GitHub Pages | Vercel (Hobby) | Grátis para uso não comercial; já usado no portfólio |
 | 11 | Visibilidade do repositório | Sempre privado; público desde já; público quando o motor rodar | Privado até a Fase 1; **público a partir da Fase 2** | Em repositório privado a cota grátis do Actions acaba rápido; código aberto combina com transparência |
-| 12 | Acesso ao catálogo | API oficial com chave; API pública do site via navegador | **Provisória:** API oficial com chave, se um teste de um dia mostrar que ela traz `resources`, `periodiciade` e `maintainer`; senão, API pública via Playwright | API oficial é mais estável, roda com `httpx` sem navegador e a chave fica como secret do GitHub Actions. A API pública não é documentada e deu 401 fora do navegador |
+| 12 | Acesso ao catálogo | API oficial com chave; API pública do site via navegador | **Confirmada em 25/10/2026:** API oficial com chave (cabeçalho `chave-api-dados-abertos`), via `httpx` | Teste com 15 bases: `recursos` 15/15, `responsavel` 15/15, `periodicidade` 14/15 e já padronizada. Roda sem navegador e a chave fica como secret do GitHub Actions. A API pública não é documentada e deu 401 fora do navegador |
 | 13 | Regra do publicador real | `maintainer`; e-mail; domínio dos links; painel da CGU | Cascata, na ordem: órgão no painel da CGU; domínio do `maintainer_email`; domínio dos links; senão "não identificado". Coluna `origem_publicador` guarda a regra usada | O campo do portal atribui 95% das bases à CGU. A cascata usa a fonte mais oficial primeiro e a coluna de origem dá rastreabilidade ao ranking |
 | 14 | Regra de "fora do ar" | 1 falha; N falhas em dias diferentes | Link quebrado após **3 falhas em dias seguidos**; volta a OK no primeiro sucesso. Base fora do ar quando todos os links estão quebrados | 502, 503 e 520 somaram 18% dos links na validação e costumam ser temporários. Uma falha só geraria falso positivo no ranking e nos alertas |
 | 15 | Limite de download por arquivo | Arquivo inteiro; primeiros N MB | **Provisória:** arquivo inteiro até 50 MB; acima disso, hash dos primeiros 50 MB, `Content-Length` como sinal e `verificacao_parcial = true` | Disco e tempo do runner do Actions são limitados. Calibrar o limite com os tamanhos reais medidos na Fase 2 |
@@ -33,7 +33,8 @@ Modelo de dados e regras detalhadas em [ARQUITETURA.md](ARQUITETURA.md).
 
 ## A decidir
 
-Nenhuma no momento. Novas decisões entram aqui com o mesmo formato:
+Novas decisões entram aqui com o mesmo formato:
 
 | # | Decisão | Opções consideradas | Escolha | Motivo |
 |---|---|---|---|---|
+| 21 | Frequência da coleta do detalhe | Detalhe de todas as bases todo dia; dividir em lotes por dia; carga inicial completa + diária só das bases cujo `ultimaAlteracaoMetadados` mudou | A decidir na Fase 1 (tarefa 7) ou na Fase 2 | Medido em 25/10/2026: 0,21 s por detalhe + 1,5 s de pausa dá **9,3 horas** para 19.602 bases, acima do tempo máximo de um job do GitHub Actions. A listagem sozinha (cerca de 1.307 páginas) leva perto de 40 minutos |

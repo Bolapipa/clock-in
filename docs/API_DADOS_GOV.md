@@ -32,7 +32,28 @@ Campos úteis do detalhe, comparados com os critérios da decisão 12:
 
 Outros campos do detalhe: `organizacao`, `atualizado`, `descontinuado`, `dataUltimaAtualizacaoArquivo`, `dataUltimaAtualizacaoMetadados`, `dataCatalogacao`, `selo`, `origemCadastro`.
 
-No papel, a API oficial atende aos três critérios e a periodicidade já vem padronizada. A confirmação depende do teste com chave.
+No papel, a API oficial atende aos três critérios e a periodicidade já vem padronizada.
+
+### Primeiro teste real (25/10/2026, `coletor/teste_api_oficial.py`)
+
+- A chave funciona com `httpx`, sem navegador. Sem chave ou com chave inválida, a resposta é `HTTP 401`.
+- A listagem devolve **15 bases por página**, não 100 como a API pública do site. O catálogo inteiro tem cerca de 1.307 páginas.
+- Os campos da listagem batem com a especificação.
+- No detalhe da primeira base: `recursos` e `responsavel` preenchidos; `periodicidade` veio `null` e o `tipo` do recurso também.
+
+### Teste com as 15 bases da página 1 (25/10/2026)
+
+| Campo | Preenchido |
+|---|---|
+| `recursos` | 15 de 15 |
+| `responsavel` ou `emailResponsavel` | 15 de 15 |
+| `periodicidade` | 14 de 15 (`ANUAL` 9, `MENSAL` 3, `OUTRAS` 1, `SOB_DEMANDA` 1, vazia 1) |
+
+- Tempo médio de resposta do detalhe: **0,21 s**. Com 1,5 s de pausa, o catálogo inteiro levaria cerca de **9,3 horas** (ver decisão 21).
+- Ressalva: a página 1 não é uma amostra aleatória. 14 das 15 bases têm "(Descontinuado)" no título; o campo `descontinuado` do detalhe deve ser guardado na Silver.
+- `OUTRAS` e `SOB_DEMANDA` não dão prazo esperado: contam como "sem periodicidade comparável" na Fase 4.
+
+Conclusão: decisão 12 confirmada. A API oficial com chave substitui a API pública via navegador.
 
 ## Endpoints observados
 
