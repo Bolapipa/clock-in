@@ -74,7 +74,7 @@ Monitor de dados abertos do Brasil: verifica todo dia se cada base do dados.gov.
 - REGRA PRINCIPAL: CUSTO ZERO para mim e para quem usar. Stack: Python + DuckDB + Parquet, motor diário no GitHub Actions (repositório público a partir da Fase 2), API em arquivos JSON estáticos, site estático na Vercel (Hobby), alertas por RSS e webhook. Sem Docker, sem PostgreSQL, sem servidor, sem serviço pago. Antes de sugerir qualquer ferramenta, confirme que ela continua gratuita.
 - Nenhum dado gerado vai para o Git: estado atual e histórico ficam em arquivos de release do GitHub (decisão 16).
 - Documentação pronta: README.md, docs/IDEIA.md, docs/PESQUISA.md, docs/VALIDACAO.md, docs/API_DADOS_GOV.md, docs/ARQUITETURA.md (modelo de dados e regras), docs/ROADMAP.md, docs/DECISOES.md.
-- Decisões 1 a 21 registradas em docs/DECISOES.md. A 12 foi confirmada (API oficial com chave no cabeçalho chave-api-dados-abertos, chave no .env). A 15 (limite de download) é provisória até a Fase 2. A 21 (frequência da coleta do detalhe) foi decidida: carga inicial completa uma vez (cerca de 9,3 horas, no PC); depois, todo dia, detalhe só das bases novas ou com ultimaAlteracaoMetadados mudado + 1/30 do catálogo em rodízio.
+- Decisões 1 a 22 registradas em docs/DECISOES.md. A 12 foi confirmada (API oficial com chave no cabeçalho chave-api-dados-abertos, chave no .env). A 15 (limite de download) é provisória até a Fase 2. A 21 (frequência da coleta do detalhe) foi decidida: carga inicial completa uma vez (cerca de 9,3 horas, no PC); depois, todo dia, detalhe só das bases novas ou com ultimaAlteracaoMetadados mudado + 1/30 do catálogo em rodízio.
 - A pasta validacao/ tem scripts de pesquisa usados na validação. Não são código do produto: o motor será escrito do zero.
 - Ambiente atual: Windows, PowerShell e VS Code, Python 3.12 em .venv. Usar python (não python3). No PowerShell 5.1, não gerar arquivos versionados com > (sai em UTF-16): usar | Out-File -Encoding ascii.
 - ONDE PAREI: Fase 0 concluída. Fase 1: tarefa 1 concluída (API oficial confirmada); tarefa 2 com a listagem pronta em 25/10/2026 (coletor/catalogo_lista.py grava a Bronze, testes em tests/ com pytest e API simulada). Coletor do detalhe escrito (coletor/catalogo_detalhe.py, com coletor/portal.py para o código comum da API). Listagem completa coletada em 25/10/2026 (19.596 bases). Falta a carga inicial do detalhe: python coletor/catalogo_detalhe.py --completo --data 2026-10-25 (cerca de 9 horas; se for interrompida, o mesmo comando retoma de onde parou). A Silver (tarefa 4) está escrita (coletor/silver.py e sql/) e foi testada com as 20 bases que já têm detalhe; depois da carga, rodar python coletor/silver.py --data 2026-10-25. O próximo passo é a tarefa 5 (publicador real, decisão 13).
@@ -93,7 +93,7 @@ Leia o README.md e os arquivos em docs/. Confira se o .venv existe e se pytest -
 | Pesquisa de concorrentes | Concluída (docs/PESQUISA.md) |
 | Validação | Concluída (docs/VALIDACAO.md) |
 | Arquitetura | Documentada em docs/ARQUITETURA.md |
-| Decisões | 1 a 21 registradas em docs/DECISOES.md (15 provisória) |
+| Decisões | 1 a 22 registradas em docs/DECISOES.md (15 provisória) |
 | Fase 0 (ambiente) | Concluída: venv, requirements.txt, pastas e primeiro teste com DuckDB |
 | Fase 1 (inventário) | Tarefa 1 concluída (API oficial com chave). Tarefa 2: coletores da listagem e do detalhe escritos |
 | Código do produto | coletor/portal.py (acesso à API), coletor/catalogo_lista.py e coletor/catalogo_detalhe.py (Bronze), testes em tests/ (pytest), scripts de teste em coletor/ |
