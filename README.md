@@ -83,6 +83,7 @@ O coletor precisa da chave da API do dados.gov.br no arquivo `.env` (linha `CHAV
 | `python coletor/catalogo_detalhe.py --max-bases 20` | Teste rápido: detalhe de 20 bases (precisa da listagem do dia) |
 | `python coletor/catalogo_detalhe.py --completo` | Carga inicial: detalhe de todas as bases (cerca de 9 horas; pode ser retomada) |
 | `python coletor/catalogo_detalhe.py` | Coleta diária: bases novas, alteradas e o rodízio do dia |
+| `python coletor/painel_cgu.py` | Baixa os 2 arquivos do painel da CGU para a Bronze (atualizados uma vez por mês) |
 | `python coletor/silver.py` | Gera a Silver (`base` e `recurso`) a partir da Bronze do dia |
 | `pytest -v` | Roda os testes automáticos (sem chamar a API) |
 

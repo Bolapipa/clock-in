@@ -24,7 +24,7 @@ GitHub Actions (cron diário)
 | O quê | De onde | Guardado? |
 |---|---|---|
 | Catálogo (lista e detalhe das bases) | API do dados.gov.br | **Sim**, resposta crua na Bronze |
-| Base do painel da CGU | centralpaineis.cgu.gov.br | **Sim**, arquivo cru na Bronze |
+| Base do painel da CGU (2 CSVs, atualizados nos primeiros 15 dias de cada mês) | SharePoint da CGU; os links vêm do catálogo (base `painel-de-monitoramento-de-dados-abertos`) | **Sim**, conteúdo cru na Bronze |
 | Arquivos dos órgãos (CSV, XLSX, JSON) | Servidores de cada órgão | **Não**. Baixados para pasta temporária, medidos (hash, schema, data máxima, tamanho) e apagados |
 
 Guardar só as medidas, e não os arquivos, é o que mantém o projeto dentro dos limites gratuitos.
@@ -78,7 +78,8 @@ Regra: guardar exatamente o que veio, antes de qualquer transformação.
 |---|---|---|
 | `bronze/catalogo_lista` | uma linha por página da listagem | `data_coleta`, `pagina`, `qtd_registros`, `payload` (JSON cru, texto exato da resposta), `coletado_em` (UTC). Gerada por `coletor/catalogo_lista.py` |
 | `bronze/catalogo_detalhe` | uma linha por tentativa de buscar o detalhe de uma base | `data_coleta`, `id`, `motivo` (`NOVA`, `ALTERADA`, `RODIZIO`, `COMPLETA`), `ultima_alteracao` (valor de `ultimaAlteracaoMetadados` na listagem do dia), `status_http`, `payload` (JSON cru, só quando 200), `erro`, `coletado_em` (UTC). Gravada em partes de 500 bases (`parte-0001.parquet`...). Gerada por `coletor/catalogo_detalhe.py` (decisão 21) |
-| `bronze/painel_cgu` | uma linha por linha do arquivo do painel | colunas originais do arquivo, `data_coleta` |
+| `bronze/painel_cgu_cronograma` | uma linha por base prevista nos Planos de Dados Abertos (cerca de 9.956) | colunas originais como texto (`Orgao`, `nome_base`, `previsao_abertura`, `efetiva_abertura`, `url_base`), `data_coleta`, `last_modified`, `coletado_em`. Gerada por `coletor/painel_cgu.py` |
+| `bronze/painel_cgu_monitoramento` | uma linha por órgão (cerca de 256) | colunas originais como texto (`orgao`, `situacao_pda`, `link_pda`, `dt_pub_pda`, `vigencia_ini`, `vigencia_fim`), `data_coleta`, `last_modified`, `coletado_em`. Gerada por `coletor/painel_cgu.py` |
 
 ### Silver: padronizado
 
