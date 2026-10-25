@@ -77,15 +77,15 @@ Regra: guardar exatamente o que veio, antes de qualquer transformação.
 | Tabela | Grão | Colunas principais |
 |---|---|---|
 | `bronze/catalogo_lista` | uma linha por página da listagem | `data_coleta`, `pagina`, `qtd_registros`, `payload` (JSON cru, texto exato da resposta), `coletado_em` (UTC). Gerada por `coletor/catalogo_lista.py` |
-| `bronze/catalogo_detalhe` | uma linha por base | `data_coleta`, `slug`, `payload` (JSON cru), `status_http`, `coletado_em` |
+| `bronze/catalogo_detalhe` | uma linha por tentativa de buscar o detalhe de uma base | `data_coleta`, `id`, `motivo` (`NOVA`, `ALTERADA`, `RODIZIO`, `COMPLETA`), `ultima_alteracao` (valor de `ultimaAlteracaoMetadados` na listagem do dia), `status_http`, `payload` (JSON cru, só quando 200), `erro`, `coletado_em` (UTC). Gravada em partes de 500 bases (`parte-0001.parquet`...). Gerada por `coletor/catalogo_detalhe.py` (decisão 21) |
 | `bronze/painel_cgu` | uma linha por linha do arquivo do painel | colunas originais do arquivo, `data_coleta` |
 
 ### Silver: padronizado
 
 | Tabela | Grão | Colunas principais |
 |---|---|---|
-| `silver/base` | uma linha por base por dia | `slug` (chave), `titulo`, `periodicidade` (normalizada: `DIARIA`, `SEMANAL`, `MENSAL`, `TRIMESTRAL`, `SEMESTRAL`, `ANUAL`, `NAO_DECLARADA`...), `periodicidade_original`, `orgao_portal`, `maintainer`, `maintainer_email`, `publicador_real`, `origem_publicador`, `status_portal`, `ultima_atualizacao_portal`, `data_coleta` |
-| `silver/recurso` | uma linha por link por dia | `recurso_id` (chave), `slug`, `url`, `formato`, `data_coleta` |
+| `silver/base` | uma linha por base por dia | `id` (chave), `slug`, `titulo`, `organizacao_listagem`, `organizacao_detalhe`, `responsavel`, `email_responsavel`, `periodicidade` (valores da API; vazia vira `NAO_DECLARADA`; nula enquanto a base não tem detalhe), `periodicidade_comparavel`, `portal_diz_atualizado`, `status_portal`, `descontinuado`, `selo`, `ultima_atualizacao_dados`, `ultima_alteracao_metadados`, `data_catalogacao`, `qtd_recursos`, `tem_detalhe`, `data_detalhe`, `data_coleta`. Gerada por `sql/silver_base.sql`. A tarefa 5 acrescenta `publicador_real` e `origem_publicador` |
+| `silver/recurso` | uma linha por link por dia | `recurso_id` (chave), `id_base`, `titulo`, `link`, `formato` (maiúsculas), `tipo`, `data_ultima_atualizacao_arquivo`, `data_catalogacao`, `data_coleta`. Só bases presentes na listagem do dia. Gerada por `sql/silver_recurso.sql` |
 | `silver/tentativa_link` | uma linha por teste de link | `recurso_id`, `data_coleta`, `metodo` (`HEAD` ou `GET`), `status_http`, `url_final`, `content_type`, `tamanho_bytes`, `last_modified`, `etag`, `tempo_ms`, `tipo_erro` (`DNS`, `SSL`, `TIMEOUT`, `CONEXAO`) |
 | `silver/versao_conteudo` | uma linha por arquivo medido | `recurso_id`, `data_coleta`, `hash_sha256`, `tamanho_bytes`, `verificacao_parcial`, `encoding`, `separador`, `colunas` (nome, ordem e tipo), `data_max_conteudo` |
 | `silver/mudanca_schema` | uma linha por mudança detectada | `recurso_id`, `data_coleta`, `tipo_mudanca` (`ADICIONADA`, `REMOVIDA`, `TIPO_ALTERADO`, `RENOMEADA_PROVAVEL`), `coluna`, `tipo_antes`, `tipo_depois` |

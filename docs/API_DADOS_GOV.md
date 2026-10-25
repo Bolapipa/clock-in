@@ -55,6 +55,14 @@ No papel, a API oficial atende aos três critérios e a periodicidade já vem pa
 
 Conclusão: decisão 12 confirmada. A API oficial com chave substitui a API pública via navegador.
 
+### Formato real do detalhe (20 bases, 25/10/2026)
+
+- `organizacao` vem como texto (o identificador da organização, por exemplo `ebserh-filial-hospital-universitario-onofre-lopes`), não como objeto. Em 6 das 20 bases é o órgão real; em 14 é `controladoria-geral-da-uniao` (bases coletadas por harvest). A cascata da decisão 13 continua necessária, mas este campo pode entrar nela antes do e-mail.
+- Datas vêm como texto no formato brasileiro: `dd/mm/aaaa` (`coberturaTemporalInicio`, `dataCatalogacao` dos recursos) ou `dd/mm/aaaa hh:mm:ss` (`dataUltimaAtualizacaoMetadados`, `dataUltimaAtualizacaoArquivo`). A Silver precisa converter. O `ultimaAlteracaoMetadados` da listagem segue o mesmo formato.
+- `atualizado` vem como texto (`Atualizado`); `descontinuado` como booleano; `selo` como texto (`Bronze`...).
+- `periodicidade` nas 20 bases: `ANUAL` 7, `TRIMESTRAL` 3, `OUTRAS` 3, `SEMESTRAL` 2, `SOB_DEMANDA` 1, nula 4.
+- Recursos: 111 nas 20 bases. O campo `tamanho` veio `0` mesmo com arquivo, então não serve como tamanho real; o tamanho será medido na Fase 2.
+
 ## Endpoints observados
 
 | Endpoint | Uso |

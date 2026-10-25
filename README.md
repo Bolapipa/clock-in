@@ -80,6 +80,10 @@ O coletor precisa da chave da API do dados.gov.br no arquivo `.env` (linha `CHAV
 |---|---|
 | `python coletor/catalogo_lista.py --max-paginas 5` | Teste rápido: coleta 5 páginas da listagem |
 | `python coletor/catalogo_lista.py` | Coleta a listagem inteira para a Bronze (cerca de 40 minutos) |
+| `python coletor/catalogo_detalhe.py --max-bases 20` | Teste rápido: detalhe de 20 bases (precisa da listagem do dia) |
+| `python coletor/catalogo_detalhe.py --completo` | Carga inicial: detalhe de todas as bases (cerca de 9 horas; pode ser retomada) |
+| `python coletor/catalogo_detalhe.py` | Coleta diária: bases novas, alteradas e o rodízio do dia |
+| `python coletor/silver.py` | Gera a Silver (`base` e `recurso`) a partir da Bronze do dia |
 | `pytest -v` | Roda os testes automáticos (sem chamar a API) |
 
 ## Roadmap

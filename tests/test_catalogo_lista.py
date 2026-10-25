@@ -12,6 +12,7 @@ import pytest
 
 import catalogo_lista
 
+import portal
 
 def cliente_falso(respostas):
     """Cria um cliente HTTP que devolve as respostas da lista, em ordem."""
@@ -28,7 +29,7 @@ def cliente_falso(respostas):
 @pytest.fixture(autouse=True)
 def sem_espera(monkeypatch):
     """Zera a espera entre tentativas para os testes rodarem rápido."""
-    monkeypatch.setattr(catalogo_lista, "ESPERA_FALHA", 0)
+    monkeypatch.setattr(portal, "ESPERA_FALHA", 0)
 
 
 def test_sucesso_na_primeira_tentativa():
@@ -76,7 +77,7 @@ def test_desiste_depois_de_tres_falhas():
 
 def test_gravar_bronze_nao_duplica(tmp_path, monkeypatch):
     # Grava numa pasta temporária, não em dados/ do projeto
-    monkeypatch.setattr(catalogo_lista, "RAIZ", tmp_path)
+    monkeypatch.setattr(portal, "RAIZ", tmp_path)
     linhas = [
         (date(2026, 10, 25), 1, 15, '[{"id": "a"}]', datetime(2026, 10, 25, 12, 0)),
         (date(2026, 10, 25), 2, 7, '[{"id": "b"}]', datetime(2026, 10, 25, 12, 1)),
