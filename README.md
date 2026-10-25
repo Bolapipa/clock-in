@@ -74,6 +74,14 @@ python coletor/teste_duckdb.py
 
 No Linux: `python3 -m venv .venv` e `source .venv/bin/activate`.
 
+O coletor precisa da chave da API do dados.gov.br no arquivo `.env` (linha `CHAVE_API_DADOS_GOV=...`). A chave fica em "Minha Conta", entrando no portal com gov.br.
+
+| Comando | O que faz |
+|---|---|
+| `python coletor/catalogo_lista.py --max-paginas 5` | Teste rápido: coleta 5 páginas da listagem |
+| `python coletor/catalogo_lista.py` | Coleta a listagem inteira para a Bronze (cerca de 40 minutos) |
+| `pytest -v` | Roda os testes automáticos (sem chamar a API) |
+
 ## Roadmap
 
 | Fase | Entrega |

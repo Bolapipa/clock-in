@@ -1,0 +1,5 @@
+[tool.pytest.ini_options]
+# Pastas onde o pytest procura os testes
+testpaths = ["tests"]
+# Permite que os testes importem os módulos de coletor/
+pythonpath = ["coletor"]

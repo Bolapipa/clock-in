@@ -77,10 +77,10 @@ Monitor de dados abertos do Brasil: verifica todo dia se cada base do dados.gov.
 - Decisões 1 a 20 registradas em docs/DECISOES.md. A 12 foi confirmada (API oficial com chave no cabeçalho chave-api-dados-abertos, chave no .env). A 15 (limite de download) é provisória até a Fase 2. A 21 (frequência da coleta do detalhe) está a decidir: o detalhe de todas as bases leva cerca de 9,3 horas.
 - A pasta validacao/ tem scripts de pesquisa usados na validação. Não são código do produto: o motor será escrito do zero.
 - Ambiente atual: Windows, PowerShell e VS Code, Python 3.12 em .venv. Usar python (não python3). No PowerShell 5.1, não gerar arquivos versionados com > (sai em UTF-16): usar | Out-File -Encoding ascii.
-- ONDE PAREI: Fase 0 concluída. Fase 1, tarefa 1 concluída em 25/10/2026 (coletor/teste_api_oficial.py confirmou a API oficial: 15 bases por página, 0,21 s por detalhe). O próximo passo é a tarefa 2 da Fase 1: o coletor da listagem paginada gravando a resposta crua na Bronze.
+- ONDE PAREI: Fase 0 concluída. Fase 1: tarefa 1 concluída (API oficial confirmada); tarefa 2 com a listagem pronta em 25/10/2026 (coletor/catalogo_lista.py grava a Bronze, testes em tests/ com pytest e API simulada). O próximo passo é decidir a decisão 21 e escrever o coletor do detalhe de cada base.
 
 O QUE QUERO AGORA
-Leia o README.md e os arquivos em docs/. Confira se o .venv existe e se python coletor/teste_api_oficial.py roda. Em seguida, me guie pela tarefa 2 da Fase 1 do docs/ROADMAP.md, mandando o código explicado parte por parte.
+Leia o README.md e os arquivos em docs/. Confira se o .venv existe e se pytest -v passa. Em seguida, me ajude a fechar a decisão 21 e me guie pelo coletor do detalhe (Fase 1, tarefa 2), mandando o código explicado parte por parte.
 ```
 
 ---
@@ -95,6 +95,6 @@ Leia o README.md e os arquivos em docs/. Confira se o .venv existe e se python c
 | Arquitetura | Documentada em docs/ARQUITETURA.md |
 | Decisões | 1 a 20 registradas em docs/DECISOES.md (15 provisória); 21 a decidir |
 | Fase 0 (ambiente) | Concluída: venv, requirements.txt, pastas e primeiro teste com DuckDB |
-| Fase 1 (inventário) | Tarefa 1 concluída: API oficial com chave confirmada |
-| Código do produto | Testes em coletor/ (teste_duckdb.py, teste_api_oficial.py); o coletor ainda não começou |
-| Próximo passo | Fase 1, tarefa 2: coletor da listagem paginada para a Bronze |
+| Fase 1 (inventário) | Tarefa 1 concluída (API oficial com chave). Tarefa 2: listagem pronta, detalhe pendente |
+| Código do produto | coletor/catalogo_lista.py (Bronze da listagem), testes em tests/ (pytest), scripts de teste em coletor/ |
+| Próximo passo | Decisão 21 e coletor do detalhe de cada base |

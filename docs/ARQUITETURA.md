@@ -76,7 +76,7 @@ Regra: guardar exatamente o que veio, antes de qualquer transformação.
 
 | Tabela | Grão | Colunas principais |
 |---|---|---|
-| `bronze/catalogo_lista` | uma linha por página da listagem | `data_coleta`, `offset`, `payload` (JSON cru), `coletado_em` |
+| `bronze/catalogo_lista` | uma linha por página da listagem | `data_coleta`, `pagina`, `qtd_registros`, `payload` (JSON cru, texto exato da resposta), `coletado_em` (UTC). Gerada por `coletor/catalogo_lista.py` |
 | `bronze/catalogo_detalhe` | uma linha por base | `data_coleta`, `slug`, `payload` (JSON cru), `status_http`, `coletado_em` |
 | `bronze/painel_cgu` | uma linha por linha do arquivo do painel | colunas originais do arquivo, `data_coleta` |
 

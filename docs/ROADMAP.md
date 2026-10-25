@@ -99,6 +99,7 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
    Atualize a decisão 12 em [DECISOES.md](DECISOES.md) com o resultado.
    **Feito em 25/10/2026:** API oficial com chave confirmada (`coletor/teste_api_oficial.py`). O teste revelou que o detalhe de todas as bases leva cerca de 9,3 horas: ver decisão 21.
 2. Escreva o coletor do catálogo: percorre a listagem paginada e, para cada base, busca o detalhe (recursos, periodicidade, responsável).
+   **Listagem feita em 25/10/2026:** `coletor/catalogo_lista.py` grava a resposta crua de cada página em `dados/bronze/catalogo_lista/data=AAAA-MM-DD/`, com novas tentativas em falhas (backoff de 10 s e 20 s) e idempotência. Testes em `tests/test_catalogo_lista.py` (5 testes, API simulada). Falta o coletor do detalhe, que depende da decisão 21.
 3. Grave a **resposta crua** na Bronze: Parquet particionado por data de coleta (`dados/bronze/catalogo/data=AAAA-MM-DD/`). Nunca transforme antes de guardar.
 4. Na Silver, gere as tabelas padronizadas: `base` (uma linha por base) e `recurso` (uma linha por link). Normalize a periodicidade ("Anual", "ANUAL" viram `ANUAL`).
 5. **Publicador real:** o campo de órgão do portal atribui 95% das bases à CGU. Investigue `maintainer`, `maintainer_email`, domínio dos links e a base do painel da CGU para descobrir quem publica cada base. Documente a regra.
