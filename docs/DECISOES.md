@@ -17,15 +17,21 @@ Registre aqui cada decisão importante: **o que** decidiu, **as opções** e **o
 | 9 | API | Servidor (FastAPI) com banco; API estática (JSON) | API estática gerada pelo motor | Sem servidor e sem custo. Perde consultas livres, mas entrega respostas prontas por base, órgão e resumo |
 | 10 | Site | Vercel; GitHub Pages | Vercel (Hobby) | Grátis para uso não comercial; já usado no portfólio |
 | 11 | Visibilidade do repositório | Sempre privado; público desde já; público quando o motor rodar | Privado até a Fase 1; **público a partir da Fase 2** | Em repositório privado a cota grátis do Actions acaba rápido; código aberto combina com transparência |
+| 12 | Acesso ao catálogo | API oficial com chave; API pública do site via navegador | **Provisória:** API oficial com chave, se um teste de um dia mostrar que ela traz `resources`, `periodiciade` e `maintainer`; senão, API pública via Playwright | API oficial é mais estável, roda com `httpx` sem navegador e a chave fica como secret do GitHub Actions. A API pública não é documentada e deu 401 fora do navegador |
+| 13 | Regra do publicador real | `maintainer`; e-mail; domínio dos links; painel da CGU | Cascata, na ordem: órgão no painel da CGU; domínio do `maintainer_email`; domínio dos links; senão "não identificado". Coluna `origem_publicador` guarda a regra usada | O campo do portal atribui 95% das bases à CGU. A cascata usa a fonte mais oficial primeiro e a coluna de origem dá rastreabilidade ao ranking |
+| 14 | Regra de "fora do ar" | 1 falha; N falhas em dias diferentes | Link quebrado após **3 falhas em dias seguidos**; volta a OK no primeiro sucesso. Base fora do ar quando todos os links estão quebrados | 502, 503 e 520 somaram 18% dos links na validação e costumam ser temporários. Uma falha só geraria falso positivo no ranking e nos alertas |
+| 15 | Limite de download por arquivo | Arquivo inteiro; primeiros N MB | **Provisória:** arquivo inteiro até 50 MB; acima disso, hash dos primeiros 50 MB, `Content-Length` como sinal e `verificacao_parcial = true` | Disco e tempo do runner do Actions são limitados. Calibrar o limite com os tamanhos reais medidos na Fase 2 |
+| 16 | Onde guardar o histórico | Parquet no repositório; arquivos de release; repositório de dados separado | Nenhum dado no Git. Release `estado-atual` sobrescrito todo dia; release `historico-AAAA-MM` por mês; JSON da API publicado direto na Vercel | Commitar arquivos gerados todo dia faz o histórico do Git crescer para sempre. Releases são gratuitos e aceitam até 2 GB por arquivo |
+| 17 | Fórmula da nota por órgão | % de bases em dia; nota com pesos (Toronto, MQA) | `nota = 100 x (em_dia + 0,5 x atrasada) / bases_verificaveis`, com `cobertura` (% verificável) publicada ao lado. Só entram no ranking órgãos com pelo menos 10 bases | Simples de explicar e publicar. Não pune o órgão por limite da medição, e a cobertura baixa fica visível, então esconder dados não vira vantagem |
+| 18 | Canal de e-mail dos alertas | Não ter e-mail; serviço com cota gratuita | Sem e-mail por enquanto: RSS e webhook. Reavaliar na Fase 9 se houver demanda | E-mail exige serviço externo, cadastro e cuidados de LGPD. RSS e webhook atendem o público principal com custo zero |
+
+Decisões marcadas como **provisórias** dependem de uma medição; confirme ou ajuste ao chegar na fase correspondente.
+
+Modelo de dados e regras detalhadas em [ARQUITETURA.md](ARQUITETURA.md).
 
 ## A decidir
 
+Nenhuma no momento. Novas decisões entram aqui com o mesmo formato:
+
 | # | Decisão | Opções consideradas | Escolha | Motivo |
 |---|---|---|---|---|
-| 12 | Acesso ao catálogo | API oficial com chave; API pública do site via navegador | | |
-| 13 | Regra do publicador real | `maintainer`; e-mail; domínio dos links; painel da CGU | | |
-| 14 | Regra de "fora do ar" | 1 falha; N falhas em dias diferentes | | |
-| 15 | Limite de download por arquivo | Arquivo inteiro; primeiros N MB | | |
-| 16 | Onde guardar o histórico | Parquet no repositório; arquivos de release; repositório de dados separado | | |
-| 17 | Fórmula da nota por órgão | | | |
-| 18 | Canal de e-mail dos alertas | Não ter e-mail; serviço com cota gratuita | | |

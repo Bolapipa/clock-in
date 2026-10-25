@@ -9,6 +9,7 @@ Cada fase tem:
 
 > Regra do projeto: você escreve todo o código. Este guia diz **o que** fazer e **onde pesquisar**, não **como** fazer.
 > Ao terminar cada fase: commit, atualizar o checklist abaixo e anotar decisões em [DECISOES.md](DECISOES.md).
+> Modelo de dados, tabelas por camada e regras de status: [ARQUITETURA.md](ARQUITETURA.md).
 
 ## Princípio: custo zero
 
@@ -85,10 +86,10 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 **Objetivo:** saber quais bases existem, com periodicidade declarada, links e publicador real. É o primeiro pedaço do motor.
 
 **Tarefas**
-1. Leia [API_DADOS_GOV.md](API_DADOS_GOV.md). Decida como acessar o catálogo:
-   - tentar a **API oficial com chave** (preferível, se funcionar e for gratuita);
-   - ou a API pública do site (exige sessão de navegador, por exemplo com Playwright).
-   Registre a escolha e o porquê em [DECISOES.md](DECISOES.md).
+1. Leia [API_DADOS_GOV.md](API_DADOS_GOV.md). Confirme a decisão 12 (provisória) com um teste:
+   - tentar a **API oficial com chave** (preferível, se funcionar, for gratuita e trouxer `resources`, `periodiciade` e `maintainer`);
+   - senão, a API pública do site (exige sessão de navegador, por exemplo com Playwright).
+   Atualize a decisão 12 em [DECISOES.md](DECISOES.md) com o resultado.
 2. Escreva o coletor do catálogo: percorre a listagem paginada e, para cada base, busca o detalhe (recursos, periodicidade, responsável).
 3. Grave a **resposta crua** na Bronze: Parquet particionado por data de coleta (`dados/bronze/catalogo/data=AAAA-MM-DD/`). Nunca transforme antes de guardar.
 4. Na Silver, gere as tabelas padronizadas: `base` (uma linha por base) e `recurso` (uma linha por link). Normalize a periodicidade ("Anual", "ANUAL" viram `ANUAL`).
@@ -118,7 +119,7 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 6. **Motor diário no GitHub Actions:**
    - torne o repositório **público** (ver princípio de custo zero);
    - workflow com `schedule` (cron) que roda o coletor;
-   - como o Actions começa sempre do zero, defina onde o estado fica entre execuções: o estado atual (pequeno) em Parquet no próprio repositório e o histórico por mês em arquivos de release;
+   - como o Actions começa sempre do zero, o estado precisa ser baixado no início e enviado no fim: estado atual no release `estado-atual` (sobrescrito todo dia) e histórico no release `historico-AAAA-MM`. Nenhum dado gerado é commitado no Git (decisão 16, detalhes em [ARQUITETURA.md](ARQUITETURA.md#onde-os-dados-ficam));
    - meça quanto tempo a coleta leva e, se precisar, divida em lotes.
 
 **Entregável:** tabela de tentativas por link, regra de "fora do ar" documentada, workflow diário funcionando.

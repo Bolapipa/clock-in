@@ -1,5 +1,20 @@
 # A ideia
 
+## Por que este projeto existe
+
+O Clock-in nasceu de uma pergunta:
+
+> Qual projeto posso criar que impacte o dia a dia de quem trabalha com dados e o mercado de dados? Algo que ninguém tenha feito ainda, gratuito, útil e que faça diferença de verdade.
+
+Dessa pergunta saem os critérios que toda decisão do projeto precisa respeitar:
+
+| Critério | O que significa na prática |
+|---|---|
+| Inédito | Fazer o que ninguém faz: medir o conteúdo real, avisar quem depende da base e mostrar a evolução por órgão (ver [PESQUISA.md](PESQUISA.md)) |
+| Útil no dia a dia | Entrar na rotina de quem trabalha com dados, não ser só um relatório para ler uma vez |
+| Gratuito | Custo zero para quem constrói e para quem usa |
+| Impacto no mercado | Tornar o problema visível e criar pressão para que os dados públicos melhorem |
+
 ## Em uma frase
 
 Um monitor público e contínuo que diz, para cada base de dados aberta do governo brasileiro, se ela ainda está viva: link funcionando, conteúdo atualizado no prazo e formato estável.
@@ -50,6 +65,32 @@ Regra: **custo zero**, para quem constrói e para quem usa (ver [ROADMAP.md](ROA
 4. **Alertas** (o dia a dia): seguir uma base e ser avisado quando atrasar, quebrar ou mudar de formato.
 
 Depois, se houver demanda: biblioteca Python / CLI ("checar a base X antes de rodar meu pipeline"), extensão de navegador que mostra o status real dentro do dados.gov.br, portais estaduais e municipais.
+
+## Como chega às pessoas
+
+Tudo sai do mesmo motor diário e chega por quatro canais gratuitos.
+
+| Canal | Para quem | O que a pessoa faz com ele |
+|---|---|---|
+| API estática | Engenheiros de dados e empresas | O pipeline consulta o status antes de ingerir e para se a base estiver quebrada ou mudou de formato |
+| Site público | Jornalistas, pesquisadores, qualquer pessoa | Abre a página da base e entende em segundos se o dado é confiável |
+| Alertas (RSS e webhook) | Quem depende de uma base específica | Recebe o aviso no Slack, Teams, Discord ou leitor de RSS antes do pipeline quebrar |
+| Relatório mensal e ranking | Sociedade, órgãos, imprensa | Vê quem mantém os dados vivos; o ranking público cria pressão para corrigir |
+
+O canal que muda a rotina é a **API**. Hoje o engenheiro descobre o problema quando o pipeline quebra ou, pior, ingere dado velho sem perceber. Com o Clock-in, a primeira tarefa do job vira uma checagem:
+
+```python
+import requests
+
+# Consulta o status da base antes de ingerir (endereço definitivo na Fase 6)
+status = requests.get("https://clock-in.vercel.app/api/bases/compras-publicas.json").json()
+
+# Interrompe o job se a base estiver quebrada ou se o formato mudou
+if status["status"] in ("FORA_DO_AR", "PARADA") or status["schema_mudou"]:
+    raise Exception(f"Base com problema: {status['motivo']}")
+```
+
+Funciona em qualquer ferramenta que faça um `GET`: Databricks, Airflow, Azure Data Factory, dbt, scripts. Detalhes técnicos em [ARQUITETURA.md](ARQUITETURA.md).
 
 ## Como isso faz diferença
 

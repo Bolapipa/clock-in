@@ -85,6 +85,7 @@ Guia completo, com tarefas, critério de pronto e o que estudar: [docs/ROADMAP.m
 | [docs/IDEIA.md](docs/IDEIA.md) | A ideia completa: problema, público, formato da ferramenta, nome |
 | [docs/PESQUISA.md](docs/PESQUISA.md) | O que já existe, o que cada um não faz, fontes |
 | [docs/VALIDACAO.md](docs/VALIDACAO.md) | Método e resultados da validação |
+| [docs/ARQUITETURA.md](docs/ARQUITETURA.md) | Modelo de dados (Bronze, Silver, Gold), regras de status, API estática e alertas |
 | [docs/API_DADOS_GOV.md](docs/API_DADOS_GOV.md) | Como a API do dados.gov.br funciona (descoberto na validação) |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Guia fase por fase |
 | [docs/DECISOES.md](docs/DECISOES.md) | Registro de decisões técnicas |
@@ -102,7 +103,7 @@ Guia completo, com tarefas, critério de pronto e o que estudar: [docs/ROADMAP.m
 | Peça | Ferramenta |
 |---|---|
 | Coleta e transformação | Python, DuckDB, SQL |
-| Armazenamento | Parquet (Bronze, Silver, Gold); histórico em arquivos de release do GitHub |
+| Armazenamento | Parquet (Bronze, Silver, Gold) em arquivos de release do GitHub; nenhum dado no Git |
 | Motor diário | GitHub Actions agendado (repositório público a partir da Fase 2) |
 | API | Arquivos JSON estáticos gerados pelo motor |
 | Site | HTML, CSS e JavaScript na Vercel (plano Hobby) |

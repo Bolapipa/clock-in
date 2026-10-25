@@ -1,0 +1,177 @@
+# Arquitetura
+
+Referência técnica do Clock-in: o que é coletado, o que é guardado, como os dados se organizam em camadas e como o resultado chega às pessoas. O [ROADMAP.md](ROADMAP.md) diz **quando** construir cada parte; este arquivo diz **o que** cada parte é. As escolhas e seus motivos estão em [DECISOES.md](DECISOES.md).
+
+> Nenhum código foi escrito ainda. Nomes de tabelas e colunas abaixo são o desenho inicial: podem ser ajustados durante as fases, e cada ajuste deve ser registrado aqui.
+
+---
+
+## Visão geral
+
+```text
+GitHub Actions (cron diário)
+  1. Baixa o estado de ontem          <- release "estado-atual" do GitHub
+  2. Coleta o catálogo                 -> Bronze (resposta crua)
+  3. Testa os links e lê o conteúdo    -> Silver (status HTTP, hash, schema)
+  4. Calcula status e nota (DuckDB)    -> Gold (fatos e dimensões)
+  5. Gera a API estática (JSON)        -> publicada na Vercel com o site
+  6. Gera RSS e dispara webhooks       -> alertas
+  7. Sobe o estado de hoje             -> release "estado-atual" e release do mês
+```
+
+## O que é baixado e o que é guardado
+
+| O quê | De onde | Guardado? |
+|---|---|---|
+| Catálogo (lista e detalhe das bases) | API do dados.gov.br | **Sim**, resposta crua na Bronze |
+| Base do painel da CGU | centralpaineis.cgu.gov.br | **Sim**, arquivo cru na Bronze |
+| Arquivos dos órgãos (CSV, XLSX, JSON) | Servidores de cada órgão | **Não**. Baixados para pasta temporária, medidos (hash, schema, data máxima, tamanho) e apagados |
+
+Guardar só as medidas, e não os arquivos, é o que mantém o projeto dentro dos limites gratuitos.
+
+## Onde os dados ficam
+
+Não há servidor de banco de dados. O "banco" são **arquivos Parquet em pastas**, e o **DuckDB** é a biblioteca Python que lê e grava esses arquivos com SQL.
+
+| No Databricks | No Clock-in |
+|---|---|
+| Spark (motor que processa) | DuckDB |
+| Tabela Delta | Pasta de arquivos Parquet |
+| Notebook / Lakeflow SQL | Script Python e arquivos `.sql` |
+| Job agendado | Workflow do GitHub Actions com `schedule` |
+| Unity Catalog | Organização por pastas (`bronze/`, `silver/`, `gold/`) |
+
+Persistência entre execuções (decisão 16): o GitHub Actions começa do zero a cada execução, então o estado precisa ser baixado no início e enviado no fim.
+
+| Onde | O que guarda | Como |
+|---|---|---|
+| Release `estado-atual` | O mínimo para comparar com ontem: último hash e schema por recurso, contador de falhas por link, Silver `base` e `recurso` do dia | Sobrescrito todo dia (`gh release upload --clobber`) |
+| Release `historico-AAAA-MM` | Partições diárias do mês (Silver e Gold) | Um release por mês; até 2 GB por arquivo |
+| Repositório Git | Só código e documentação | Nenhum Parquet nem JSON gerado é commitado |
+| Pasta local `dados/` | Cópia de trabalho no computador | Fora do Git (`.gitignore`) |
+
+## Estrutura do repositório
+
+```text
+clock-in/
+├── coletor/        # código do motor (Python)
+├── sql/            # transformações (bronze -> silver -> gold)
+├── publicar/       # gera os JSON da API estática e o RSS
+├── site/           # site estático
+├── tests/          # pytest
+├── docs/
+├── validacao/      # pesquisa já feita (não é código do produto)
+└── dados/          # Parquet gerado (fora do Git)
+```
+
+---
+
+## Modelo de dados
+
+Particionamento estilo Hive por data de coleta (`data=AAAA-MM-DD/`) em todas as tabelas diárias. Rodar duas vezes no mesmo dia sobrescreve a partição do dia (idempotência).
+
+### Bronze: resposta crua
+
+Regra: guardar exatamente o que veio, antes de qualquer transformação.
+
+| Tabela | Grão | Colunas principais |
+|---|---|---|
+| `bronze/catalogo_lista` | uma linha por página da listagem | `data_coleta`, `offset`, `payload` (JSON cru), `coletado_em` |
+| `bronze/catalogo_detalhe` | uma linha por base | `data_coleta`, `slug`, `payload` (JSON cru), `status_http`, `coletado_em` |
+| `bronze/painel_cgu` | uma linha por linha do arquivo do painel | colunas originais do arquivo, `data_coleta` |
+
+### Silver: padronizado
+
+| Tabela | Grão | Colunas principais |
+|---|---|---|
+| `silver/base` | uma linha por base por dia | `slug` (chave), `titulo`, `periodicidade` (normalizada: `DIARIA`, `SEMANAL`, `MENSAL`, `TRIMESTRAL`, `SEMESTRAL`, `ANUAL`, `NAO_DECLARADA`...), `periodicidade_original`, `orgao_portal`, `maintainer`, `maintainer_email`, `publicador_real`, `origem_publicador`, `status_portal`, `ultima_atualizacao_portal`, `data_coleta` |
+| `silver/recurso` | uma linha por link por dia | `recurso_id` (chave), `slug`, `url`, `formato`, `data_coleta` |
+| `silver/tentativa_link` | uma linha por teste de link | `recurso_id`, `data_coleta`, `metodo` (`HEAD` ou `GET`), `status_http`, `url_final`, `content_type`, `tamanho_bytes`, `last_modified`, `etag`, `tempo_ms`, `tipo_erro` (`DNS`, `SSL`, `TIMEOUT`, `CONEXAO`) |
+| `silver/versao_conteudo` | uma linha por arquivo medido | `recurso_id`, `data_coleta`, `hash_sha256`, `tamanho_bytes`, `verificacao_parcial`, `encoding`, `separador`, `colunas` (nome, ordem e tipo), `data_max_conteudo` |
+| `silver/mudanca_schema` | uma linha por mudança detectada | `recurso_id`, `data_coleta`, `tipo_mudanca` (`ADICIONADA`, `REMOVIDA`, `TIPO_ALTERADO`, `RENOMEADA_PROVAVEL`), `coluna`, `tipo_antes`, `tipo_depois` |
+
+`origem_publicador` diz qual regra da decisão 13 identificou o publicador (`PAINEL_CGU`, `EMAIL`, `DOMINIO_LINK`, `NAO_IDENTIFICADO`).
+
+### Gold: respostas prontas
+
+Modelo dimensional (Star Schema).
+
+| Tabela | Tipo | Grão | Colunas principais |
+|---|---|---|---|
+| `gold/dim_base` | dimensão | uma linha por base | `slug`, `titulo`, `orgao_id`, `periodicidade`, `url_portal` |
+| `gold/dim_orgao` | dimensão | uma linha por publicador real | `orgao_id`, `nome`, `sigla`, `esfera` |
+| `gold/dim_data` | dimensão | uma linha por dia | `data`, `ano`, `mes`, `dia_semana` |
+| `gold/fato_status_base_diario` | fato | uma linha por base por dia | `data`, `slug`, `status`, `motivo` (frase explicável), `prazo_esperado_dias`, `origem_prazo` (`DECLARADO` ou `INFERIDO`), `ultima_mudanca_real`, `dias_sem_mudanca`, `links_total`, `links_quebrados`, `schema_mudou`, `status_portal`, `diverge_do_portal` |
+| `gold/fato_nota_orgao_diario` | fato | uma linha por órgão por dia | `data`, `orgao_id`, `bases_total`, `bases_verificaveis`, `em_dia`, `atrasada`, `parada`, `fora_do_ar`, `nao_verificavel`, `nota`, `cobertura`, `entra_ranking` |
+| `gold/fato_evento_base` | fato | uma linha por acontecimento | `data`, `slug`, `tipo_evento` (`STATUS_MUDOU`, `CONTEUDO_MUDOU`, `SCHEMA_MUDOU`, `LINK_QUEBROU`, `LINK_VOLTOU`), `detalhe` |
+
+`fato_evento_base` alimenta a linha do tempo de cada base no site e os alertas.
+
+---
+
+## Regras
+
+### Link quebrado e base fora do ar (decisão 14)
+
+- Um link é **quebrado** depois de **3 falhas em dias seguidos**. Volta a OK no primeiro sucesso.
+- Uma base está **fora do ar** quando todos os seus links estão quebrados.
+- Teste: `HEAD`; se o servidor responder 403, 405 ou 501, `GET` com `Range: bytes=0-2047`. Timeout de 20 s.
+
+### Conteúdo (decisão 15)
+
+- Arquivo de até **50 MB**: hash SHA-256 do arquivo inteiro.
+- Acima de 50 MB: hash dos primeiros 50 MB, `Content-Length` como sinal adicional e `verificacao_parcial = true`.
+- O schema é lido das primeiras linhas em qualquer caso.
+- O limite é provisório: calibrar com os tamanhos reais medidos na Fase 2.
+
+### Prazo esperado e status (Fase 4)
+
+Prazo esperado:
+- **Periodicidade declarada:** prazo com folga. Valores iniciais a calibrar: diária 3 dias, semanal 10, mensal 40, trimestral 100, semestral 200, anual 400.
+- **Sem periodicidade:** ritmo inferido pela mediana dos intervalos entre mudanças de hash. Sem histórico suficiente, a base fica "não verificável".
+
+Última mudança real: a data em que o hash mudou ou a data máxima dentro do conteúdo, a que for mais confiável. `Last-Modified` é só pista.
+
+| Status | Regra |
+|---|---|
+| Em dia | Mudou dentro do prazo esperado |
+| Atrasada | Passou do prazo esperado |
+| Parada | Passou de 3 vezes o prazo esperado |
+| Fora do ar | Todos os links quebrados |
+| Não verificável | Só página HTML, sem arquivo, ou histórico insuficiente |
+
+### Nota por órgão (decisão 17)
+
+```text
+nota      = 100 x (em_dia + 0,5 x atrasada) / bases_verificaveis
+cobertura = 100 x bases_verificaveis / bases_total
+```
+
+- "Não verificável" fica fora da nota e aparece na cobertura, lado a lado.
+- Só entram no ranking órgãos com pelo menos 10 bases.
+- A fórmula é publicada na página de metodologia do site.
+
+---
+
+## API estática
+
+Arquivos JSON gerados a partir da Gold ao fim de cada execução e publicados com o site na Vercel. Cada arquivo traz `"versao": 1` e `"gerado_em"`.
+
+| Arquivo | Conteúdo |
+|---|---|
+| `api/resumo.json` | Visão geral do Brasil: totais por status e evolução |
+| `api/ranking.json` | Órgãos ordenados pela nota, com a cobertura |
+| `api/orgaos/{orgao_id}.json` | Nota, cobertura e bases de um órgão |
+| `api/bases/{slug}.json` | Status atual, motivo, prazo e linha do tempo de uma base |
+
+O contrato de cada arquivo é documentado em JSON Schema e validado por testes (Fase 6).
+
+## Alertas
+
+| Canal | Como | Custo |
+|---|---|---|
+| RSS/Atom | Arquivos estáticos por base e por órgão, gerados no workflow | Zero |
+| Webhook | Slack, Teams ou Discord; cadastro por arquivo de configuração no repositório, via pull request | Zero |
+| E-mail | Fora do escopo por enquanto (decisão 18) | - |
+
+Gatilhos: registros de `fato_evento_base`. A regra das 3 falhas evita alerta falso de link quebrado.
