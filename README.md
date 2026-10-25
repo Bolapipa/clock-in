@@ -4,7 +4,7 @@
 
 Cada base de dados aberta tem um "horário de trabalho": a periodicidade com que deveria ser atualizada. O Clock-in verifica, todos os dias, se cada base **bateu o ponto**: se o link funciona, se o arquivo existe, se o conteúdo foi atualizado no prazo e se o formato mudou. Tudo medido pelo **conteúdo real**, não pelo que o órgão declara.
 
-> Projeto em fase de planejamento. A ideia foi validada com dados reais (ver abaixo). O código é escrito fase por fase, seguindo o [roadmap](docs/ROADMAP.md).
+> Projeto em construção. A ideia foi validada com dados reais (ver abaixo) e a Fase 0 (ambiente) está concluída. O código é escrito fase por fase, seguindo o [roadmap](docs/ROADMAP.md).
 
 ---
 
@@ -60,6 +60,19 @@ Ordem de construção: **validação → motor → API → site → alertas**. O
 | Não verificável | Não há como saber (só página HTML, sem arquivo) |
 
 O prazo esperado vem da periodicidade declarada **ou**, quando não há (69% dos casos), do ritmo observado no histórico da própria base.
+
+## Como rodar
+
+Requisitos: Python 3.12 e Git. No Windows, use `python` (não `python3`).
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python coletor/teste_duckdb.py
+```
+
+No Linux: `python3 -m venv .venv` e `source .venv/bin/activate`.
 
 ## Roadmap
 

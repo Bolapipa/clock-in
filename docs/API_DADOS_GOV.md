@@ -7,7 +7,32 @@ Notas técnicas descobertas durante a validação (24/10/2026), observando as ch
 - O site usa endpoints em `https://dados.gov.br/api/publico/...`.
 - Chamadas feitas **fora do navegador** (curl, requests) receberam **401**. Dentro de uma página aberta do dados.gov.br, as mesmas chamadas funcionam: o site obtém uma sessão anônima ao carregar.
 - Durante a validação, as chamadas foram feitas de dentro de uma página aberta com Playwright (`page.evaluate(fetch(...))`), com pausa de 1,5 s entre elas.
-- Alternativa a estudar na Fase 1: a **API oficial** listada em `https://dados.gov.br/dados/api/`, que segundo catálogos de terceiros exige autenticação (cadastro gov.br e uma chave). O nome do cabeçalho e os parâmetros **não foram verificados**: ler a documentação oficial. Se funcionar, é o caminho mais correto e estável.
+- Alternativa preferida (decisão 12): a **API oficial**, descrita na seção abaixo.
+
+## API oficial (lida na especificação em 25/10/2026)
+
+Fonte: especificação OpenAPI 3.1 em `https://dados.gov.br/v3/api-docs` (título "API REST do Portal de Dados Abertos"). Documentação navegável em `https://dados.gov.br/swagger-ui/index.html` e ambiente de testes em `https://hmg.dados.gov.br/swagger-ui/index.html`. Os dados abaixo vêm da especificação; **ainda falta testar uma chamada real com chave** (Fase 1, tarefa 1).
+
+**Autenticação:** cabeçalho `chave-api-dados-abertos` com a chave pessoal. Segundo a especificação, quem entra no portal com perfil de Consumidor obtém a chave em "Minha Conta" (lado direito da página). Organizações usam "Tokens de organização". A chave é segredo: fica no `.env` local e, na Fase 2, num secret do GitHub Actions. Nunca vai para o Git.
+
+| Endpoint | Uso |
+|---|---|
+| `GET /dados/api/publico/conjuntos-dados?pagina=1&dadosAbertos=true` | Lista paginada. `pagina` é obrigatório. Filtros opcionais: `nomeConjuntoDados`, `idOrganizacao`, `isPrivado` (texto, padrão `"false"`) |
+| `GET /dados/api/publico/conjuntos-dados/{id}` | Detalhe de uma base |
+
+Campos da listagem: `id`, `title`, `nome`, `catalogacao`, `nomeOrganizacao`, `ultimaAlteracaoMetadados`, `ultimaAtualizacaoDados`, `isAtualizado`.
+
+Campos úteis do detalhe, comparados com os critérios da decisão 12:
+
+| Critério da decisão 12 | Campo na API oficial |
+|---|---|
+| `resources` | `recursos[]`: `id`, `link`, `formato`, `tipo` (`DADOS`, `DOCUMENTACAO`, `DICIONARIO_DE_DADOS`, `API`, `OUTRO`), `tamanho`, `dataUltimaAtualizacaoArquivo`, `nomeArquivo` |
+| `periodiciade` | `periodicidade`, já padronizada: `DIARIA`, `SEMANAL`, `QUINZENAL`, `MENSAL`, `TRIMESTRAL`, `QUADRIMESTRAL`, `SEMESTRAL`, `ANUAL`, `SOB_DEMANDA`, `OUTRAS`, `INVALIDO` |
+| `maintainer` | `responsavel` e `emailResponsavel` |
+
+Outros campos do detalhe: `organizacao`, `atualizado`, `descontinuado`, `dataUltimaAtualizacaoArquivo`, `dataUltimaAtualizacaoMetadados`, `dataCatalogacao`, `selo`, `origemCadastro`.
+
+No papel, a API oficial atende aos três critérios e a periodicidade já vem padronizada. A confirmação depende do teste com chave.
 
 ## Endpoints observados
 

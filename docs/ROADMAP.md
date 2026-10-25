@@ -35,7 +35,7 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 ## Checklist
 
 - [x] Validação (24/10/2026): ver [VALIDACAO.md](VALIDACAO.md)
-- [ ] Fase 0: Ambiente
+- [x] Fase 0: Ambiente
 - [ ] Fase 1: Inventário
 - [ ] Fase 2: Saúde dos links e motor diário
 - [ ] Fase 3: Conteúdo (hash e schema)
@@ -55,7 +55,7 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 **Objetivo:** ter o esqueleto do projeto rodando no seu computador, sem custo e sem servidor.
 
 **Tarefas**
-1. Crie um ambiente virtual Python (`python3 -m venv .venv`) e um `requirements.txt` com versões fixadas. Comece pequeno: `duckdb`, um cliente HTTP (`httpx` ou `requests`) e `pytest`.
+1. Crie um ambiente virtual Python (`python -m venv .venv`) e um `requirements.txt` com versões fixadas. Comece pequeno: `duckdb`, um cliente HTTP (`httpx` ou `requests`) e `pytest`.
 2. Crie a estrutura de pastas (sugestão):
    ```text
    clock-in/
@@ -75,9 +75,16 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 
 **Entregável:** `requirements.txt`, estrutura de pastas, `.gitignore` atualizado, primeiro script lendo CSV e gravando Parquet com DuckDB.
 
-**Pronto quando:** em um computador novo, `python3 -m venv .venv`, instalar o `requirements.txt` e rodar o script de teste funciona sem erro.
+**Pronto quando:** em um computador novo, `python -m venv .venv`, instalar o `requirements.txt` e rodar o script de teste funciona sem erro.
 
 **Estude:** `venv` (https://docs.python.org/3/library/venv.html), DuckDB com Python (https://duckdb.org/docs/api/python/overview), Parquet com DuckDB (https://duckdb.org/docs/data/parquet/overview).
+
+**Concluída em 25/10/2026.** O que foi feito:
+- Python 3.12, `requirements.txt` com todas as versões fixadas (`duckdb` 2.0.0, `httpx` 0.28.1, `pytest` 9.1.1 e dependências). Decisão 19.
+- Pastas criadas; as vazias têm `.gitkeep` para entrarem no Git. `.gitignore` corrigido de `data/` para `dados/`.
+- `coletor/teste_duckdb.py`: lê o censo, conta por `portal_diz_atualizado` (319 `true`, 19.283 `false`, iguais ao [VALIDACAO.md](VALIDACAO.md)) e grava `dados/teste/contagem.parquet`.
+- Tarefa 5 (atalhos) adiada: os comandos estão na seção "Como rodar" do README. Decisão 20.
+- Teste do "computador novo" feito: venv apagado, recriado e script rodando sem erro.
 
 ---
 

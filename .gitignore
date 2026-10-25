@@ -13,7 +13,7 @@ package-lock.json
 
 # Dados brutos e grandes
 validacao/dados/
-data/
+dados/
 *.parquet
 *.dump
 
