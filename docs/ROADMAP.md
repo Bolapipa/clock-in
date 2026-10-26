@@ -185,7 +185,11 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 
 **Decidido em 26/10/2026 (decisões 26 e 27):** só entram links com `formato_tabular = true` e sem estado quebrado, em rodízio de 7 dias (cerca de 12.000 downloads por dia, os mais antigos primeiro). O limite de tamanho por arquivo (decisão 15) será calibrado com uma amostra de `Content-Length` antes de escrever o downloader.
 
-**Feito em 26/10/2026 (parte 1, sem rede):** `coletor/conteudo.py` calcula o hash SHA-256, o tamanho e o schema de um arquivo local. O schema é lido pelo DuckDB para CSV, TXT, JSON e PARQUET, tentando UTF-8 e depois Latin-1; os demais formatos (XLSX, XLS, ODS, XML) ficam só com o hash por enquanto. Testes em `tests/test_conteudo.py`. Falta o downloader, o estado `conteudo_atual` e a Silver de versões e mudanças de schema.
+**Feito em 26/10/2026 (parte 1, sem rede):** `coletor/conteudo.py` calcula o hash SHA-256, o tamanho e o schema de um arquivo local. O schema é lido pelo DuckDB para CSV, TXT, JSON e PARQUET, tentando UTF-8 e depois Latin-1; os demais formatos (XLSX, XLS, ODS, XML) ficam só com o hash por enquanto. Testes em `tests/test_conteudo.py`.
+
+**Feito em 26/10/2026 (parte 2, sem rede):** `coletor/conteudo_estado.py` guarda o estado do conteúdo por link (`estado/conteudo_atual`) e detecta a mudança de conteúdo e de estrutura entre duas leituras, com as datas de cada uma. Testes em `tests/test_conteudo_estado.py`.
+
+**Feito em 26/10/2026 (parte 3, sem rede):** `coletor/silver_conteudo.py` gera `silver/versao_conteudo` (arquivos lidos no dia, com `mudou_conteudo` e `mudou_schema`) e `silver/mudanca_schema` (coluna adicionada, removida, de tipo alterado, renomeada provável ou em outra ordem). Testes em `tests/test_silver_conteudo.py`. Falta o downloader, o rodízio de 7 dias e a data máxima do conteúdo.
 
 **Entregável:** tabelas de versões de conteúdo e de mudanças de schema.
 
