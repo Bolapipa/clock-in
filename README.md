@@ -130,6 +130,7 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | Comando | O que faz |
 |---|---|
 | `python coletor/motor.py` | Execução do dia, em ordem e com a mesma data: listagem, painel da CGU, detalhe, Silver, teste de links e Silver dos links |
+| `python coletor/motor.py --tempo-maximo 330` | Igual ao anterior, mas o teste de links para a tempo de o motor caber em 330 minutos (o que faltou fica para o dia seguinte) |
 | `python coletor/motor.py --desde detalhe` | Retoma o motor a partir de um passo (`lista`, `painel`, `detalhe`, `silver`, `links` ou `silver_links`) |
 | `python coletor/catalogo_lista.py --max-paginas 5` | Teste rápido: coleta 5 páginas da listagem (não sobrescreve a listagem que já existe no dia) |
 | `python coletor/catalogo_lista.py` | Coleta a listagem inteira para a Bronze (cerca de 40 minutos); recusa uma listagem com menos de 95% das bases da anterior |
@@ -142,6 +143,7 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/silver.py` | Gera a Silver (`base`, `recurso` e `publicador`) a partir da Bronze do dia |
 | `python coletor/links.py --max-links 200` | Teste de links com uma amostra de 200 (precisa da Silver do dia; use `silver.py` antes) |
 | `python coletor/links.py` | Testa os links dos recursos: um por vez em cada servidor, vários servidores em paralelo, no máximo 5.000 links por servidor por dia |
+| `python coletor/links.py --tempo-maximo 90` | Igual ao anterior, mas para depois de 90 minutos; os links que faltaram são os primeiros do dia seguinte |
 | `python coletor/silver_links.py` | Gera a Silver da saúde dos links (`link_status` e `base_saude`) depois do `links.py` |
 | `python coletor/nuvem.py baixar` / `subir` / `historico` | Estado e histórico nos releases do GitHub (usados pelo workflow `motor-diario.yml`; precisam do `gh` com login) |
 | `pytest -v` | Roda os testes automáticos |
