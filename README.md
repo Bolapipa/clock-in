@@ -44,7 +44,7 @@ fontes ──▶ │ Bronze: catálogo + respostas cruas ─▶ Silver: padroniz
                                                  │           │
                                                  ▼           ▼
                                           Site público    Alertas
-                                     (base, órgão, ranking) (e-mail, RSS, webhook)
+                                     (base, órgão, ranking)   (RSS, webhook)
 ```
 
 Ordem de construção: **validação → motor → API → site → alertas**. O site usa a própria API, então a lógica de "qual o status desta base" é escrita uma vez só.
@@ -59,7 +59,7 @@ Ordem de construção: **validação → motor → API → site → alertas**. O
 | Fora do ar | Nenhum link funciona |
 | Não verificável | Não há como saber (só página HTML, sem arquivo) |
 
-O prazo esperado vem da periodicidade declarada **ou**, quando não há (69% dos casos), do ritmo observado no histórico da própria base.
+O prazo esperado vem da periodicidade declarada **ou**, quando não há (70% das bases, medido no catálogo completo), do ritmo observado no histórico da própria base.
 
 ## Como rodar
 
@@ -89,18 +89,18 @@ O coletor precisa da chave da API do dados.gov.br no arquivo `.env` (linha `CHAV
 
 ## Roadmap
 
-| Fase | Entrega |
-|---|---|
-| 0 | Ambiente: Python, DuckDB, estrutura do projeto |
-| 1 | Inventário: coletor do catálogo do dados.gov.br (Bronze) |
-| 2 | Saúde dos links e motor diário no GitHub Actions |
-| 3 | Conteúdo: hash e schema de cada arquivo |
-| 4 | Atualização real: prazo esperado e status de cada base |
-| 5 | Modelo Gold: histórico, nota e ranking por órgão |
-| 6 | API estática (JSON gerado pelo motor) |
-| 7 | Site público |
-| 8 | Alertas |
-| 9 | Lançamento e impacto |
+| Fase | Entrega | Situação |
+|---|---|---|
+| 0 | Ambiente: Python, DuckDB, estrutura do projeto | Concluída |
+| 1 | Inventário: catálogo do dados.gov.br e painel da CGU (Bronze e Silver), publicador real de cada base | Concluída |
+| 2 | Saúde dos links e motor diário no GitHub Actions | Próxima |
+| 3 | Conteúdo: hash e schema de cada arquivo | |
+| 4 | Atualização real: prazo esperado e status de cada base | |
+| 5 | Modelo Gold: histórico, nota e ranking por órgão | |
+| 6 | API estática (JSON gerado pelo motor) | |
+| 7 | Site público | |
+| 8 | Alertas | |
+| 9 | Lançamento e impacto | |
 
 Guia completo, com tarefas, critério de pronto e o que estudar: [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -112,15 +112,13 @@ Guia completo, com tarefas, critério de pronto e o que estudar: [docs/ROADMAP.m
 | [docs/PESQUISA.md](docs/PESQUISA.md) | O que já existe, o que cada um não faz, fontes |
 | [docs/VALIDACAO.md](docs/VALIDACAO.md) | Método e resultados da validação |
 | [docs/ARQUITETURA.md](docs/ARQUITETURA.md) | Modelo de dados (Bronze, Silver, Gold), regras de status, API estática e alertas |
-| [docs/API_DADOS_GOV.md](docs/API_DADOS_GOV.md) | Como a API do dados.gov.br funciona (descoberto na validação) |
+| [docs/API_DADOS_GOV.md](docs/API_DADOS_GOV.md) | Como a API do dados.gov.br funciona: a oficial (usada pelo coletor) e a do site (usada na validação) |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Guia fase por fase |
 | [docs/DECISOES.md](docs/DECISOES.md) | Registro de decisões técnicas |
-| [CONTINUAR.md](CONTINUAR.md) | Como retomar o trabalho em outro computador ou em outro chat |
 
 ## Regras do projeto
 
 - **Custo zero:** gratuito para quem constrói e para quem usa. Sem servidor, sem banco hospedado, sem serviço pago. Detalhes no [roadmap](docs/ROADMAP.md#princípio-custo-zero).
-- O código do produto é escrito por mim, fase por fase. O roadmap diz **o que** fazer e **onde estudar**.
 - Coleta educada: pausas entre requisições, identificação no User-Agent, nada de sobrecarregar servidores públicos.
 - Ser justo no ranking: separar "não verificável" de "desatualizado" e publicar a regra.
 
@@ -134,6 +132,10 @@ Guia completo, com tarefas, critério de pronto e o que estudar: [docs/ROADMAP.m
 | API | Arquivos JSON estáticos gerados pelo motor |
 | Site | HTML, CSS e JavaScript na Vercel (plano Hobby) |
 | Alertas | RSS e webhook |
+
+## Licença
+
+Código sob a licença [MIT](LICENSE): pode ser usado, copiado e adaptado livremente, mantendo o aviso de autoria.
 
 ---
 

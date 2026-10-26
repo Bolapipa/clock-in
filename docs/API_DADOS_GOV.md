@@ -1,8 +1,8 @@
 # Como a API do dados.gov.br funciona
 
-Notas técnicas descobertas durante a validação (24/10/2026), observando as chamadas que o próprio site faz. **Não é documentação oficial**: confirme antes de depender disso e espere mudanças.
+Há duas APIs. O coletor do Clock-in usa a **API oficial com chave** (decisão 12, seção "API oficial" abaixo). A **API pública do site** foi usada só na validação de 24/10/2026; as notas sobre ela foram descobertas observando as chamadas que o próprio site faz e **não são documentação oficial**.
 
-## Acesso
+## Acesso (API pública do site, usada na validação)
 
 - O site usa endpoints em `https://dados.gov.br/api/publico/...`.
 - Chamadas feitas **fora do navegador** (curl, requests) receberam **401**. Dentro de uma página aberta do dados.gov.br, as mesmas chamadas funcionam: o site obtém uma sessão anônima ao carregar.

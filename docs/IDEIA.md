@@ -51,7 +51,7 @@ Disponibilidade do nome (24/10/2026): `clock-in` livre no PyPI. `clockin` (sem h
 | Formato mudou? | Ninguém faz | Diff de colunas e tipos entre coletas |
 | Conteúdo mudou? | stavangerparking (Noruega) | Hash do arquivo a cada coleta |
 | Nota por órgão | Índice da Open Knowledge Brasil, mqa-monitor (Itália), nota de Toronto | Contínua e automática |
-| Alertas | Ninguém faz | E-mail, RSS e webhook por base seguida |
+| Alertas | Ninguém faz | RSS e webhook por base seguida (e-mail fica para depois, decisão 18) |
 
 **Diferencial central:** medir a verdade pelo **conteúdo**, não pelo metadado declarado. Metadados, `Last-Modified` e `ETag` enganam; hash e datas dentro do arquivo não.
 

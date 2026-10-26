@@ -7,7 +7,7 @@ Cada fase tem:
 - **Pronto quando:** como saber que a fase acabou.
 - **Estude:** conceitos e documentação.
 
-> Regra do projeto: você escreve todo o código. Este guia diz **o que** fazer e **onde pesquisar**, não **como** fazer.
+> Este guia diz **o que** fazer em cada fase e **onde pesquisar**.
 > Ao terminar cada fase: commit, atualizar o checklist abaixo e anotar decisões em [DECISOES.md](DECISOES.md).
 > Modelo de dados, tabelas por camada e regras de status: [ARQUITETURA.md](ARQUITETURA.md).
 
@@ -70,7 +70,7 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
    ```
 3. Coloque `dados/` e `.venv/` no `.gitignore`.
 4. Faça um primeiro teste com DuckDB: abrir o arquivo [`validacao/resultados/censo-2026-10-24.csv`](../validacao/resultados/censo-2026-10-24.csv), contar as bases por `portal_diz_atualizado` e gravar o resultado em Parquet dentro de `dados/`.
-5. Escreva um `Makefile` ou scripts simples para os comandos do dia a dia (rodar coletor, rodar testes).
+5. Escreva um `Makefile` ou scripts simples para os comandos do dia a dia (rodar coletor, rodar testes). (Substituída pela seção "Como rodar" do README; decisão 20.)
 6. Seção "Como rodar" no README.
 
 **Entregável:** `requirements.txt`, estrutura de pastas, `.gitignore` atualizado, primeiro script lendo CSV e gravando Parquet com DuckDB.
@@ -124,7 +124,7 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 
 **Pronto quando:** um comando coleta o catálogo inteiro (cerca de 19.600 bases) e a Silver tem uma linha por base e por recurso, com periodicidade normalizada e publicador real preenchido para a maioria.
 
-**Estude:** paginação de APIs, particionamento estilo Hive em Parquet, idempotência em pipelines, Playwright (https://playwright.dev/python/), boas práticas de coleta (robots.txt, rate limit).
+**Estude:** paginação de APIs, particionamento estilo Hive em Parquet, idempotência em pipelines, boas práticas de coleta (robots.txt, rate limit). (Playwright não foi necessário: a API oficial com chave funcionou.)
 
 ---
 
