@@ -183,6 +183,10 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 5. Procure colunas de data dentro do arquivo e guarde a **data mais recente do conteúdo**.
 6. Guarde só o necessário (hash, schema, data máxima, tamanho), não os arquivos inteiros: é o que mantém o projeto dentro dos limites gratuitos.
 
+**Decidido em 26/10/2026 (decisões 26 e 27):** só entram links com `formato_tabular = true` e sem estado quebrado, em rodízio de 7 dias (cerca de 12.000 downloads por dia, os mais antigos primeiro). O limite de tamanho por arquivo (decisão 15) será calibrado com uma amostra de `Content-Length` antes de escrever o downloader.
+
+**Feito em 26/10/2026 (parte 1, sem rede):** `coletor/conteudo.py` calcula o hash SHA-256, o tamanho e o schema de um arquivo local. O schema é lido pelo DuckDB para CSV, TXT, JSON e PARQUET, tentando UTF-8 e depois Latin-1; os demais formatos (XLSX, XLS, ODS, XML) ficam só com o hash por enquanto. Testes em `tests/test_conteudo.py`. Falta o downloader, o estado `conteudo_atual` e a Silver de versões e mudanças de schema.
+
 **Entregável:** tabelas de versões de conteúdo e de mudanças de schema.
 
 **Pronto quando:** você consegue dizer "a base X mudou de conteúdo em tal dia" e "a base Y perdeu a coluna Z em tal dia".
