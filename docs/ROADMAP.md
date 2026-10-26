@@ -138,6 +138,8 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 
 **Etapa B, feita em 26/10/2026 (pendência 2):** `portal.data_de_hoje()` calcula a data no fuso `America/Sao_Paulo` (pacote `tzdata`, necessário no Windows); todos os scripts aceitam `--data`; `coletor/motor.py` roda listagem, painel, detalhe e Silver em ordem, com a mesma data, para no primeiro passo obrigatório que falhar e permite retomar com `--desde`. Testes em `tests/test_motor.py` (50 no total).
 
+**Etapa C, feita em 26/10/2026 (pendência 3):** `coletor/catalogo_lista.py` recusa uma listagem com menos de 95% das bases da listagem anterior (`--aceitar-queda` libera uma queda real), recusa resposta que não é JSON ou não é uma lista e não deixa um teste com `--max-paginas` sobrescrever a listagem que já existe no dia. Testes novos em `tests/test_catalogo_lista.py` (59 no total). Com isso, as 5 pendências do review estão resolvidas.
+
 **Antes de começar: pendências do review de 26/10/2026**
 1. **Estado do detalhe no GitHub Actions:** a coleta incremental e a Silver leem todo o histórico de `bronze/catalogo_detalhe`, mas o release `estado-atual` (decisão 16) não o guarda. Sem isso, a primeira execução na nuvem trataria as 19.596 bases como novas (9 horas). Guardar um "detalhe atual" compacto (última versão bem-sucedida de cada base) no estado e fazer o coletor e a Silver lerem dele.
 2. **Data de referência única:** os scripts chamam `date.today()` separadamente, e o runner usa UTC. Calcular uma data só (fuso `America/Sao_Paulo`) num orquestrador e passá-la com `--data` a todos os scripts.

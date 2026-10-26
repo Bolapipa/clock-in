@@ -80,8 +80,9 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 
 | Comando | O que faz |
 |---|---|
-| `python coletor/catalogo_lista.py --max-paginas 5` | Teste rápido: coleta 5 páginas da listagem |
-| `python coletor/catalogo_lista.py` | Coleta a listagem inteira para a Bronze (cerca de 40 minutos) |
+| `python coletor/catalogo_lista.py --max-paginas 5` | Teste rápido: coleta 5 páginas da listagem (não sobrescreve a listagem que já existe no dia) |
+| `python coletor/catalogo_lista.py` | Coleta a listagem inteira para a Bronze (cerca de 40 minutos); recusa uma listagem com menos de 95% das bases da anterior |
+| `python coletor/catalogo_lista.py --aceitar-queda` | Igual ao anterior, mas aceita uma listagem bem menor (use só se a queda for real) |
 | `python coletor/catalogo_detalhe.py --max-bases 20` | Teste rápido: detalhe de 20 bases (precisa da listagem do dia) |
 | `python coletor/catalogo_detalhe.py --completo` | Carga inicial: detalhe de todas as bases (cerca de 9 horas; pode ser retomada) |
 | `python coletor/catalogo_detalhe.py` | Coleta diária: bases novas, alteradas e o rodízio do dia |

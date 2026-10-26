@@ -4,12 +4,18 @@ Percorre todas as páginas da listagem da API oficial e grava a
 resposta crua de cada página na Bronze, em Parquet:
 dados/bronze/catalogo_lista/data=AAAA-MM-DD/catalogo_lista.parquet
 
+Proteções: recusa uma listagem com menos de 95% das bases da listagem anterior
+(portal incompleto), recusa resposta que não é JSON e não deixa um teste com
+--max-paginas sobrescrever a listagem que já existe no dia.
+
 Uso:
     python coletor/catalogo_lista.py                  # catálogo inteiro (cerca de 40 min)
-    python coletor/catalogo_lista.py --max-paginas 5  # teste rápido
+    python coletor/catalogo_lista.py --max-paginas 5  # teste rápido (não sobrescreve a listagem do dia)
     python coletor/catalogo_lista.py --data 2026-10-26  # grava na partição de outro dia
+    python coletor/catalogo_lista.py --aceitar-queda  # aceita uma listagem bem menor que a anterior
 
 """
+
 
 
 import argparse
@@ -25,6 +31,55 @@ import portal
 LIMITE_PAGINAS = 5000
 
 
+# Uma listagem com menos que esta fração das bases da anterior é recusada
+MINIMO_VS_ANTERIOR = 0.95
+
+
+def arquivo_da_listagem(data):
+    """Caminho do arquivo da listagem de um dia na Bronze."""
+    return portal.RAIZ / "dados" / "bronze" / "catalogo_lista" / f"data={data}" / "catalogo_lista.parquet"
+
+
+def listagem_anterior(data_coleta):
+    """Devolve (data, total de bases) da listagem mais recente anterior a data_coleta, ou None."""
+    pasta = portal.RAIZ / "dados" / "bronze" / "catalogo_lista"
+    datas = sorted(
+        date.fromisoformat(pasta_dia.name.removeprefix("data="))
+        for pasta_dia in pasta.glob("data=*")
+        if (pasta_dia / "catalogo_lista.parquet").exists()
+    )
+    anteriores = [data for data in datas if data < data_coleta]
+    if not anteriores:
+        return None
+
+    ultima = anteriores[-1]
+    total = duckdb.sql(f"SELECT SUM(qtd_registros) FROM '{arquivo_da_listagem(ultima).as_posix()}'").fetchall()[0][0]
+    return ultima, total
+
+
+def conferir_tamanho(total, data_coleta):
+    """Encerra o script se a listagem tem bem menos bases que a anterior."""
+    anterior = listagem_anterior(data_coleta)
+    if anterior is None:
+        return
+
+    data_anterior, total_anterior = anterior
+    if total < MINIMO_VS_ANTERIOR * total_anterior:
+        sys.exit(f"Listagem com {total} bases, menos de {MINIMO_VS_ANTERIOR:.0%} das {total_anterior} de {data_anterior}. "
+                 "O portal pode estar incompleto. Nada foi gravado. "
+                 "Se a queda for real, rode de novo com --aceitar-queda.")
+
+
+def ler_registros(resposta, pagina):
+    """Lê o JSON de uma página e confere que é uma lista de bases."""
+    try:
+        registros = resposta.json()
+    except ValueError:
+        sys.exit(f"Página {pagina}: a resposta não é JSON ({resposta.text[:100]!r}). Nada foi gravado.")
+    if not isinstance(registros, list):
+        sys.exit(f"Página {pagina}: esperava uma lista de bases, veio {type(registros).__name__}. Nada foi gravado.")
+    return registros
+
 def buscar_pagina(cliente, pagina):
     """Busca uma página da listagem; encerra o script se ela falhar de vez."""
     try:
@@ -36,9 +91,9 @@ def buscar_pagina(cliente, pagina):
 def gravar_bronze(linhas, data_coleta):
     """Grava as páginas coletadas em Parquet, na partição do dia."""
     # Partição estilo Hive: uma pasta por data de coleta
-    pasta = portal.RAIZ / "dados" / "bronze" / "catalogo_lista" / f"data={data_coleta}"
-    pasta.mkdir(parents=True, exist_ok=True)
-    arquivo = pasta / "catalogo_lista.parquet"
+    arquivo = arquivo_da_listagem(data_coleta)
+    arquivo.parent.mkdir(parents=True, exist_ok=True)
+
 
     con = duckdb.connect()
 
@@ -61,15 +116,21 @@ def gravar_bronze(linhas, data_coleta):
 
 
 def main():
-    # Lê os parâmetros opcionais --max-paginas e --data
+    # Lê os parâmetros opcionais
     parser = argparse.ArgumentParser(description="Coleta a listagem do catálogo do dados.gov.br")
     parser.add_argument("--max-paginas", type=int, help="para depois de N páginas (teste)")
     parser.add_argument("--data", type=date.fromisoformat, help="data da coleta (AAAA-MM-DD); padrão: hoje em Brasília")
+    parser.add_argument("--aceitar-queda", action="store_true", help="aceita uma listagem bem menor que a anterior")
     args = parser.parse_args()
     limite = args.max_paginas or LIMITE_PAGINAS
 
     # Data da coleta: define a partição do dia
     data_coleta = args.data or portal.data_de_hoje()
+
+    # Um teste parcial nunca sobrescreve a listagem que já existe no dia
+    if args.max_paginas and arquivo_da_listagem(data_coleta).exists():
+        sys.exit(f"Já existe uma listagem de {data_coleta}. Um teste com --max-paginas não a sobrescreve; "
+                 "use outra --data.")
 
     linhas = []
     inicio = time.perf_counter()
@@ -84,7 +145,7 @@ def main():
                 sys.exit(f"Página {pagina}: HTTP {resposta.status_code}\n{resposta.text[:300]}")
 
             # Lista vazia: passou da última página
-            registros = resposta.json()
+            registros = ler_registros(resposta, pagina)
             if not registros:
                 chegou_ao_fim = True
                 break
@@ -107,6 +168,11 @@ def main():
 
     if not linhas:
         sys.exit("Nenhuma página coletada. Nada foi gravado.")
+        
+    # Listagem completa: confere o tamanho contra a anterior antes de gravar
+    if not args.max_paginas and not args.aceitar_queda:
+        conferir_tamanho(sum(linha[2] for linha in linhas), data_coleta)
+
 
     arquivo = gravar_bronze(linhas, data_coleta)
 
