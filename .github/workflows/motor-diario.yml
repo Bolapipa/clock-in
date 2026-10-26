@@ -73,7 +73,7 @@ jobs:
         env:
           DATA: ${{ steps.data.outputs.data }}
           DESDE: ${{ inputs.desde || 'lista' }}
-        run: python coletor/motor.py --data "$DATA" --desde "$DESDE"
+        run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --tempo-maximo 330
 
       # Os dois passos abaixo rodam mesmo se o motor falhar no meio: o que já foi coletado
       # não se perde, e o dia seguinte continua de onde parou

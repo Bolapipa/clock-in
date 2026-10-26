@@ -22,6 +22,7 @@ Um link está quebrado com 3 falhas seguidas em dias diferentes (decisão 14).
 Uso:
     python coletor/links.py                    # links do dia, a partir da Silver (recurso)
     python coletor/links.py --max-links 200    # teste com uma amostra
+    python coletor/links.py --tempo-maximo 90  # para depois de 90 minutos; o que faltou fica para o dia seguinte
     python coletor/links.py --data 2026-10-26  # usa a Silver de outro dia (retoma o dia)
 """
 
@@ -283,12 +284,18 @@ def gravar_lote(linhas, data):
     return arquivo
 
 
-async def executar(por_servidor, data):
-    """Testa os links: um por vez em cada servidor, vários servidores em paralelo."""
+async def executar(por_servidor, data, limite_segundos=None):
+    """Testa os links: um por vez em cada servidor, vários servidores em paralelo.
+
+    Com limite_segundos, para de começar testes novos quando o tempo acaba. Os links que
+    ficaram sem teste não entram no estado e voltam primeiro no dia seguinte.
+    Devolve quantos links foram testados.
+    """
     total = sum(len(links) for links in por_servidor.values())
     buffer = []
     feitos = 0
     inicio = time.perf_counter()
+    prazo = None if limite_segundos is None else inicio + limite_segundos
     semaforo = asyncio.Semaphore(SERVIDORES_SIMULTANEOS)
 
     async with criar_cliente() as cliente:
@@ -298,6 +305,10 @@ async def executar(por_servidor, data):
             async with semaforo:
                 falhas_de_rede = 0
                 for link in links:
+                    # O tempo acabou: este servidor para aqui (um teste em andamento termina normalmente)
+                    if prazo is not None and time.perf_counter() >= prazo:
+                        return
+
                     # Servidor que falhou várias vezes seguidas: não espera mais timeouts, só registra a falha
                     desistiu = falhas_de_rede >= FALHAS_DE_REDE_PARA_DESISTIR
                     if desistiu:
@@ -325,6 +336,8 @@ async def executar(por_servidor, data):
             # Mesmo interrompido, grava o que já foi testado
             if buffer:
                 gravar_lote(list(buffer), data)
+
+    return feitos
 
 
 def aplicar_dia(con, data):
@@ -424,6 +437,7 @@ def main():
     parser = argparse.ArgumentParser(description="Testa a saúde dos links dos recursos")
     parser.add_argument("--data", type=date.fromisoformat, help="data da execução (AAAA-MM-DD); padrão: hoje em Brasília")
     parser.add_argument("--max-links", type=int, help="testa só uma amostra de N links (teste)")
+    parser.add_argument("--tempo-maximo", type=float, help="para de testar depois de N minutos (o que faltou fica para o dia seguinte)")
     args = parser.parse_args()
 
     data = args.data or portal.data_de_hoje()
@@ -437,10 +451,16 @@ def main():
     horas = maior * (PAUSA_POR_SERVIDOR + 0.3) / 3600
     print(f"{total} links em {len(por_servidor)} servidores; o maior tem {maior}; estimativa {horas:.1f} h", flush=True)
 
-    asyncio.run(executar(por_servidor, data))
+    limite = None if args.tempo_maximo is None else args.tempo_maximo * 60
+    feitos = asyncio.run(executar(por_servidor, data, limite))
+    if feitos < total:
+        print(f"\nTempo máximo de {args.tempo_maximo:.0f} min atingido: {feitos} de {total} links testados. "
+              "Os demais ficam para o dia seguinte (os nunca testados e os testados há mais tempo vão primeiro).")
     atualizar_estado(data)
 
-    resumo(data)
+    # Sem nenhum teste feito hoje (o tempo acabou antes do primeiro), não há o que resumir
+    if feitos:
+        resumo(data)
     print(f"\nEstado atualizado: {arquivo_estado()}")
 
 

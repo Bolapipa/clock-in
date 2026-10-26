@@ -5,6 +5,7 @@ Nenhum teste acessa a internet: os servidores são simulados com o MockTransport
 
 import asyncio
 import sys
+import time
 from datetime import date, datetime
 
 import duckdb
@@ -301,6 +302,58 @@ def test_desiste_do_servidor_depois_de_falhas_de_rede_seguidas(monkeypatch):
     tipos = dict(duckdb.sql(f"SELECT erro_tipo, COUNT(*) FROM '{pasta}' GROUP BY 1").fetchall())
     assert tipos == {"TIMEOUT": 3, "SERVIDOR_FORA": 7}
     assert all(linha["falhas_seguidas"] == 1 for linha in ler_estado().values())
+
+
+def test_para_quando_o_tempo_maximo_acaba(monkeypatch):
+    chamadas = []
+
+    def responder(requisicao):
+        chamadas.append(requisicao.url)
+        # Cada teste leva 0,3 s, mais que o limite de 0,2 s
+        time.sleep(0.3)
+        return httpx.Response(200)
+
+    gravar_silver(DIA_1, [f"https://a.gov.br/{i}" for i in range(5)])
+    monkeypatch.setattr(links, "criar_cliente", lambda: cliente_falso(responder))
+
+    feitos = asyncio.run(links.executar(links.selecionar(DIA_1), DIA_1, limite_segundos=0.2))
+
+    # O primeiro teste começou dentro do prazo e terminou; o segundo nem começou
+    assert feitos == 1
+    assert len(chamadas) == 1
+    # O que foi testado ficou gravado
+    pasta = (links.pasta_tentativas() / f"data={DIA_1}" / "*.parquet").as_posix()
+    assert duckdb.sql(f"SELECT COUNT(*) FROM '{pasta}'").fetchall()[0][0] == 1
+
+
+def test_tempo_maximo_zero_nao_testa_nada_e_nao_quebra(monkeypatch):
+    chamadas = []
+
+    def responder(requisicao):
+        chamadas.append(requisicao.url)
+        return httpx.Response(200)
+
+    gravar_silver(DIA_1, ["https://a.gov.br/1", "https://a.gov.br/2"])
+    monkeypatch.setattr(links, "criar_cliente", lambda: cliente_falso(responder))
+    monkeypatch.setattr(sys, "argv", ["links.py", "--data", str(DIA_1), "--tempo-maximo", "0"])
+
+    links.main()
+
+    # Nenhuma chamada, nenhuma tentativa gravada e o comando termina sem erro
+    assert chamadas == []
+    assert not (links.pasta_tentativas() / f"data={DIA_1}").exists()
+
+
+def test_link_sem_teste_por_falta_de_tempo_volta_no_dia_seguinte(monkeypatch):
+    gravar_silver(DIA_2, ["https://a.gov.br/testado", "https://a.gov.br/ficou"])
+    tentativa("https://a.gov.br/testado", DIA_1, 200)
+    links.atualizar_estado(DIA_1)
+    monkeypatch.setattr(links, "MAX_POR_SERVIDOR", 1)
+
+    escolhidos = links.selecionar(DIA_2)
+
+    # Com uma vaga só, vai o que nunca foi testado
+    assert escolhidos == {"a.gov.br": ["https://a.gov.br/ficou"]}
 
 
 def test_erro_de_um_link_nao_faz_desistir_do_servidor(monkeypatch):

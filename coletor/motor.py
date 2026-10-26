@@ -15,6 +15,7 @@ O painel é opcional: se falhar, a Silver usa o último cronograma coletado.
 
 Uso:
     python coletor/motor.py                                   # execução do dia
+    python coletor/motor.py --tempo-maximo 330                # o teste de links para a tempo de caber em 330 min
     python coletor/motor.py --desde detalhe                   # retoma a partir de um passo
     python coletor/motor.py --data 2026-10-26 --desde silver  # retoma um dia anterior
 """
@@ -40,10 +41,20 @@ PASSOS = [
     ("silver_links", "silver_links.py", True),
 ]
 
-def rodar_passo(script, data):
+# Passos que sabem parar sozinhos quando o tempo acaba: recebem --tempo-maximo
+PASSOS_COM_TEMPO = ("links.py",)
+
+# Minutos do orçamento reservados para o que vem depois do teste de links (Silver dos links)
+RESERVA_FINAL_MINUTOS = 15
+
+# Menos que isto de tempo sobrando e o passo nem começa
+TEMPO_MINIMO_DO_PASSO = 1
+
+
+def rodar_passo(script, data, extras=()):
     """Roda um script do coletor com a data do dia e devolve o código de saída (0 = sucesso)."""
     # sys.executable é o Python que está rodando o motor (o do .venv)
-    comando = [sys.executable, str(PASTA_COLETOR / script), "--data", str(data)]
+    comando = [sys.executable, str(PASTA_COLETOR / script), "--data", str(data), *extras]
     return subprocess.run(comando).returncode
 
 
@@ -52,6 +63,7 @@ def main():
     parser = argparse.ArgumentParser(description="Motor diário do Clock-in")
     parser.add_argument("--data", type=date.fromisoformat, help="data da execução (AAAA-MM-DD); padrão: hoje em Brasília")
     parser.add_argument("--desde", choices=nomes, default=nomes[0], help="começa a partir deste passo (para retomar)")
+    parser.add_argument("--tempo-maximo", type=float, help="orçamento total do motor, em minutos: o teste de links para a tempo de caber")
     args = parser.parse_args()
 
     # A data é decidida uma vez só e vale para todos os passos
@@ -60,13 +72,26 @@ def main():
     print(f"Motor do dia {data}: passos {', '.join(nomes[primeiro:])}", flush=True)
 
     avisos = []
+    pulados = []
     inicio_motor = time.perf_counter()
 
     for nome, script, obrigatorio in PASSOS[primeiro:]:
         # flush: mostra a linha antes da saída do script, que vem de outro processo
         print(f"\n=== {nome} ({script}) ===", flush=True)
+
+        # Com orçamento de tempo, o passo recebe o que sobrou, menos a reserva para o que vem depois
+        extras = []
+        if args.tempo_maximo is not None and script in PASSOS_COM_TEMPO:
+            restante = args.tempo_maximo - (time.perf_counter() - inicio_motor) / 60 - RESERVA_FINAL_MINUTOS
+            if restante < TEMPO_MINIMO_DO_PASSO:
+                print(f"=== {nome}: sem tempo no orçamento de {args.tempo_maximo:.0f} min; pulado ===", flush=True)
+                pulados.append(nome)
+                continue
+            extras = ["--tempo-maximo", f"{restante:.1f}"]
+
         inicio = time.perf_counter()
-        codigo = rodar_passo(script, data)
+        # Sem extras, a chamada é a mesma de sempre
+        codigo = rodar_passo(script, data, extras) if extras else rodar_passo(script, data)
         minutos = (time.perf_counter() - inicio) / 60
 
         if codigo == 0:
@@ -82,6 +107,8 @@ def main():
     print(f"\nMotor concluído em {minutos:.1f} min")
     if avisos:
         print(f"Passos opcionais que falharam: {', '.join(avisos)}")
+    if pulados:
+        print(f"Passos pulados por falta de tempo: {', '.join(pulados)}")
 
 
 # Só executa quando o arquivo é rodado direto

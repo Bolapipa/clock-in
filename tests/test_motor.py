@@ -15,12 +15,17 @@ import portal
 DATA = date(2026, 10, 26)
 
 
-def motor_falso(monkeypatch, falham=(), argumentos=()):
-    """Troca rodar_passo por uma função falsa e devolve a lista de chamadas."""
+def motor_falso(monkeypatch, falham=(), argumentos=(), extras_recebidos=None):
+    """Troca rodar_passo por uma função falsa e devolve a lista de chamadas.
+
+    Se extras_recebidos for um dicionário, nele fica anotado o que cada script recebeu além da data.
+    """
     chamadas = []
 
-    def rodar_passo(script, data):
+    def rodar_passo(script, data, extras=()):
         chamadas.append((script, data))
+        if extras_recebidos is not None:
+            extras_recebidos[script] = list(extras)
         # Código 1 para os scripts que devem falhar, 0 para os outros
         return 1 if script in falham else 0
 
@@ -80,6 +85,56 @@ def test_desde_retoma_a_partir_de_um_passo(monkeypatch):
     motor.main()
 
     assert [script for script, _ in chamadas] == ["catalogo_detalhe.py", "silver.py", "links.py", "silver_links.py"]
+
+
+def test_sem_orcamento_de_tempo_nenhum_passo_recebe_extras(monkeypatch):
+    extras = {}
+    motor_falso(monkeypatch, extras_recebidos=extras)
+
+    motor.main()
+
+    assert all(recebidos == [] for recebidos in extras.values())
+
+
+def test_orcamento_de_tempo_chega_so_ao_teste_de_links(monkeypatch):
+    extras = {}
+    motor_falso(monkeypatch, argumentos=["--tempo-maximo", "100"], extras_recebidos=extras)
+
+    motor.main()
+
+    # Quase todo o orçamento, menos a reserva de 15 minutos para o que vem depois
+    assert extras["links.py"][0] == "--tempo-maximo"
+    assert 84 < float(extras["links.py"][1]) <= 85
+    assert extras["catalogo_lista.py"] == []
+    assert extras["silver_links.py"] == []
+
+
+def test_sem_tempo_o_teste_de_links_e_pulado_e_o_resto_continua(monkeypatch):
+    # O orçamento de 10 minutos é menor que a reserva: sobra menos de 1 minuto para os links
+    chamadas = motor_falso(monkeypatch, argumentos=["--tempo-maximo", "10"])
+
+    motor.main()
+
+    scripts = [script for script, _ in chamadas]
+    assert "links.py" not in scripts
+    assert scripts[-1] == "silver_links.py"
+
+
+def test_rodar_passo_passa_os_extras_ao_script(monkeypatch):
+    comandos = []
+
+    class Resultado:
+        returncode = 0
+
+    def run(comando):
+        comandos.append(comando)
+        return Resultado()
+
+    monkeypatch.setattr(motor.subprocess, "run", run)
+
+    motor.rodar_passo("links.py", DATA, ["--tempo-maximo", "90.0"])
+
+    assert comandos[0][2:] == ["--data", "2026-10-26", "--tempo-maximo", "90.0"]
 
 
 def test_rodar_passo_passa_a_data_para_o_script(monkeypatch):
