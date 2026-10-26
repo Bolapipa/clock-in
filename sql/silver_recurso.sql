@@ -25,6 +25,37 @@ recursos AS (
     SELECT d.id AS id_base, b.data_coleta, unnest(from_json(d.payload -> 'recursos', '["json"]')) AS r
     FROM detalhe d
     JOIN bases_do_dia b USING (id)
+),
+
+-- Formato sem ruído de digitação: tira o prefixo "FILE:///APP/FTYPE/", pontos e
+-- asteriscos nas pontas, e troca espaços por "+" ("ZIP SHP" e "ZIP + XML" viram "ZIP+SHP" e "ZIP+XML")
+formatos AS (
+    SELECT
+        r,
+        id_base,
+        data_coleta,
+        upper(trim(r ->> 'formato')) AS formato,
+        NULLIF(
+            replace(replace(
+                regexp_replace(
+                    regexp_replace(upper(trim(r ->> 'formato')), '^FILE:///APP/FTYPE/', ''),
+                    '^[.*´]+|[.]+$', '', 'g'),
+                ' + ', '+'), ' ', '+'),
+            ''
+        ) AS formato_sem_ruido
+    FROM recursos
+),
+
+-- Erros de digitação comuns, corrigidos um a um (só os que têm um único sentido possível)
+formatos_corrigidos AS (
+    SELECT
+        *,
+        CASE formato_sem_ruido
+            WHEN 'CVS'  THEN 'CSV'
+            WHEN 'XLXS' THEN 'XLSX'
+            ELSE formato_sem_ruido
+        END AS formato_limpo
+    FROM formatos
 )
 
 SELECT
@@ -32,10 +63,13 @@ SELECT
     id_base,
     r ->> 'titulo'  AS titulo,
     trim(r ->> 'link') AS link,
-    upper(trim(r ->> 'formato')) AS formato,
+    formato,
+    formato_limpo,
+    -- Formatos que o motor consegue ler e comparar na Fase 3 (hash e schema)
+    coalesce(formato_limpo IN ('CSV', 'JSON', 'XLSX', 'XLS', 'XML', 'TXT', 'ODS', 'PARQUET'), false) AS formato_tabular,
     r ->> 'tipo'    AS tipo,
     CAST(try_strptime(r ->> 'dataUltimaAtualizacaoArquivo', '%d/%m/%Y') AS DATE) AS data_ultima_atualizacao_arquivo,
     CAST(try_strptime(r ->> 'dataCatalogacao', '%d/%m/%Y') AS DATE) AS data_catalogacao,
     data_coleta
-FROM recursos
+FROM formatos_corrigidos
 ORDER BY id_base, recurso_id

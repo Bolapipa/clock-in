@@ -112,6 +112,35 @@ def test_recursos_viram_uma_linha_por_link():
     assert recursos["r1"]["data_ultima_atualizacao_arquivo"] == date(2024, 1, 29)
     assert recursos["r2"]["data_ultima_atualizacao_arquivo"] is None
 
+def test_formato_limpo_corrige_ruido_e_erros_de_digitacao():
+    # (formato como vem do portal, formato_limpo esperado, é tabular?)
+    casos = [
+        ("csv", "CSV", True),
+        (".CSV", "CSV", True),
+        ("*CSV", "CSV", True),
+        ("CSV.", "CSV", True),
+        ("´PDF", "PDF", False),
+        ("CVS", "CSV", True),
+        ("XLXS", "XLSX", True),
+        ("FILE:///APP/FTYPE/JSON", "JSON", True),
+        ("ZIP SHP", "ZIP+SHP", False),
+        ("ZIP + XML", "ZIP+XML", False),
+        ("", None, False),
+        (None, None, False),
+    ]
+    recursos = [
+        {"id": f"r{i}", "link": f"https://x.gov.br/{i}", "formato": formato}
+        for i, (formato, _, _) in enumerate(casos)
+    ]
+    gravar_listagem([{"id": "a"}])
+    gravar_detalhe({"id": "a", "recursos": recursos})
+
+    silver_recursos = gerar_silver("recurso")
+
+    for i, (formato, limpo, tabular) in enumerate(casos):
+        linha = silver_recursos[f"r{i}"]
+        assert linha["formato_limpo"] == limpo, formato
+        assert linha["formato_tabular"] is tabular, formato
 
 def test_base_que_saiu_da_listagem_nao_gera_recursos():
     # A base "b" tem detalhe, mas não está mais na listagem do dia
