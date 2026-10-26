@@ -61,6 +61,7 @@ Conclusão: decisão 12 confirmada. A API oficial com chave substitui a API púb
 - Datas vêm como texto no formato brasileiro: `dd/mm/aaaa` (`coberturaTemporalInicio`, `dataCatalogacao` dos recursos) ou `dd/mm/aaaa hh:mm:ss` (`dataUltimaAtualizacaoMetadados`, `dataUltimaAtualizacaoArquivo`). A Silver precisa converter. O `ultimaAlteracaoMetadados` da listagem segue o mesmo formato.
 - `atualizado` vem como texto (`Atualizado`); `descontinuado` como booleano; `selo` como texto (`Bronze`...).
 - `periodicidade` nas 20 bases: `ANUAL` 7, `TRIMESTRAL` 3, `OUTRAS` 3, `SEMESTRAL` 2, `SOB_DEMANDA` 1, nula 4.
+- Na carga completa (19.596 bases), o detalhe falhou para 551 (2,8%) com `HTTP 400` e `{"Erro na API":"Erro ao executar a consulta"}`. São bases atribuídas à CGU com nome numérico, aparentemente importadas de outro catálogo.
 - Recursos: 111 nas 20 bases. O campo `tamanho` veio `0` mesmo com arquivo, então não serve como tamanho real; o tamanho será medido na Fase 2.
 
 ## Endpoints observados
