@@ -92,6 +92,7 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/links.py --max-links 200` | Teste de links com uma amostra de 200 (precisa da Silver do dia; use `silver.py` antes) |
 | `python coletor/links.py` | Testa os links dos recursos: um por vez em cada servidor, vários servidores em paralelo, no máximo 5.000 links por servidor por dia |
 | `python coletor/silver_links.py` | Gera a Silver da saúde dos links (`link_status` e `base_saude`) depois do `links.py` |
+| `python coletor/nuvem.py baixar` / `subir` / `historico` | Estado e histórico nos releases do GitHub (usados pelo workflow `motor-diario.yml`; precisam do `gh` com login) |
 | `python coletor/motor.py` | Execução do dia: listagem, painel, detalhe, Silver, teste de links e Silver dos links, em ordem e com a mesma data |
 | `python coletor/motor.py --desde detalhe` | Retoma o motor a partir de um passo (`lista`, `painel`, `detalhe`, `silver`, `links` ou `silver_links`) |
 | `pytest -v` | Roda os testes automáticos (sem chamar a API) |

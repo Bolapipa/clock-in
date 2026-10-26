@@ -43,12 +43,12 @@ Não há servidor de banco de dados. O "banco" são **arquivos Parquet em pastas
 | Job agendado | Workflow do GitHub Actions com `schedule` |
 | Unity Catalog | Organização por pastas (`bronze/`, `silver/`, `gold/`) |
 
-Persistência entre execuções (decisão 16): o GitHub Actions começa do zero a cada execução, então o estado precisa ser baixado no início e enviado no fim.
+Persistência entre execuções (decisão 16): o GitHub Actions começa do zero a cada execução, então o estado precisa ser baixado no início e enviado no fim. O workflow `.github/workflows/motor-diario.yml` faz isso: baixa o estado, roda o `motor.py` e sobe o estado e o histórico (estes dois mesmo se o motor falhar no meio). Por enquanto só roda quando disparado à mão; o agendamento diário (`schedule`) fica comentado no arquivo até algumas execuções darem certo.
 
 | Onde | O que guarda | Como |
 |---|---|---|
-| Release `estado-atual` | O mínimo para continuar amanhã: `estado/detalhe_atual.parquet` (última versão do detalhe de cada base, cerca de 36 MB), depois o último hash e schema por recurso e o contador de falhas por link | Sobrescrito todo dia (`gh release upload --clobber`) |
-| Release `historico-AAAA-MM` | Partições diárias do mês (Silver e Gold) | Um release por mês; até 2 GB por arquivo |
+| Release `estado-atual` | O mínimo para continuar amanhã, num arquivo `estado-AAAA-MM-DD.tar.gz` (cerca de 30 MB): `estado/detalhe_atual.parquet`, `estado/links_atual.parquet`, a última listagem do catálogo (para a conferência de tamanho) e o último cronograma da CGU (para o publicador). Depois entram o último hash e schema por recurso | Um arquivo novo por dia; ficam os 3 mais recentes, e os antigos só saem depois de o novo ser enviado, então uma falha no envio nunca apaga o último estado bom. Feito por `coletor/nuvem.py` |
+| Release `historico-AAAA-MM` | O que cada dia produziu, num arquivo `dia-AAAA-MM-DD.tar.gz`: Silver, tentativas de links, detalhes coletados e a listagem do dia (Gold quando existir) | Um release por mês; até 2 GB por arquivo. Feito por `coletor/nuvem.py historico` |
 | Repositório Git | Só código e documentação | Nenhum Parquet nem JSON gerado é commitado |
 | Pasta local `dados/` | Cópia de trabalho no computador | Fora do Git (`.gitignore`) |
 

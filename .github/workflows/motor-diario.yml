@@ -1,0 +1,90 @@
+name: Motor diário
+
+# Por enquanto só roda quando disparado à mão (aba Actions > Motor diário > Run workflow).
+# Depois de conferir algumas execuções, remova o "#" das duas linhas do schedule para rodar
+# todo dia às 03:00 de Brasília (06:00 UTC).
+on:
+  workflow_dispatch:
+    inputs:
+      data:
+        description: "Data da execução (AAAA-MM-DD). Vazio = hoje em Brasília"
+        required: false
+        default: ""
+      desde:
+        description: "Passo em que o motor começa (para retomar uma execução)"
+        type: choice
+        default: lista
+        options: [lista, painel, detalhe, silver, links, silver_links]
+  # schedule:
+  #   - cron: "0 6 * * *"
+
+# Preciso criar e atualizar releases (estado e histórico)
+permissions:
+  contents: write
+
+# Nunca duas execuções ao mesmo tempo: as duas mexeriam no mesmo estado
+concurrency:
+  group: motor-diario
+  cancel-in-progress: false
+
+jobs:
+  motor:
+    runs-on: ubuntu-latest
+    # Limite do GitHub: 6 horas por job
+    timeout-minutes: 350
+    env:
+      PYTHONUNBUFFERED: "1"
+      # Login do gh nos comandos de release
+      GH_TOKEN: ${{ github.token }}
+      # Chave da API do dados.gov.br, guardada como secret do repositório
+      CHAVE_API_DADOS_GOV: ${{ secrets.CHAVE_API_DADOS_GOV }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instala as dependências
+        run: pip install -r requirements.txt
+
+      - name: Define a data da execução
+        id: data
+        env:
+          DATA_INFORMADA: ${{ inputs.data }}
+        run: |
+          if [ -n "$DATA_INFORMADA" ]; then
+            DATA="$DATA_INFORMADA"
+          else
+            DATA=$(python -c "import sys; sys.path.insert(0, 'coletor'); import portal; print(portal.data_de_hoje())")
+          fi
+          # Confere o formato antes de usar a data em qualquer comando
+          python -c "import sys, datetime; datetime.date.fromisoformat(sys.argv[1])" "$DATA"
+          echo "data=$DATA" >> "$GITHUB_OUTPUT"
+          echo "Data da execução: $DATA"
+
+      - name: Baixa o estado de ontem
+        id: baixar
+        run: python coletor/nuvem.py baixar
+
+      - name: Roda o motor
+        env:
+          DATA: ${{ steps.data.outputs.data }}
+          DESDE: ${{ inputs.desde || 'lista' }}
+        run: python coletor/motor.py --data "$DATA" --desde "$DESDE"
+
+      # Os dois passos abaixo rodam mesmo se o motor falhar no meio: o que já foi coletado
+      # não se perde, e o dia seguinte continua de onde parou
+      - name: Sobe o estado de hoje
+        if: always() && steps.baixar.outcome == 'success'
+        env:
+          DATA: ${{ steps.data.outputs.data }}
+        run: python coletor/nuvem.py subir --data "$DATA"
+
+      - name: Sobe o que o dia produziu para o histórico
+        if: always() && steps.baixar.outcome == 'success'
+        env:
+          DATA: ${{ steps.data.outputs.data }}
+        run: python coletor/nuvem.py historico --data "$DATA"
