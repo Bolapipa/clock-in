@@ -4,7 +4,7 @@
 
 Cada base de dados aberta tem um "horário de trabalho": a periodicidade com que deveria ser atualizada. O Clock-in verifica, todos os dias, se cada base **bateu o ponto**: se o link funciona, se o arquivo existe, se o conteúdo foi atualizado no prazo e se o formato mudou. Tudo medido pelo **conteúdo real**, não pelo que o órgão declara.
 
-> Projeto em construção. A ideia foi validada com dados reais (ver abaixo) e a Fase 0 (ambiente) está concluída. O código é escrito fase por fase, seguindo o [roadmap](docs/ROADMAP.md).
+> Projeto em construção. A ideia foi validada com dados reais (ver abaixo) e as Fases 0 (ambiente) e 1 (inventário do catálogo) estão concluídas. O código é escrito fase por fase, seguindo o [roadmap](docs/ROADMAP.md).
 
 ---
 
@@ -84,7 +84,7 @@ O coletor precisa da chave da API do dados.gov.br no arquivo `.env` (linha `CHAV
 | `python coletor/catalogo_detalhe.py --completo` | Carga inicial: detalhe de todas as bases (cerca de 9 horas; pode ser retomada) |
 | `python coletor/catalogo_detalhe.py` | Coleta diária: bases novas, alteradas e o rodízio do dia |
 | `python coletor/painel_cgu.py` | Baixa os 2 arquivos do painel da CGU para a Bronze (atualizados uma vez por mês) |
-| `python coletor/silver.py` | Gera a Silver (`base` e `recurso`) a partir da Bronze do dia |
+| `python coletor/silver.py` | Gera a Silver (`base`, `recurso` e `publicador`) a partir da Bronze do dia |
 | `pytest -v` | Roda os testes automáticos (sem chamar a API) |
 
 ## Roadmap

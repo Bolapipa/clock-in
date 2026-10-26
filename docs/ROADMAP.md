@@ -36,7 +36,7 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 
 - [x] Validação (24/10/2026): ver [VALIDACAO.md](VALIDACAO.md)
 - [x] Fase 0: Ambiente
-- [ ] Fase 1: Inventário
+- [x] Fase 1: Inventário (26/10/2026)
 - [ ] Fase 2: Saúde dos links e motor diário
 - [ ] Fase 3: Conteúdo (hash e schema)
 - [ ] Fase 4: Atualização real e status
@@ -114,6 +114,7 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
    - Achado: o harvest traz bases de **governos estaduais e municipais** (por exemplo `dadosabertos.rj.gov.br`, `dados.fortaleza.ce.gov.br`, `ckan.pbh.gov.br`, `dados.al.gov.br`), não só federais. O ranking precisa da coluna `esfera` (federal, estadual, municipal).
    - Implicação: uma pequena tabela de referência, versionada no repositório, ligando cada domínio ao órgão e à esfera resolve a maior parte. `www.gov.br` precisa olhar também o primeiro trecho do caminho (`www.gov.br/<orgao>/...`).
    - Armadilha encontrada: o cronograma tem linhas sem link. Em SQL, `NOT IN` com uma lista que contém `NULL` nunca é verdadeiro; filtrar os nulos antes.
+   **Feito em 26/10/2026 (catálogo completo):** `sql/silver_publicador.sql` gera `silver/publicador` com a cascata da decisão 13 (revisada) e `referencia/dominios.csv`. Resultado em 19.596 bases: domínio do link 13.613, cronograma da CGU 4.752, campo `organizacao` 355, e-mail 125, não identificado 751. Publicador identificado em **96,2%**. Esfera: federal 15.970, estadual 1.764, municipal 1.010, não classificada 101. Testes em `tests/test_silver_publicador.py`. Limitação: prefeituras com domínio `<cidade>.<uf>.gov.br` que não estão na referência aparecem como estaduais (poucos casos).
 6. Baixe a base do painel da CGU e cruze com o inventário.
    **Download feito em 25/10/2026:** `coletor/painel_cgu.py` pega os links no catálogo (base `painel-de-monitoramento-de-dados-abertos`) e baixa os 2 CSVs do SharePoint da CGU acrescentando `download=1` ao link, sem enviar a chave da API para fora do dados.gov.br. Grava na Bronze o cronograma (9.956 bases previstas, 7.216 com link para o dados.gov.br) e o monitoramento (256 órgãos). Testes em `tests/test_painel_cgu.py`. O cruzamento com o inventário entra na tarefa 5: o `url_base` do cronograma termina no `slug` da base. Achados: a própria base do painel aparece no catálogo com data de atualização "Indisponível"; o campo `situacao_pda` mistura "Sem PDA" e "SEM PDA".
 7. Torne a coleta **idempotente**: rodar duas vezes no mesmo dia sobrescreve a partição do dia, sem duplicar.

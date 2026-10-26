@@ -2,7 +2,7 @@
 
 Referência técnica do Clock-in: o que é coletado, o que é guardado, como os dados se organizam em camadas e como o resultado chega às pessoas. O [ROADMAP.md](ROADMAP.md) diz **quando** construir cada parte; este arquivo diz **o que** cada parte é. As escolhas e seus motivos estão em [DECISOES.md](DECISOES.md).
 
-> Fase 0 concluída (ambiente e primeiro teste com DuckDB); o motor ainda não foi escrito. Nomes de tabelas e colunas abaixo são o desenho inicial: podem ser ajustados durante as fases, e cada ajuste deve ser registrado aqui.
+> Fases 0 e 1 concluídas: coletores da Bronze (catálogo e painel da CGU) e Silver (`base`, `recurso`, `publicador`). As camadas seguintes ainda não foram escritas. Nomes de tabelas e colunas abaixo são o desenho inicial: podem ser ajustados durante as fases, e cada ajuste deve ser registrado aqui.
 
 ---
 
@@ -56,6 +56,7 @@ Persistência entre execuções (decisão 16): o GitHub Actions começa do zero 
 clock-in/
 ├── coletor/        # código do motor (Python)
 ├── sql/            # transformações (bronze -> silver -> gold)
+├── referencia/     # tabelas de referência mantidas à mão (ex.: dominios.csv)
 ├── publicar/       # gera os JSON da API estática e o RSS
 ├── site/           # site estático
 ├── tests/          # pytest
@@ -87,11 +88,12 @@ Regra: guardar exatamente o que veio, antes de qualquer transformação.
 |---|---|---|
 | `silver/base` | uma linha por base por dia | `id` (chave), `slug`, `titulo`, `organizacao_listagem`, `organizacao_detalhe`, `responsavel`, `email_responsavel`, `periodicidade` (valores da API; vazia vira `NAO_DECLARADA`; nula enquanto a base não tem detalhe), `periodicidade_comparavel`, `portal_diz_atualizado`, `status_portal`, `descontinuado`, `selo`, `ultima_atualizacao_dados`, `ultima_alteracao_metadados`, `data_catalogacao`, `qtd_recursos`, `tem_detalhe`, `data_detalhe`, `data_coleta`. Gerada por `sql/silver_base.sql`. A tarefa 5 acrescenta `publicador_real` e `origem_publicador` |
 | `silver/recurso` | uma linha por link por dia | `recurso_id` (chave), `id_base`, `titulo`, `link`, `formato` (maiúsculas), `tipo`, `data_ultima_atualizacao_arquivo`, `data_catalogacao`, `data_coleta`. Só bases presentes na listagem do dia. Gerada por `sql/silver_recurso.sql` |
+| `silver/publicador` | uma linha por base por dia | `id` (chave), `publicador`, `esfera` (`FEDERAL`, `ESTADUAL`, `MUNICIPAL`, `NAO_CLASSIFICADA`; nula quando não identificado), `origem_publicador` (`PAINEL_CGU`, `ORGANIZACAO`, `DOMINIO_LINK`, `DOMINIO_EMAIL`, `NAO_IDENTIFICADO`), `evidencia` (o valor exato que a fonte forneceu), `data_coleta`. Gerada por `sql/silver_publicador.sql` com `referencia/dominios.csv` (decisão 13) |
 | `silver/tentativa_link` | uma linha por teste de link | `recurso_id`, `data_coleta`, `metodo` (`HEAD` ou `GET`), `status_http`, `url_final`, `content_type`, `tamanho_bytes`, `last_modified`, `etag`, `tempo_ms`, `tipo_erro` (`DNS`, `SSL`, `TIMEOUT`, `CONEXAO`) |
 | `silver/versao_conteudo` | uma linha por arquivo medido | `recurso_id`, `data_coleta`, `hash_sha256`, `tamanho_bytes`, `verificacao_parcial`, `encoding`, `separador`, `colunas` (nome, ordem e tipo), `data_max_conteudo` |
 | `silver/mudanca_schema` | uma linha por mudança detectada | `recurso_id`, `data_coleta`, `tipo_mudanca` (`ADICIONADA`, `REMOVIDA`, `TIPO_ALTERADO`, `RENOMEADA_PROVAVEL`), `coluna`, `tipo_antes`, `tipo_depois` |
 
-`origem_publicador` diz qual regra da decisão 13 identificou o publicador (`PAINEL_CGU`, `EMAIL`, `DOMINIO_LINK`, `NAO_IDENTIFICADO`).
+`origem_publicador` diz qual degrau da decisão 13 identificou o publicador. Juntar o mesmo órgão escrito de formas diferentes (por exemplo, "UFC - Universidade Federal do Ceará" e `universidade-federal-do-ceara-ufc`) fica para a `dim_orgao`, na Fase 5. Os nomes da tabela de referência seguem o padrão do cronograma da CGU ("SIGLA - Nome") para facilitar essa junção.
 
 ### Gold: respostas prontas
 
