@@ -148,7 +148,7 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 4. Concorrência entre domínios diferentes (asyncio) para a coleta caber no tempo do job.
 5. Regra de "fora do ar": erros 502, 503 e 520 podem ser temporários. Por exemplo, só considerar quebrado após 3 falhas em dias diferentes.
 6. **Motor diário no GitHub Actions:**
-   - torne o repositório **público** (ver princípio de custo zero);
+   - torne o repositório **público** (ver princípio de custo zero). **Feito em 26/10/2026**, com licença MIT;
    - workflow com `schedule` (cron) que roda o coletor;
    - como o Actions começa sempre do zero, o estado precisa ser baixado no início e enviado no fim: estado atual no release `estado-atual` (sobrescrito todo dia) e histórico no release `historico-AAAA-MM`. Nenhum dado gerado é commitado no Git (decisão 16, detalhes em [ARQUITETURA.md](ARQUITETURA.md#onde-os-dados-ficam));
    - meça quanto tempo a coleta leva e, se precisar, divida em lotes.
