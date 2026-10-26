@@ -81,6 +81,7 @@ Regra: guardar exatamente o que veio, antes de qualquer transformação.
 |---|---|---|
 | `bronze/catalogo_lista` | uma linha por página da listagem | `data_coleta`, `pagina`, `qtd_registros`, `payload` (JSON cru, texto exato da resposta), `coletado_em` (UTC). Gerada por `coletor/catalogo_lista.py` |
 | `bronze/catalogo_detalhe` | uma linha por tentativa de buscar o detalhe de uma base | `data_coleta`, `id`, `motivo` (`NOVA`, `ALTERADA`, `RODIZIO`, `COMPLETA`), `ultima_alteracao` (valor de `ultimaAlteracaoMetadados` na listagem do dia), `status_http`, `payload` (JSON cru, só quando 200), `erro`, `coletado_em` (UTC). Gravada em partes de 500 bases (`parte-0001.parquet`...). Gerada por `coletor/catalogo_detalhe.py` (decisão 21) |
+| `bronze/link_tentativa` | uma linha por teste de um link de recurso (acumula partes no dia) | `data_coleta`, `link`, `servidor`, `metodo` (`HEAD` ou `GET`; nulo quando o servidor foi dispensado), `status_http`, `url_final` (depois dos redirecionamentos), `content_type`, `content_length`, `last_modified`, `etag`, `tempo_ms`, `erro_tipo` (`TIMEOUT`, `DNS`, `SSL`, `CONEXAO`, `REDIRECIONAMENTOS`, `URL_INVALIDA`, `OUTRO` ou `SERVIDOR_FORA`), `erro`, `tentado_em` (UTC). Gerada por `coletor/links.py` |
 | `bronze/painel_cgu_cronograma` | uma linha por base prevista nos Planos de Dados Abertos (cerca de 9.956) | colunas originais como texto (`Orgao`, `nome_base`, `previsao_abertura`, `efetiva_abertura`, `url_base`), `data_coleta`, `last_modified`, `coletado_em`. Gerada por `coletor/painel_cgu.py` |
 | `bronze/painel_cgu_monitoramento` | uma linha por órgão (cerca de 256) | colunas originais como texto (`orgao`, `situacao_pda`, `link_pda`, `dt_pub_pda`, `vigencia_ini`, `vigencia_fim`), `data_coleta`, `last_modified`, `coletado_em`. Gerada por `coletor/painel_cgu.py` |
 
@@ -89,6 +90,7 @@ Regra: guardar exatamente o que veio, antes de qualquer transformação.
 | Tabela | Grão | Colunas principais |
 |---|---|---|
 | `estado/detalhe_atual` | uma linha por base | `id`, `ultima_alteracao`, `payload` (último detalhe que deu certo; nulo se nunca deu), `data_coleta` e `coletado_em` (do último sucesso), `falhas_seguidas` (dias seguidos com falha; zera no sucesso), `ultima_tentativa`, `ultimo_erro`. Atualizada por `coletor/estado.py` no fim de cada coleta do detalhe; pode ser recriada da Bronze com `python coletor/estado.py --reconstruir` |
+| `estado/links_atual` | uma linha por link | `link`, `servidor`, `ultima_tentativa`, `status_http` e `erro_tipo` da última tentativa, `falhas_seguidas` (dias diferentes seguidos com falha; zera no sucesso), `falha_desde` (primeira falha da série atual), `ultimo_sucesso`. Atualizada por `coletor/links.py` no fim de cada teste |
 
 O coletor do detalhe decide o que buscar a partir deste estado, e a Silver lê o detalhe dele, não de todo o histórico da Bronze. Assim, o GitHub Actions só precisa baixar um arquivo para continuar de onde parou. Atualizar o estado duas vezes no mesmo dia não conta a falha em dobro.
 
@@ -128,7 +130,9 @@ Modelo dimensional (Star Schema).
 
 - Um link é **quebrado** depois de **3 falhas em dias seguidos**. Volta a OK no primeiro sucesso.
 - Uma base está **fora do ar** quando todos os seus links estão quebrados.
-- Teste: `HEAD`; se o servidor responder 403, 405 ou 501, `GET` com `Range: bytes=0-2047`. Timeout de 20 s.
+- Teste: `HEAD`; se o servidor responder 400, 403, 405 ou 501, `GET` com `Range: bytes=0-2047` (só os cabeçalhos são lidos). Timeout de 20 s. Redireciona até 5 vezes. Vale como sucesso um status abaixo de 400.
+- A contagem é de **dias diferentes com falha, seguidos**, um teste por link por dia. Em servidores com mais de 5.000 links, cada link é testado a cada poucos dias (rodízio pelo teste mais antigo), então a série leva mais dias corridos para fechar as 3 falhas.
+- Servidor com 5 falhas de rede seguidas (timeout, DNS, SSL ou conexão) é dispensado no resto do dia: os links dele são registrados como falha `SERVIDOR_FORA`, sem esperar o timeout de cada um.
 
 ### Conteúdo (decisão 15)
 

@@ -140,6 +140,8 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 
 **Etapa C, feita em 26/10/2026 (pendência 3):** `coletor/catalogo_lista.py` recusa uma listagem com menos de 95% das bases da listagem anterior (`--aceitar-queda` libera uma queda real), recusa resposta que não é JSON ou não é uma lista e não deixa um teste com `--max-paginas` sobrescrever a listagem que já existe no dia. Testes novos em `tests/test_catalogo_lista.py` (59 no total). Com isso, as 5 pendências do review estão resolvidas.
 
+**Teste de links, primeira parte, feita em 26/10/2026 (tarefas 1 a 3 e 5):** `coletor/links.py` testa os links de `silver/recurso` com `HEAD` (e `GET` com `Range` quando o servidor recusa), registra cada tentativa em `bronze/link_tentativa` e mantém `estado/links_atual`. Escolha dos links, teto de 5.000 por servidor por dia e disjuntor para servidor fora do ar na decisão 25. Testes em `tests/test_links.py` (77 no total). Amostra real de 200 links: 45 s, 77,5% responderam. Falta ligar o `links.py` ao `motor.py`, criar a tabela da Silver e escrever o workflow do GitHub Actions.
+
 **Antes de começar: pendências do review de 26/10/2026**
 1. **Estado do detalhe no GitHub Actions:** a coleta incremental e a Silver leem todo o histórico de `bronze/catalogo_detalhe`, mas o release `estado-atual` (decisão 16) não o guarda. Sem isso, a primeira execução na nuvem trataria as 19.596 bases como novas (9 horas). Guardar um "detalhe atual" compacto (última versão bem-sucedida de cada base) no estado e fazer o coletor e a Silver lerem dele.
 2. **Data de referência única:** os scripts chamam `date.today()` separadamente, e o runner usa UTC. Calcular uma data só (fuso `America/Sao_Paulo`) num orquestrador e passá-la com `--data` a todos os scripts.

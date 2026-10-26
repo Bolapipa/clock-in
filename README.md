@@ -89,6 +89,8 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/estado.py --reconstruir` | Recria o estado do detalhe (`dados/estado/`) a partir de toda a Bronze |
 | `python coletor/painel_cgu.py` | Baixa os 2 arquivos do painel da CGU para a Bronze (atualizados uma vez por mês) |
 | `python coletor/silver.py` | Gera a Silver (`base`, `recurso` e `publicador`) a partir da Bronze do dia |
+| `python coletor/links.py --max-links 200` | Teste de links com uma amostra de 200 (precisa da Silver do dia; use `silver.py` antes) |
+| `python coletor/links.py` | Testa os links dos recursos: um por vez em cada servidor, vários servidores em paralelo, no máximo 5.000 links por servidor por dia |
 | `python coletor/motor.py` | Execução do dia: listagem, painel, detalhe e Silver, em ordem e com a mesma data |
 | `python coletor/motor.py --desde detalhe` | Retoma o motor a partir de um passo (`lista`, `painel`, `detalhe` ou `silver`) |
 | `pytest -v` | Roda os testes automáticos (sem chamar a API) |
