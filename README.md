@@ -76,6 +76,8 @@ No Linux: `python3 -m venv .venv` e `source .venv/bin/activate`.
 
 O coletor precisa da chave da API do dados.gov.br no arquivo `.env` (linha `CHAVE_API_DADOS_GOV=...`). A chave fica em "Minha Conta", entrando no portal com gov.br.
 
+Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Brasília, mesmo num computador em outro fuso.
+
 | Comando | O que faz |
 |---|---|
 | `python coletor/catalogo_lista.py --max-paginas 5` | Teste rápido: coleta 5 páginas da listagem |
@@ -86,6 +88,8 @@ O coletor precisa da chave da API do dados.gov.br no arquivo `.env` (linha `CHAV
 | `python coletor/estado.py --reconstruir` | Recria o estado do detalhe (`dados/estado/`) a partir de toda a Bronze |
 | `python coletor/painel_cgu.py` | Baixa os 2 arquivos do painel da CGU para a Bronze (atualizados uma vez por mês) |
 | `python coletor/silver.py` | Gera a Silver (`base`, `recurso` e `publicador`) a partir da Bronze do dia |
+| `python coletor/motor.py` | Execução do dia: listagem, painel, detalhe e Silver, em ordem e com a mesma data |
+| `python coletor/motor.py --desde detalhe` | Retoma o motor a partir de um passo (`lista`, `painel`, `detalhe` ou `silver`) |
 | `pytest -v` | Roda os testes automáticos (sem chamar a API) |
 
 ## Roadmap

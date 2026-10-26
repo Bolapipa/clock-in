@@ -7,7 +7,9 @@ as novas tentativas em caso de falha.
 import os
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import httpx
 from dotenv import load_dotenv
@@ -31,8 +33,18 @@ TENTATIVAS = 3
 ESPERA_FALHA = 10
 
 
+# Fuso de referência do projeto: o "dia" de uma coleta é o dia em Brasília
+FUSO = ZoneInfo("America/Sao_Paulo")
+
+
 class FalhaPortal(Exception):
     """A chamada falhou em todas as tentativas."""
+
+
+def data_de_hoje(agora=None):
+    """Data de hoje em Brasília, mesmo num computador em outro fuso (o GitHub Actions usa UTC)."""
+    agora = agora or datetime.now(timezone.utc)
+    return agora.astimezone(FUSO).date()
 
 
 def criar_cliente():

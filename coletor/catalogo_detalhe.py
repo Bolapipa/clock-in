@@ -185,10 +185,10 @@ def main():
     parser = argparse.ArgumentParser(description="Coleta o detalhe das bases do dados.gov.br")
     parser.add_argument("--completo", action="store_true", help="busca todas as bases (carga inicial)")
     parser.add_argument("--max-bases", type=int, help="para depois de N bases (teste)")
-    parser.add_argument("--data", type=date.fromisoformat, help="data da listagem a usar (AAAA-MM-DD); padrão: hoje")
+    parser.add_argument("--data", type=date.fromisoformat, help="data da listagem a usar (AAAA-MM-DD); padrão: hoje em Brasília")
     args = parser.parse_args()
 
-    data_coleta = args.data or date.today()
+    data_coleta = args.data or portal.data_de_hoje()
     bases = bases_a_coletar(data_coleta, args.completo)
     if args.max_bases:
         bases = bases[: args.max_bases]

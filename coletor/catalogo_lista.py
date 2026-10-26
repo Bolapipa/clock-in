@@ -7,7 +7,10 @@ dados/bronze/catalogo_lista/data=AAAA-MM-DD/catalogo_lista.parquet
 Uso:
     python coletor/catalogo_lista.py                  # catálogo inteiro (cerca de 40 min)
     python coletor/catalogo_lista.py --max-paginas 5  # teste rápido
+    python coletor/catalogo_lista.py --data 2026-10-26  # grava na partição de outro dia
+
 """
+
 
 import argparse
 import sys
@@ -58,14 +61,16 @@ def gravar_bronze(linhas, data_coleta):
 
 
 def main():
-    # Lê o parâmetro opcional --max-paginas
+    # Lê os parâmetros opcionais --max-paginas e --data
     parser = argparse.ArgumentParser(description="Coleta a listagem do catálogo do dados.gov.br")
     parser.add_argument("--max-paginas", type=int, help="para depois de N páginas (teste)")
+    parser.add_argument("--data", type=date.fromisoformat, help="data da coleta (AAAA-MM-DD); padrão: hoje em Brasília")
     args = parser.parse_args()
     limite = args.max_paginas or LIMITE_PAGINAS
 
     # Data da coleta: define a partição do dia
-    data_coleta = date.today()
+    data_coleta = args.data or portal.data_de_hoje()
+
     linhas = []
     inicio = time.perf_counter()
     chegou_ao_fim = False

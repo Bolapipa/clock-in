@@ -91,9 +91,9 @@ def gerar_tabela(con, nome, arquivo_sql, data):
 
 def main():
     parser = argparse.ArgumentParser(description="Gera a camada Silver a partir da Bronze")
-    parser.add_argument("--data", type=date.fromisoformat, help="data da listagem a usar (AAAA-MM-DD); padrão: hoje")
+    parser.add_argument("--data", type=date.fromisoformat, help="data da listagem a usar (AAAA-MM-DD); padrão: hoje em Brasília")
     args = parser.parse_args()
-    data = args.data or date.today()
+    data = args.data or portal.data_de_hoje()
 
     con = duckdb.connect()
     criar_views_entrada(con, data)

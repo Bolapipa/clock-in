@@ -12,8 +12,9 @@ dados/bronze/painel_cgu_monitoramento/data=AAAA-MM-DD/painel_cgu_monitoramento.p
 
 Uso:
     python coletor/painel_cgu.py
+    python coletor/painel_cgu.py --data 2026-10-26  # grava na partição de outro dia
 """
-
+import argparse
 import sys
 import tempfile
 from datetime import date, datetime, timezone
@@ -100,7 +101,10 @@ def gravar_bronze(arquivo_csv, tabela, data_coleta, last_modified):
 
 
 def main():
-    data_coleta = date.today()
+    parser = argparse.ArgumentParser(description="Baixa os arquivos do painel da CGU para a Bronze")
+    parser.add_argument("--data", type=date.fromisoformat, help="data da coleta (AAAA-MM-DD); padrão: hoje em Brasília")
+    args = parser.parse_args()
+    data_coleta = args.data or portal.data_de_hoje()
 
     # 1) Links dos arquivos, pelo catálogo (precisa da chave da API)
     with portal.criar_cliente() as cliente_api:

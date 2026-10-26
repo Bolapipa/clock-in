@@ -19,6 +19,8 @@ GitHub Actions (cron diário)
   7. Sobe o estado de hoje             -> release "estado-atual" e release do mês
 ```
 
+Os passos de coleta e transformação são executados em ordem por `coletor/motor.py` (hoje: listagem, painel da CGU, detalhe e Silver). O motor calcula a **data do dia uma vez só**, no fuso de Brasília (`America/Sao_Paulo`), e a passa a todos os scripts com `--data`. Assim, uma execução que comece às 22h no runner (que usa UTC, onde já é o dia seguinte) grava tudo na mesma partição. Se um passo obrigatório falhar, o motor para e os seguintes não rodam com dados velhos; o painel da CGU é opcional, porque a Silver usa o último cronograma coletado. Para retomar: `python coletor/motor.py --data AAAA-MM-DD --desde <passo>`.
+
 ## O que é baixado e o que é guardado
 
 | O quê | De onde | Guardado? |
