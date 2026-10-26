@@ -1,7 +1,7 @@
 -- Silver: uma linha por base do catálogo, na data da coleta.
 -- Origens (views criadas por coletor/silver.py):
 --   bronze_lista   -> listagem do dia (bronze/catalogo_lista)
---   bronze_detalhe -> detalhes coletados até o dia (bronze/catalogo_detalhe)
+--   detalhe_atual  -> última versão do detalhe de cada base (estado/detalhe_atual)
 
 -- Bases da listagem do dia, uma linha por base
 WITH lista AS (
@@ -20,16 +20,13 @@ WITH lista AS (
     )
 ),
 
--- Detalhe mais recente que deu certo de cada base
+-- Detalhe mais recente que deu certo de cada base (o estado já guarda só a última versão)
 detalhe AS (
-    SELECT
-        id,
-        arg_max(payload, coletado_em)     AS payload,
-        arg_max(data_coleta, coletado_em) AS data_detalhe
-    FROM bronze_detalhe
-    WHERE status_http = 200
-    GROUP BY id
+    SELECT id, payload, data_coleta AS data_detalhe
+    FROM detalhe_atual
+    WHERE payload IS NOT NULL
 )
+
 
 SELECT
     l.id,

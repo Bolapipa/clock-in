@@ -1,7 +1,7 @@
 -- Silver: uma linha por recurso (link de arquivo) de cada base do catálogo do dia.
 -- Origens (views criadas por coletor/silver.py):
 --   bronze_lista   -> listagem do dia, para saber quais bases ainda existem
---   bronze_detalhe -> detalhes coletados até o dia, de onde vêm os recursos
+--   detalhe_atual  -> última versão do detalhe de cada base, de onde vêm os recursos
 
 -- Bases que estão na listagem do dia
 WITH bases_do_dia AS (
@@ -12,13 +12,13 @@ WITH bases_do_dia AS (
     )
 ),
 
--- Detalhe mais recente que deu certo de cada base
+-- Detalhe mais recente que deu certo de cada base (o estado já guarda só a última versão)
 detalhe AS (
-    SELECT id, arg_max(payload, coletado_em) AS payload
-    FROM bronze_detalhe
-    WHERE status_http = 200
-    GROUP BY id
+    SELECT id, payload
+    FROM detalhe_atual
+    WHERE payload IS NOT NULL
 ),
+
 
 -- Um recurso por linha (explode a lista de recursos de cada base)
 recursos AS (

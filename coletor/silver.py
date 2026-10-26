@@ -17,6 +17,7 @@ from datetime import date
 
 import duckdb
 
+import estado
 import portal
 
 # Pastas de entrada (Bronze), de saída (Silver), dos arquivos SQL e das tabelas de referência
@@ -34,8 +35,8 @@ TABELAS = {
 }
 
 
-def criar_views_bronze(con, data):
-    """Cria as views bronze_lista e bronze_detalhe, usadas pelos arquivos SQL."""
+def criar_views_entrada(con, data):
+    """Cria as views bronze_lista e detalhe_atual, usadas pelos arquivos SQL."""
     arquivo_lista = PASTA_BRONZE / "catalogo_lista" / f"data={data}" / "catalogo_lista.parquet"
     if not arquivo_lista.exists():
         sys.exit(f"Listagem de {data} não encontrada em {arquivo_lista}")
@@ -43,16 +44,13 @@ def criar_views_bronze(con, data):
     # Listagem: só a do dia escolhido
     con.execute(f"CREATE VIEW bronze_lista AS SELECT * FROM read_parquet('{arquivo_lista.as_posix()}')")
 
-    # Detalhe: tudo o que foi coletado até o dia escolhido
-    arquivos_detalhe = sorted((PASTA_BRONZE / "catalogo_detalhe").glob("data=*/*.parquet"))
-    if not arquivos_detalhe:
-        sys.exit("Nenhum detalhe coletado. Rode antes: python coletor/catalogo_detalhe.py")
-    lista = [arquivo.as_posix() for arquivo in arquivos_detalhe]
-    con.execute(f"""
-        CREATE VIEW bronze_detalhe AS
-        SELECT * FROM read_parquet({lista})
-        WHERE data_coleta <= DATE '{data}'
-    """)
+    # Detalhe: a última versão de cada base, guardada no estado pelo coletor do detalhe
+    arquivo_estado = estado.arquivo_estado()
+    if not arquivo_estado.exists():
+        sys.exit("Estado do detalhe não encontrado. Rode antes: python coletor/catalogo_detalhe.py "
+                 "(ou python coletor/estado.py --reconstruir)")
+    con.execute(f"CREATE VIEW detalhe_atual AS SELECT * FROM read_parquet('{arquivo_estado.as_posix()}')")
+
 
 
 def criar_views_referencia(con, data):
@@ -98,7 +96,7 @@ def main():
     data = args.data or date.today()
 
     con = duckdb.connect()
-    criar_views_bronze(con, data)
+    criar_views_entrada(con, data)
     criar_views_referencia(con, data)
 
     for nome, arquivo_sql in TABELAS.items():

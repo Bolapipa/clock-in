@@ -45,7 +45,7 @@ Persistência entre execuções (decisão 16): o GitHub Actions começa do zero 
 
 | Onde | O que guarda | Como |
 |---|---|---|
-| Release `estado-atual` | O mínimo para comparar com ontem: último hash e schema por recurso, contador de falhas por link, Silver `base` e `recurso` do dia | Sobrescrito todo dia (`gh release upload --clobber`) |
+| Release `estado-atual` | O mínimo para continuar amanhã: `estado/detalhe_atual.parquet` (última versão do detalhe de cada base, cerca de 36 MB), depois o último hash e schema por recurso e o contador de falhas por link | Sobrescrito todo dia (`gh release upload --clobber`) |
 | Release `historico-AAAA-MM` | Partições diárias do mês (Silver e Gold) | Um release por mês; até 2 GB por arquivo |
 | Repositório Git | Só código e documentação | Nenhum Parquet nem JSON gerado é commitado |
 | Pasta local `dados/` | Cópia de trabalho no computador | Fora do Git (`.gitignore`) |
@@ -81,6 +81,14 @@ Regra: guardar exatamente o que veio, antes de qualquer transformação.
 | `bronze/catalogo_detalhe` | uma linha por tentativa de buscar o detalhe de uma base | `data_coleta`, `id`, `motivo` (`NOVA`, `ALTERADA`, `RODIZIO`, `COMPLETA`), `ultima_alteracao` (valor de `ultimaAlteracaoMetadados` na listagem do dia), `status_http`, `payload` (JSON cru, só quando 200), `erro`, `coletado_em` (UTC). Gravada em partes de 500 bases (`parte-0001.parquet`...). Gerada por `coletor/catalogo_detalhe.py` (decisão 21) |
 | `bronze/painel_cgu_cronograma` | uma linha por base prevista nos Planos de Dados Abertos (cerca de 9.956) | colunas originais como texto (`Orgao`, `nome_base`, `previsao_abertura`, `efetiva_abertura`, `url_base`), `data_coleta`, `last_modified`, `coletado_em`. Gerada por `coletor/painel_cgu.py` |
 | `bronze/painel_cgu_monitoramento` | uma linha por órgão (cerca de 256) | colunas originais como texto (`orgao`, `situacao_pda`, `link_pda`, `dt_pub_pda`, `vigencia_ini`, `vigencia_fim`), `data_coleta`, `last_modified`, `coletado_em`. Gerada por `coletor/painel_cgu.py` |
+
+### Estado: o que passa de um dia para o outro
+
+| Tabela | Grão | Colunas principais |
+|---|---|---|
+| `estado/detalhe_atual` | uma linha por base | `id`, `ultima_alteracao`, `payload` (último detalhe que deu certo; nulo se nunca deu), `data_coleta` e `coletado_em` (do último sucesso), `falhas_seguidas` (dias seguidos com falha; zera no sucesso), `ultima_tentativa`, `ultimo_erro`. Atualizada por `coletor/estado.py` no fim de cada coleta do detalhe; pode ser recriada da Bronze com `python coletor/estado.py --reconstruir` |
+
+O coletor do detalhe decide o que buscar a partir deste estado, e a Silver lê o detalhe dele, não de todo o histórico da Bronze. Assim, o GitHub Actions só precisa baixar um arquivo para continuar de onde parou. Atualizar o estado duas vezes no mesmo dia não conta a falha em dobro.
 
 ### Silver: padronizado
 

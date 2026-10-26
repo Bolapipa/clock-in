@@ -13,6 +13,7 @@ import pytest
 
 import catalogo_detalhe
 import catalogo_lista
+import estado
 import painel_cgu
 import portal
 import silver
@@ -80,9 +81,10 @@ def resultado(tmp_path_factory):
         )
         painel_cgu.gravar_bronze(csv, "cronograma", HOJE, None)
 
-        # Gera base, recurso e publicador, como o silver.py faz
+        # Gera o estado, e depois base, recurso e publicador, como o silver.py faz
+        estado.reconstruir()
         con = duckdb.connect()
-        silver.criar_views_bronze(con, HOJE)
+        silver.criar_views_entrada(con, HOJE)
         silver.criar_views_referencia(con, HOJE)
         for nome, arquivo_sql in silver.TABELAS.items():
             silver.gerar_tabela(con, nome, arquivo_sql, HOJE)

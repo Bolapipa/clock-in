@@ -134,6 +134,8 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 
 **Já corrigido no review de 26/10/2026:** o publicador mudava entre execuções (empate no `mode()` em 3.376 bases; agora o desempate é fixo e há teste de repetição); `periodicidade_comparavel` ficava nula em vez de falsa para as bases sem periodicidade; domínio do e-mail com dois endereços; links do próprio portal usados como publicador; `TRY_CAST` nos campos booleanos; Python 3.12 registrado no `pyproject.toml`.
 
+**Etapa A, feita em 26/10/2026 (pendências 1, 4 e 5):** `coletor/estado.py` mantém `dados/estado/detalhe_atual.parquet`; o coletor do detalhe e a Silver passaram a ler dele. Rodízio pelas coletas mais antigas, espera crescente para bases que falham, parada após 20 falhas seguidas do servidor, partes numeradas pelo maior número e gravadas via arquivo temporário. Testes em `tests/test_estado.py` e `tests/test_catalogo_detalhe.py` (44 no total). Validado com os dados reais: estado de 36 MB, seleção do dia seguinte com 1.205 bases (cerca de 34 minutos) e Silver idêntica à anterior.
+
 **Antes de começar: pendências do review de 26/10/2026**
 1. **Estado do detalhe no GitHub Actions:** a coleta incremental e a Silver leem todo o histórico de `bronze/catalogo_detalhe`, mas o release `estado-atual` (decisão 16) não o guarda. Sem isso, a primeira execução na nuvem trataria as 19.596 bases como novas (9 horas). Guardar um "detalhe atual" compacto (última versão bem-sucedida de cada base) no estado e fazer o coletor e a Silver lerem dele.
 2. **Data de referência única:** os scripts chamam `date.today()` separadamente, e o runner usa UTC. Calcular uma data só (fuso `America/Sao_Paulo`) num orquestrador e passá-la com `--data` a todos os scripts.

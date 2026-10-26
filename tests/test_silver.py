@@ -12,6 +12,7 @@ import pytest
 
 import catalogo_detalhe
 import catalogo_lista
+import estado
 import portal
 import silver
 
@@ -41,8 +42,10 @@ def gravar_detalhe(payload, data=HOJE, coletado_em=datetime(2026, 10, 25, 12, 0)
 
 def gerar_silver(nome):
     """Gera uma tabela da Silver e devolve as linhas como dicionários."""
+    # O estado junta os detalhes gravados na Bronze, como o coletor faz no fim de cada dia
+    estado.reconstruir()
     con = duckdb.connect()
-    silver.criar_views_bronze(con, HOJE)
+    silver.criar_views_entrada(con, HOJE)
     arquivo, _ = silver.gerar_tabela(con, nome, silver.TABELAS[nome], HOJE)
     resultado = con.execute(f"SELECT * FROM '{arquivo.as_posix()}'")
     colunas = [c[0] for c in resultado.description]
