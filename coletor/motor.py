@@ -5,6 +5,9 @@ Passos, nesta ordem:
     painel   -> painel_cgu.py        arquivos do painel da CGU (opcional)
     detalhe  -> catalogo_detalhe.py  detalhe das bases novas, alteradas e do rodízio
     silver   -> silver.py            tabelas base, recurso e publicador
+    links    -> links.py             teste de saúde dos links dos recursos
+    silver_links -> silver_links.py  tabelas link_status e base_saude
+
 
 A data é calculada uma vez, no fuso de Brasília, e passada a todos os passos
 com --data. Se um passo obrigatório falhar, o motor para e os seguintes não rodam.
@@ -33,8 +36,9 @@ PASSOS = [
     ("painel", "painel_cgu.py", False),
     ("detalhe", "catalogo_detalhe.py", True),
     ("silver", "silver.py", True),
+    ("links", "links.py", True),
+    ("silver_links", "silver_links.py", True),
 ]
-
 
 def rodar_passo(script, data):
     """Roda um script do coletor com a data do dia e devolve o código de saída (0 = sucesso)."""

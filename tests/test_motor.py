@@ -49,6 +49,8 @@ def test_roda_todos_os_passos_em_ordem_com_a_mesma_data(monkeypatch):
         ("painel_cgu.py", DATA),
         ("catalogo_detalhe.py", DATA),
         ("silver.py", DATA),
+        ("links.py", DATA),
+        ("silver_links.py", DATA),
     ]
 
 
@@ -68,7 +70,7 @@ def test_continua_quando_o_painel_falha(monkeypatch):
     motor.main()
 
     assert [script for script, _ in chamadas] == [
-        "catalogo_lista.py", "painel_cgu.py", "catalogo_detalhe.py", "silver.py",
+        "catalogo_lista.py", "painel_cgu.py", "catalogo_detalhe.py", "silver.py", "links.py", "silver_links.py",
     ]
 
 
@@ -77,7 +79,7 @@ def test_desde_retoma_a_partir_de_um_passo(monkeypatch):
 
     motor.main()
 
-    assert [script for script, _ in chamadas] == ["catalogo_detalhe.py", "silver.py"]
+    assert [script for script, _ in chamadas] == ["catalogo_detalhe.py", "silver.py", "links.py", "silver_links.py"]
 
 
 def test_rodar_passo_passa_a_data_para_o_script(monkeypatch):
