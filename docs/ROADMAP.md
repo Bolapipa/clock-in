@@ -29,7 +29,7 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 
 **Limites a respeitar** (confira na documentação oficial antes de cada fase, porque mudam):
 - Git: 100 MB por arquivo; repositório idealmente abaixo de 1 GB. Não versionar o histórico inteiro no Git.
-- GitHub Actions: tempo máximo por job (verificar na documentação de limites). Se a coleta não couber, dividir em jobs por lote.
+- GitHub Actions: 6 horas por job (o workflow usa `timeout-minutes: 350`). Se a coleta não couber, dividir em jobs por lote ou limitar o tempo de cada passo.
 - Vercel Hobby: só uso não comercial; tráfego mensal limitado.
 
 ## Checklist
@@ -37,8 +37,8 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 - [x] Validação (24/10/2026): ver [VALIDACAO.md](VALIDACAO.md)
 - [x] Fase 0: Ambiente
 - [x] Fase 1: Inventário (26/10/2026)
-- [ ] Fase 2: Saúde dos links e motor diário
-- [ ] Fase 3: Conteúdo (hash e schema)
+- [ ] Fase 2: Saúde dos links e motor diário (código pronto; falta conferir a primeira execução completa no GitHub e ligar o agendamento)
+- [ ] Fase 3: Conteúdo (hash e schema) (em andamento: falta o downloader)
 - [ ] Fase 4: Atualização real e status
 - [ ] Fase 5: Gold, histórico e nota por órgão
 - [ ] Fase 6: API estática
@@ -46,7 +46,7 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 - [ ] Fase 8: Alertas
 - [ ] Fase 9: Lançamento e impacto
 
-Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
+Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3 (volume de download) e 7 (design do site) tendem a levar mais.
 
 ---
 
@@ -189,7 +189,9 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 
 **Feito em 26/10/2026 (parte 2, sem rede):** `coletor/conteudo_estado.py` guarda o estado do conteúdo por link (`estado/conteudo_atual`) e detecta a mudança de conteúdo e de estrutura entre duas leituras, com as datas de cada uma. Testes em `tests/test_conteudo_estado.py`.
 
-**Feito em 26/10/2026 (parte 3, sem rede):** `coletor/silver_conteudo.py` gera `silver/versao_conteudo` (arquivos lidos no dia, com `mudou_conteudo` e `mudou_schema`) e `silver/mudanca_schema` (coluna adicionada, removida, de tipo alterado, renomeada provável ou em outra ordem). Testes em `tests/test_silver_conteudo.py`. Falta o downloader, o rodízio de 7 dias e a data máxima do conteúdo.
+**Feito em 26/10/2026 (parte 3, sem rede):** `coletor/silver_conteudo.py` gera `silver/versao_conteudo` (arquivos lidos no dia, com `mudou_conteudo` e `mudou_schema`) e `silver/mudanca_schema` (coluna adicionada, removida, de tipo alterado, renomeada provável ou em outra ordem). Testes em `tests/test_silver_conteudo.py`.
+
+**Feito em 26/10/2026 (parte 4, sem rede):** `coletor/conteudo_selecao.py` escolhe os links do dia pela decisão 27: formato tabular, não quebrados (links ainda não testados entram), nunca tentados ou tentados há 7 dias ou mais, os nunca tentados primeiro e depois os mais antigos, no máximo `MAX_POR_SERVIDOR` (1.000, provisório) por servidor por dia. Links já tentados no dia não se repetem, o que permite retomar uma execução interrompida. Testes em `tests/test_conteudo_selecao.py`. Falta o downloader (depende da medição de tamanhos) e a data máxima do conteúdo.
 
 **Entregável:** tabelas de versões de conteúdo e de mudanças de schema.
 

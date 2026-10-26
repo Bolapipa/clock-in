@@ -2,14 +2,14 @@
 
 Referência técnica do Clock-in: o que é coletado, o que é guardado, como os dados se organizam em camadas e como o resultado chega às pessoas. O [ROADMAP.md](ROADMAP.md) diz **quando** construir cada parte; este arquivo diz **o que** cada parte é. As escolhas e seus motivos estão em [DECISOES.md](DECISOES.md).
 
-> Fases 0 e 1 concluídas: coletores da Bronze (catálogo e painel da CGU) e Silver (`base`, `recurso`, `publicador`). As camadas seguintes ainda não foram escritas. Nomes de tabelas e colunas abaixo são o desenho inicial: podem ser ajustados durante as fases, e cada ajuste deve ser registrado aqui.
+> Estado atual: Fases 0 e 1 concluídas (Bronze do catálogo e do painel da CGU; Silver `base`, `recurso` e `publicador`). Fase 2 com o código pronto (teste de links, Silver `link_status` e `base_saude`, motor e workflow no GitHub Actions). Fase 3 em andamento: já existem a leitura de hash e schema, o estado do conteúdo e a Silver `versao_conteudo` e `mudanca_schema`; falta o downloader. A Gold, a API e o site ainda não foram escritos. Tabelas marcadas como "Fase 3" ou da Gold são o desenho previsto: podem ser ajustadas durante as fases, e cada ajuste deve ser registrado aqui.
 
 ---
 
 ## Visão geral
 
 ```text
-GitHub Actions (cron diário)
+GitHub Actions (agendado; hoje disparado à mão)
   1. Baixa o estado de ontem          <- release "estado-atual" do GitHub
   2. Coleta o catálogo                 -> Bronze (resposta crua)
   3. Testa os links e lê o conteúdo    -> Silver (status HTTP, hash, schema)
@@ -47,7 +47,7 @@ Persistência entre execuções (decisão 16): o GitHub Actions começa do zero 
 
 | Onde | O que guarda | Como |
 |---|---|---|
-| Release `estado-atual` | O mínimo para continuar amanhã, num arquivo `estado-AAAA-MM-DD.tar.gz` (cerca de 30 MB): `estado/detalhe_atual.parquet`, `estado/links_atual.parquet`, a última listagem do catálogo (para a conferência de tamanho) e o último cronograma da CGU (para o publicador). Depois entram o último hash e schema por recurso | Um arquivo novo por dia; ficam os 3 mais recentes, e os antigos só saem depois de o novo ser enviado, então uma falha no envio nunca apaga o último estado bom. Feito por `coletor/nuvem.py` |
+| Release `estado-atual` | O mínimo para continuar amanhã, num arquivo `estado-AAAA-MM-DD.tar.gz` (cerca de 30 MB): `estado/detalhe_atual.parquet`, `estado/links_atual.parquet`, a última listagem do catálogo (para a conferência de tamanho) e o último cronograma da CGU (para o publicador). Com a Fase 3, entra também `estado/conteudo_atual.parquet` (último hash e schema de cada arquivo) | Um arquivo novo por dia; ficam os 3 mais recentes, e os antigos só saem depois de o novo ser enviado, então uma falha no envio nunca apaga o último estado bom. Feito por `coletor/nuvem.py` |
 | Release `historico-AAAA-MM` | O que cada dia produziu, num arquivo `dia-AAAA-MM-DD.tar.gz`: Silver, tentativas de links, detalhes coletados e a listagem do dia (Gold quando existir) | Um release por mês; até 2 GB por arquivo. Feito por `coletor/nuvem.py historico` |
 | Repositório Git | Só código e documentação | Nenhum Parquet nem JSON gerado é commitado |
 | Pasta local `dados/` | Cópia de trabalho no computador | Fora do Git (`.gitignore`) |
@@ -107,7 +107,6 @@ O coletor do detalhe decide o que buscar a partir deste estado, e a Silver lê o
 | `silver/publicador` | uma linha por base por dia | `id` (chave), `publicador`, `esfera` (`FEDERAL`, `ESTADUAL`, `MUNICIPAL`, `NAO_CLASSIFICADA`; nula quando não identificado), `origem_publicador` (`PAINEL_CGU`, `ORGANIZACAO`, `DOMINIO_LINK`, `DOMINIO_EMAIL`, `NAO_IDENTIFICADO`), `evidencia` (o valor exato que a fonte forneceu), `data_coleta`. Gerada por `sql/silver_publicador.sql` com `referencia/dominios.csv` (decisão 13). O domínio do link é o que tem mais links na base; no empate, o primeiro em ordem alfabética, para o resultado não mudar entre execuções |
 | `silver/link_status` | uma linha por link testado que ainda existe nos recursos | `link`, `servidor`, `ultima_tentativa`, `ultimo_status_http`, `ultimo_erro_tipo`, `falhas_seguidas`, `quebrado` (3 falhas seguidas em dias diferentes, decisão 14), `quebrado_desde`, `ultimo_sucesso`, `data_coleta`. Gerada por `sql/silver_link_status.sql` a partir de `estado/links_atual` |
 | `silver/base_saude` | uma linha por base por dia | `id`, `qtd_links` (links http(s) distintos), `qtd_testados`, `qtd_ok`, `qtd_em_observacao` (1 ou 2 falhas), `qtd_quebrados`, `fora_do_ar` (a base tem links e todos estão quebrados), `data_coleta`. Link ainda não testado não conta como quebrado. Gerada por `sql/silver_base_saude.sql` |
-| `silver/tentativa_link` | uma linha por teste de link | `recurso_id`, `data_coleta`, `metodo` (`HEAD` ou `GET`), `status_http`, `url_final`, `content_type`, `tamanho_bytes`, `last_modified`, `etag`, `tempo_ms`, `tipo_erro` (`DNS`, `SSL`, `TIMEOUT`, `CONEXAO`) |
 | `silver/versao_conteudo` | uma linha por arquivo lido no dia (Fase 3) | `link`, `data_coleta`, `hash_conteudo`, `tamanho_bytes`, `verificacao_parcial`, `qtd_colunas`, `schema` (nome, ordem e tipo), `schema_hash`, `erro_schema`, `mudou_conteudo` (hash diferente do da leitura anterior), `mudou_schema` (estrutura diferente da leitura anterior). A primeira leitura de um link nunca conta como mudança. Gerada por `sql/silver_versao_conteudo.sql` a partir de `estado/conteudo_atual`. A data máxima do conteúdo (tarefa 5 da Fase 3) ainda não existe |
 | `silver/mudanca_schema` | uma linha por mudança de estrutura detectada no dia | `link`, `data_coleta`, `tipo_mudanca` (`ADICIONADA`, `REMOVIDA`, `TIPO_ALTERADO`, `RENOMEADA_PROVAVEL`, `ORDEM_ALTERADA`), `coluna`, `coluna_depois` (só na renomeação), `tipo_antes`, `tipo_depois`. Renomeação provável: uma coluna sumiu e outra de mesmo tipo apareceu na mesma posição. Gerada por `sql/silver_mudanca_schema.sql` comparando `schema_anterior` e `schema` do estado |
 
@@ -145,7 +144,8 @@ Modelo dimensional (Star Schema).
 - Arquivo de até **50 MB**: hash SHA-256 do arquivo inteiro.
 - Acima de 50 MB: hash dos primeiros 50 MB, `Content-Length` como sinal adicional e `verificacao_parcial = true`.
 - O schema é lido das primeiras linhas em qualquer caso.
-- O limite é provisório: calibrar com os tamanhos reais medidos na Fase 2.
+- O limite é provisório: calibrar com os tamanhos reais medidos no início da Fase 3 (amostra de `Content-Length`).
+- Quais links são baixados e com que frequência: decisão 27 (formato tabular, não quebrados, ciclo de 7 dias, teto por servidor por dia).
 
 ### Prazo esperado e status (Fase 4)
 

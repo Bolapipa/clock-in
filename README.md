@@ -2,9 +2,13 @@
 
 **Monitor de dados abertos do Brasil: o dado foi aberto, mas ainda está vivo?**
 
-Cada base de dados aberta tem um "horário de trabalho": a periodicidade com que deveria ser atualizada. O Clock-in verifica, todos os dias, se cada base **bateu o ponto**: se o link funciona, se o arquivo existe, se o conteúdo foi atualizado no prazo e se o formato mudou. Tudo medido pelo **conteúdo real**, não pelo que o órgão declara.
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-blue.svg)](LICENSE)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
+[![Custo zero](https://img.shields.io/badge/custo-zero-brightgreen.svg)](docs/ROADMAP.md#princípio-custo-zero)
 
-> Projeto em construção. A ideia foi validada com dados reais (ver abaixo) e as Fases 0 (ambiente) e 1 (inventário do catálogo) estão concluídas. O código é escrito fase por fase, seguindo o [roadmap](docs/ROADMAP.md).
+Cada base de dados aberta tem um "horário de trabalho": a periodicidade com que deveria ser atualizada. O Clock-in verifica, todos os dias, se cada base **bateu o ponto**: se o link funciona, se o arquivo existe, se o conteúdo foi atualizado no prazo e se a estrutura mudou. Tudo medido pelo **conteúdo real**, não pelo que o órgão declara.
+
+> **Projeto em construção.** A ideia foi validada com dados reais (veja abaixo). O inventário do catálogo está pronto, o teste diário de links e o motor no GitHub Actions estão em validação, e a leitura do conteúdo dos arquivos está em desenvolvimento. O avanço fase a fase está no [roadmap](docs/ROADMAP.md).
 
 ---
 
@@ -32,22 +36,33 @@ Detalhes, método e ressalvas em [docs/VALIDACAO.md](docs/VALIDACAO.md).
 
 O Painel da CGU mede se a base **foi aberta**. O dados.gov.br mostra um selo de atualização que, na prática, quase sempre diz "não verificável". Iniciativas de fora (União Europeia, Pittsburgh, Itália) medem metadados ou são scripts locais. **Ninguém verifica o conteúdo real, avisa quem depende da base e mostra a evolução por órgão.** Análise completa em [docs/PESQUISA.md](docs/PESQUISA.md).
 
-## Como vai funcionar
+## Como funciona
 
 ```text
-           ┌───────────────────────────── Motor de coleta (diário) ─────────────────────────────┐
-fontes ──▶ │ Bronze: catálogo + respostas cruas ─▶ Silver: padronizado ─▶ Gold: status por base │
-           │ (dados.gov.br, painel CGU)            (links, hash, schema)   (nota por órgão)     │
-           └──────────────────────────────────────────────┬─────────────────────────────────────┘
-                                                          ▼
-                                           API estática (arquivos JSON)
-                                                 │           │
-                                                 ▼           ▼
-                                          Site público    Alertas
-                                     (base, órgão, ranking)   (RSS, webhook)
+              Motor diário (GitHub Actions, sem servidor)
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │  Bronze              Silver                  Gold                      │
+ │  respostas cruas  ─▶ dados padronizados  ─▶  status por base,          │
+ │  do catálogo e       links, hash e schema    nota por órgão            │
+ │  do painel da CGU    de cada arquivo         (a construir)             │
+ └───────────────────────────────────┬────────────────────────────────────┘
+                                     ▼
+                      API estática (arquivos JSON)
+                          │                  │
+                          ▼                  ▼
+                   Site público           Alertas
+              (base, órgão, ranking)   (RSS e webhook)
 ```
 
-Ordem de construção: **validação → motor → API → site → alertas**. O site usa a própria API, então a lógica de "qual o status desta base" é escrita uma vez só.
+O que cada camada guarda:
+
+| Camada | Conteúdo | Situação |
+|---|---|---|
+| **Bronze** | Resposta crua do catálogo (lista e detalhe das bases), arquivos do painel da CGU e cada teste de link | Pronta |
+| **Silver** | Bases, recursos, publicador real de cada base, saúde dos links, versões de conteúdo e mudanças de schema | Pronta; conteúdo em desenvolvimento |
+| **Gold** | Status diário por base, nota e ranking por órgão | A construir |
+
+O dado fica em arquivos Parquet lidos com DuckDB. Nenhum dado gerado vai para o Git: o estado de cada dia e o histórico ficam em releases do GitHub. O modelo completo está em [docs/ARQUITETURA.md](docs/ARQUITETURA.md).
 
 ### Status de cada base
 
@@ -61,25 +76,61 @@ Ordem de construção: **validação → motor → API → site → alertas**. O
 
 O prazo esperado vem da periodicidade declarada **ou**, quando não há (70% das bases, medido no catálogo completo), do ritmo observado no histórico da própria base.
 
+### Regras de justiça
+
+- Um link só é considerado **quebrado** depois de 3 falhas em dias diferentes seguidos, para um erro passageiro não virar acusação.
+- "Não verificável" nunca é tratado como "desatualizado": fica fora da nota e aparece como cobertura, lado a lado.
+- Coleta educada: uma requisição por vez em cada servidor, pausa entre elas e identificação no `User-Agent`.
+
+## Onde o projeto está
+
+| Fase | Entrega | Situação |
+|---|---|---|
+| 0 | Ambiente: Python, DuckDB, estrutura do projeto | Concluída |
+| 1 | Inventário: catálogo do dados.gov.br e painel da CGU (Bronze e Silver), publicador real de cada base | Concluída |
+| 2 | Saúde dos links e motor diário no GitHub Actions | Código pronto; primeira execução completa em validação |
+| 3 | Conteúdo: hash e schema de cada arquivo | Em andamento |
+| 4 | Atualização real: prazo esperado e status de cada base | |
+| 5 | Modelo Gold: histórico, nota e ranking por órgão | |
+| 6 | API estática (JSON gerado pelo motor) | |
+| 7 | Site público | |
+| 8 | Alertas | |
+| 9 | Lançamento e impacto | |
+
+Guia completo, com tarefas e critério de pronto de cada fase: [docs/ROADMAP.md](docs/ROADMAP.md).
+
+### Números do catálogo (coleta de 25/10/2026)
+
+| Item | Quantidade |
+|---|---|
+| Bases abertas | 19.596 |
+| Recursos (links de arquivos) | 126.168 |
+| Links distintos, em 714 servidores | 119.267 |
+| Bases com publicador real identificado | 96,2% |
+
 ## Como rodar
 
 Requisitos: Python 3.12 e Git. No Windows, use `python` (não `python3`).
 
 ```powershell
+git clone https://github.com/Bolapipa/clock-in.git
+cd clock-in
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-python coletor/teste_duckdb.py
+pytest -q
 ```
 
 No Linux: `python3 -m venv .venv` e `source .venv/bin/activate`.
 
-O coletor precisa da chave da API do dados.gov.br no arquivo `.env` (linha `CHAVE_API_DADOS_GOV=...`). A chave fica em "Minha Conta", entrando no portal com gov.br.
+Os testes automáticos não chamam nenhuma API. Para coletar dados de verdade, o coletor precisa da chave da API do dados.gov.br no arquivo `.env` (linha `CHAVE_API_DADOS_GOV=...`, que nunca vai para o Git). A chave fica em "Minha Conta", entrando no portal com gov.br.
 
 Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Brasília, mesmo num computador em outro fuso.
 
 | Comando | O que faz |
 |---|---|
+| `python coletor/motor.py` | Execução do dia, em ordem e com a mesma data: listagem, painel da CGU, detalhe, Silver, teste de links e Silver dos links |
+| `python coletor/motor.py --desde detalhe` | Retoma o motor a partir de um passo (`lista`, `painel`, `detalhe`, `silver`, `links` ou `silver_links`) |
 | `python coletor/catalogo_lista.py --max-paginas 5` | Teste rápido: coleta 5 páginas da listagem (não sobrescreve a listagem que já existe no dia) |
 | `python coletor/catalogo_lista.py` | Coleta a listagem inteira para a Bronze (cerca de 40 minutos); recusa uma listagem com menos de 95% das bases da anterior |
 | `python coletor/catalogo_lista.py --aceitar-queda` | Igual ao anterior, mas aceita uma listagem bem menor (use só se a queda for real) |
@@ -93,26 +144,20 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/links.py` | Testa os links dos recursos: um por vez em cada servidor, vários servidores em paralelo, no máximo 5.000 links por servidor por dia |
 | `python coletor/silver_links.py` | Gera a Silver da saúde dos links (`link_status` e `base_saude`) depois do `links.py` |
 | `python coletor/nuvem.py baixar` / `subir` / `historico` | Estado e histórico nos releases do GitHub (usados pelo workflow `motor-diario.yml`; precisam do `gh` com login) |
-| `python coletor/motor.py` | Execução do dia: listagem, painel, detalhe, Silver, teste de links e Silver dos links, em ordem e com a mesma data |
-| `python coletor/motor.py --desde detalhe` | Retoma o motor a partir de um passo (`lista`, `painel`, `detalhe`, `silver`, `links` ou `silver_links`) |
-| `pytest -v` | Roda os testes automáticos (sem chamar a API) |
+| `pytest -v` | Roda os testes automáticos |
 
-## Roadmap
+## Estrutura do repositório
 
-| Fase | Entrega | Situação |
-|---|---|---|
-| 0 | Ambiente: Python, DuckDB, estrutura do projeto | Concluída |
-| 1 | Inventário: catálogo do dados.gov.br e painel da CGU (Bronze e Silver), publicador real de cada base | Concluída |
-| 2 | Saúde dos links e motor diário no GitHub Actions | Próxima |
-| 3 | Conteúdo: hash e schema de cada arquivo | |
-| 4 | Atualização real: prazo esperado e status de cada base | |
-| 5 | Modelo Gold: histórico, nota e ranking por órgão | |
-| 6 | API estática (JSON gerado pelo motor) | |
-| 7 | Site público | |
-| 8 | Alertas | |
-| 9 | Lançamento e impacto | |
-
-Guia completo, com tarefas, critério de pronto e o que estudar: [docs/ROADMAP.md](docs/ROADMAP.md).
+```text
+clock-in/
+├── coletor/       # motor de coleta e Silver (Python)
+├── sql/           # transformações da Silver (um arquivo por tabela)
+├── referencia/    # tabelas de referência mantidas à mão
+├── tests/         # testes automáticos (pytest), sem chamar nenhuma API
+├── docs/          # ideia, pesquisa, validação, arquitetura, decisões e roadmap
+├── validacao/     # pesquisa feita antes do projeto (não é código do produto)
+└── .github/       # workflow do motor diário
+```
 
 ## Documentação
 
@@ -124,21 +169,17 @@ Guia completo, com tarefas, critério de pronto e o que estudar: [docs/ROADMAP.m
 | [docs/ARQUITETURA.md](docs/ARQUITETURA.md) | Modelo de dados (Bronze, Silver, Gold), regras de status, API estática e alertas |
 | [docs/API_DADOS_GOV.md](docs/API_DADOS_GOV.md) | Como a API do dados.gov.br funciona: a oficial (usada pelo coletor) e a do site (usada na validação) |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Guia fase por fase |
-| [docs/DECISOES.md](docs/DECISOES.md) | Registro de decisões técnicas |
+| [docs/DECISOES.md](docs/DECISOES.md) | Registro das decisões técnicas e dos motivos |
 
-## Regras do projeto
+## Princípio: custo zero
 
-- **Custo zero:** gratuito para quem constrói e para quem usa. Sem servidor, sem banco hospedado, sem serviço pago. Detalhes no [roadmap](docs/ROADMAP.md#princípio-custo-zero).
-- Coleta educada: pausas entre requisições, identificação no User-Agent, nada de sobrecarregar servidores públicos.
-- Ser justo no ranking: separar "não verificável" de "desatualizado" e publicar a regra.
-
-## Stack prevista (custo zero)
+O Clock-in é gratuito para quem constrói e para quem usa. Toda escolha técnica passa por uma pergunta: "isso continua de graça quando rodar todo dia, para sempre?"
 
 | Peça | Ferramenta |
 |---|---|
 | Coleta e transformação | Python, DuckDB, SQL |
 | Armazenamento | Parquet (Bronze, Silver, Gold) em arquivos de release do GitHub; nenhum dado no Git |
-| Motor diário | GitHub Actions agendado (repositório público a partir da Fase 2) |
+| Motor diário | GitHub Actions agendado (repositório público: sem limite de minutos) |
 | API | Arquivos JSON estáticos gerados pelo motor |
 | Site | HTML, CSS e JavaScript na Vercel (plano Hobby) |
 | Alertas | RSS e webhook |
