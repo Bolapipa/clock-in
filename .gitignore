@@ -1,6 +1,9 @@
 # Segredos e configuração local
 .env
 
+# Anotações pessoais (não vão para o GitHub)
+docs/APRESENTACAO.md
+
 # Python
 .venv/
 __pycache__/
