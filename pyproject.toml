@@ -1,3 +1,9 @@
+[project]
+name = "clock-in"
+version = "0.1.0"
+# Versão do Python usada no projeto (decisão 19)
+requires-python = ">=3.12"
+
 [tool.pytest.ini_options]
 # Pastas onde o pytest procura os testes
 testpaths = ["tests"]

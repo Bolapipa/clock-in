@@ -17,7 +17,7 @@ hospedagem AS (
     SELECT unnest([
         'google.com', 'googleusercontent.com', 'amazonaws.com', 'sharepoint.com',
         'powerbi.com', 'windows.net', 'live.com', 'github.com', 'githubusercontent.com',
-        'dropbox.com', 'repositorio.dados.gov.br'
+        'dropbox.com', 'dados.gov.br'
     ]) AS dominio
 ),
 
@@ -59,20 +59,28 @@ links_validos AS (
           WHERE l.host = h.dominio OR l.host LIKE '%.' || h.dominio
       )
 ),
-dominio_link AS (
+-- Quantos links de cada base apontam para cada domínio
+contagem_dominio AS (
     SELECT
         id,
         -- www.gov.br hospeda vários órgãos: usa também o primeiro trecho do caminho (www.gov.br/inpi)
-        mode(CASE WHEN host = 'www.gov.br' AND trecho <> '' THEN 'www.gov.br/' || trecho ELSE host END) AS dominio
+        CASE WHEN host = 'www.gov.br' AND trecho <> '' THEN 'www.gov.br/' || trecho ELSE host END AS dominio,
+        COUNT(*) AS links
     FROM links_validos
-    GROUP BY id
+    GROUP BY ALL
+),
+-- O domínio com mais links; no empate, o primeiro em ordem alfabética (sempre o mesmo resultado)
+dominio_link AS (
+    SELECT id, dominio
+    FROM contagem_dominio
+    QUALIFY row_number() OVER (PARTITION BY id ORDER BY links DESC, dominio) = 1
 ),
 
--- Fonte 4: domínio do e-mail do responsável
+-- Fonte 4: domínio do primeiro endereço de e-mail do responsável
 dominio_email AS (
-    SELECT id, lower(split_part(email_responsavel, '@', 2)) AS dominio
+    SELECT id, regexp_extract(lower(email_responsavel), '@([a-z0-9.-]+)', 1) AS dominio
     FROM silver_base
-    WHERE email_responsavel LIKE '%@%'
+    WHERE regexp_extract(lower(email_responsavel), '@([a-z0-9.-]+)', 1) <> ''
 ),
 
 -- A cascata: qual fonte responde primeiro

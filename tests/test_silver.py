@@ -74,8 +74,11 @@ def test_periodicidade_vazia_vira_nao_declarada():
     assert bases["a"]["periodicidade"] == "MENSAL"
     assert bases["a"]["periodicidade_comparavel"] is True
     assert bases["b"]["periodicidade"] == "NAO_DECLARADA"
+    # Não declarada é "não comparável" (False), e não vazio
+    assert bases["b"]["periodicidade_comparavel"] is False
     # Sem detalhe ainda: periodicidade desconhecida, não "não declarada"
     assert bases["c"]["periodicidade"] is None
+    assert bases["c"]["periodicidade_comparavel"] is None
     assert bases["c"]["tem_detalhe"] is False
 
 

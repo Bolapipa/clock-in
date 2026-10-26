@@ -10,7 +10,7 @@ WITH lista AS (
         b ->> 'nome'                     AS slug,
         b ->> 'title'                    AS titulo,
         b ->> 'nomeOrganizacao'          AS organizacao_listagem,
-        CAST(b ->> 'isAtualizado' AS BOOLEAN) AS portal_diz_atualizado,
+        TRY_CAST(b ->> 'isAtualizado' AS BOOLEAN) AS portal_diz_atualizado,
         b ->> 'ultimaAtualizacaoDados'   AS ultima_atualizacao_dados_texto,
         b ->> 'ultimaAlteracaoMetadados' AS ultima_alteracao_metadados_texto,
         data_coleta
@@ -46,16 +46,20 @@ SELECT
         ELSE COALESCE(NULLIF(d.payload ->> 'periodicidade', ''), 'NAO_DECLARADA')
     END AS periodicidade,
 
-    -- Só estas periodicidades dão um prazo esperado (Fase 4)
-    d.payload ->> 'periodicidade' IN (
-        'DIARIA', 'SEMANAL', 'QUINZENAL', 'MENSAL', 'TRIMESTRAL',
-        'QUADRIMESTRAL', 'SEMESTRAL', 'ANUAL'
-    ) AS periodicidade_comparavel,
+    -- Só estas periodicidades dão um prazo esperado (Fase 4).
+    -- Periodicidade vazia é "não comparável" (false); sem detalhe ainda, fica nula
+    CASE
+        WHEN d.id IS NULL THEN NULL
+        ELSE COALESCE(d.payload ->> 'periodicidade' IN (
+            'DIARIA', 'SEMANAL', 'QUINZENAL', 'MENSAL', 'TRIMESTRAL',
+            'QUADRIMESTRAL', 'SEMESTRAL', 'ANUAL'
+        ), false)
+    END AS periodicidade_comparavel,
 
     -- Como o portal vê a base
     l.portal_diz_atualizado,
     d.payload ->> 'atualizado' AS status_portal,
-    CAST(d.payload ->> 'descontinuado' AS BOOLEAN) AS descontinuado,
+    TRY_CAST(d.payload ->> 'descontinuado' AS BOOLEAN) AS descontinuado,
     d.payload ->> 'selo' AS selo,
 
     -- Datas em texto brasileiro viram data de verdade; "Indisponível" vira nulo

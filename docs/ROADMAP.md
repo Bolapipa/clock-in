@@ -132,6 +132,15 @@ Ritmo sugerido: uma fase por semana. As fases 1, 3 e 7 podem levar duas.
 
 **Objetivo:** saber, todo dia, quais links funcionam e desde quando estão quebrados, com o motor rodando sozinho e de graça.
 
+**Já corrigido no review de 26/10/2026:** o publicador mudava entre execuções (empate no `mode()` em 3.376 bases; agora o desempate é fixo e há teste de repetição); `periodicidade_comparavel` ficava nula em vez de falsa para as bases sem periodicidade; domínio do e-mail com dois endereços; links do próprio portal usados como publicador; `TRY_CAST` nos campos booleanos; Python 3.12 registrado no `pyproject.toml`.
+
+**Antes de começar: pendências do review de 26/10/2026**
+1. **Estado do detalhe no GitHub Actions:** a coleta incremental e a Silver leem todo o histórico de `bronze/catalogo_detalhe`, mas o release `estado-atual` (decisão 16) não o guarda. Sem isso, a primeira execução na nuvem trataria as 19.596 bases como novas (9 horas). Guardar um "detalhe atual" compacto (última versão bem-sucedida de cada base) no estado e fazer o coletor e a Silver lerem dele.
+2. **Data de referência única:** os scripts chamam `date.today()` separadamente, e o runner usa UTC. Calcular uma data só (fuso `America/Sao_Paulo`) num orquestrador e passá-la com `--data` a todos os scripts.
+3. **Listagem robusta:** não aceitar uma listagem menor que a do dia anterior (por exemplo, abaixo de 95%), tratar corpo que não é JSON e não deixar um teste com `--max-paginas` sobrescrever a listagem completa do dia.
+4. **Detalhe robusto:** parar depois de N falhas seguidas (portal fora do ar), tentar de novo as bases com erro 400 permanente só depois de alguns dias, numerar as partes pelo maior número existente e gravar em arquivo temporário antes de renomear.
+5. **Rodízio:** trocar `hash(id) % 30` pela escolha das bases com a última coleta mais antiga, que garante a revisão mensal mesmo com dias sem execução.
+
 **Tarefas**
 1. Para cada recurso, faça `HEAD`; se o servidor recusar (403, 405, 501), use `GET` com `Range: bytes=0-2047`. Timeout curto (por exemplo, 20 s).
 2. Registre por tentativa: status HTTP, URL final, tipo, tamanho, `Last-Modified`, `ETag`, tempo de resposta e tipo de erro (DNS, SSL, timeout).

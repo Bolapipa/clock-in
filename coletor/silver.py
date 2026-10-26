@@ -81,8 +81,9 @@ def gerar_tabela(con, nome, arquivo_sql, data):
     pasta.mkdir(parents=True, exist_ok=True)
     arquivo = pasta / f"{nome}.parquet"
 
-    # Grava o resultado; se o arquivo do dia já existir, é substituído
-    con.execute(f"COPY ({consulta}) TO '{arquivo.as_posix()}' (FORMAT parquet)")
+    # Grava o resultado; se o arquivo do dia já existir, é substituído.
+    # O SQL fica entre quebras de linha para um comentário "--" no fim não engolir o ")"
+    con.execute(f"COPY (\n{consulta}\n) TO '{arquivo.as_posix()}' (FORMAT parquet)")
     linhas = con.execute(f"SELECT COUNT(*) FROM '{arquivo.as_posix()}'").fetchall()[0][0]
 
     # Deixa a tabela gerada disponível para os próximos SQLs (ex.: silver_base)
