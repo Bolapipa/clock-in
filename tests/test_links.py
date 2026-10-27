@@ -246,29 +246,31 @@ def test_resultado_inconclusivo_nao_conta_como_falha(erro):
     assert linha["status_http"] == 503
 
 
-def test_http_403_nao_conta_como_falha():
+@pytest.mark.parametrize("status", [403, 405])
+def test_status_que_so_bloqueia_o_teste_nao_conta_como_falha(status):
     link = "https://a.gov.br/1"
     tentativa(link, DIA_1, 503)
     links.atualizar_estado(DIA_1)
-    tentativa(link, DIA_2, 403)
+    tentativa(link, DIA_2, status)
     links.atualizar_estado(DIA_2)
 
-    # O 403 é bloqueio do teste, não prova que o link quebrou: o link continua como estava
+    # O 403 e o 405 são bloqueio do teste, não provam que o link quebrou: o link continua como estava
     linha = ler_estado()[link]
     assert linha["falhas_seguidas"] == 1
     assert linha["ultima_tentativa"] == DIA_1
     assert linha["status_http"] == 503
 
 
-def test_link_nunca_testado_que_deu_403_fica_fora_do_estado():
+@pytest.mark.parametrize("status", [403, 405])
+def test_link_nunca_testado_que_so_deu_bloqueio_fica_fora_do_estado(status):
     link = "https://a.gov.br/1"
-    tentativa(link, DIA_1, 403)
+    tentativa(link, DIA_1, status)
     links.atualizar_estado(DIA_1)
 
     assert link not in ler_estado()
 
 
-@pytest.mark.parametrize("status", [401, 404, 410, 500, 502])
+@pytest.mark.parametrize("status", [400, 401, 404, 410, 500, 502])
 def test_outros_status_de_erro_continuam_contando_como_falha(status):
     link = "https://a.gov.br/1"
     tentativa(link, DIA_1, 503)

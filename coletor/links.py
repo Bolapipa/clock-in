@@ -18,8 +18,9 @@ dados/estado/links_atual.parquet  (uma linha por link)
     falha_desde (primeira falha da série atual), ultimo_sucesso
 
 Um link está quebrado com 3 falhas seguidas em dias diferentes (decisão 14). Timeout, falha
-de conexão, servidor não testado (SERVIDOR_FORA) e HTTP 403 (proteção anti-robô) não provam
-nada: não contam como falha nem como sucesso, e o link continua como estava (decisões 29 e 31).
+de conexão, servidor não testado (SERVIDOR_FORA) e HTTP 403 ou 405 (bloqueio do teste) não
+provam nada: não contam como falha nem como sucesso, e o link continua como estava
+(decisões 29, 31 e 36).
 
 Uso:
     python coletor/links.py                    # links do dia, a partir da Silver (recurso)
@@ -73,10 +74,12 @@ ERROS_DE_REDE = ("TIMEOUT", "DNS", "SSL", "CONEXAO")
 # de erro continuam contando.
 ERROS_INCONCLUSIVOS = ("TIMEOUT", "CONEXAO", "SERVIDOR_FORA")
 
-# Status HTTP que também não provam nada: o 403 vem da proteção anti-robô de sites do governo
-# (por exemplo a do Cloudflare), que bloqueia o teste até de um computador no Brasil e devolve
-# uma página HTML (decisão 31). Um link apagado costuma dar 404 ou 410, que continuam contando.
-STATUS_INCONCLUSIVOS = (403,)
+# Status HTTP que também não provam nada. O 403 vem da proteção anti-robô de sites do governo (por
+# exemplo a do Cloudflare), que bloqueia o teste até de um computador no Brasil e devolve uma página
+# HTML (decisão 31). O 405 é o servidor recusando o método do teste: num servidor do IFPR o arquivo
+# dava 405 no GitHub e abria normalmente de um computador no Brasil (decisão 36). Um link apagado
+# costuma dar 404 ou 410, que continuam contando.
+STATUS_INCONCLUSIVOS = (403, 405)
 
 # Posição de erro_tipo nas linhas da Bronze (ver montar_linha)
 POSICAO_ERRO_TIPO = 11
@@ -399,8 +402,8 @@ def aplicar_dia(con, data):
             GROUP BY link
         ),
         -- Resultado de hoje de cada link. Sem resposta por timeout, falha de conexão ou servidor
-        -- não testado, ou com um status que só bloqueia o teste (403), o teste não provou nada:
-        -- o link fica como estava (decisões 29 e 31)
+        -- não testado, ou com um status que só bloqueia o teste (403 e 405), o teste não provou nada:
+        -- o link fica como estava (decisões 29, 31 e 36)
         hoje AS (
             SELECT *
             FROM ultimas

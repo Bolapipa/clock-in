@@ -145,12 +145,12 @@ Modelo dimensional (Star Schema).
 
 ### Link quebrado e base fora do ar (decisão 14)
 
-- Um link é **quebrado** depois de **3 falhas em dias seguidos**. Volta a OK no primeiro sucesso. Conta como falha uma resposta HTTP de 400 em diante (menos o 403), um erro de DNS ou um erro de certificado SSL.
+- Um link é **quebrado** depois de **3 falhas em dias seguidos**. Volta a OK no primeiro sucesso. Conta como falha uma resposta HTTP de 400 em diante (menos o 403 e o 405), um erro de DNS ou um erro de certificado SSL.
 - Uma base está **fora do ar** quando todos os seus links estão quebrados.
 - Teste: `HEAD`; se o servidor responder 400, 403, 405 ou 501, `GET` com `Range: bytes=0-2047` (só os cabeçalhos são lidos). Timeout de 20 s. Redireciona até 5 vezes. Vale como sucesso um status abaixo de 400.
 - A contagem é de **dias diferentes com falha, seguidos**, um teste por link por dia. Em servidores com mais de 5.000 links, cada link é testado a cada poucos dias (rodízio pelo teste mais antigo), então a série leva mais dias corridos para fechar as 3 falhas.
 - Servidor com 5 falhas de rede seguidas (timeout, DNS, SSL ou conexão) é dispensado no resto do dia: os links dele são registrados como `SERVIDOR_FORA`, sem esperar o timeout de cada um.
-- **Resultado inconclusivo (decisão 29):** timeout, falha de conexão e `SERVIDOR_FORA` não contam como falha nem como sucesso. O link continua como estava, sem somar nem zerar a série de falhas. O HTTP 403 também entra aqui (decisão 31): é a proteção anti-robô de sites como o do IBGE, que bloqueia o teste até a partir do Brasil. Quem só teve resultado inconclusivo não entra em `estado/links_atual` e aparece como não verificado. Isso evita acusar um órgão quando o servidor só não responde ao teste.
+- **Resultado inconclusivo (decisão 29):** timeout, falha de conexão e `SERVIDOR_FORA` não contam como falha nem como sucesso. O link continua como estava, sem somar nem zerar a série de falhas. O HTTP 403 e o 405 também entram aqui (decisões 31 e 36): o 403 é a proteção anti-robô de sites como o do IBGE, que bloqueia o teste até a partir do Brasil, e o 405 é o servidor recusando o método do teste mesmo com o arquivo abrindo normalmente. Quem só teve resultado inconclusivo não entra em `estado/links_atual` e aparece como não verificado. Isso evita acusar um órgão quando o servidor só não responde ao teste.
 
 ### Conteúdo (decisão 15)
 

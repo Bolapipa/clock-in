@@ -79,7 +79,7 @@ O prazo esperado vem da periodicidade declarada **ou**, quando não há (70% das
 ### Regras de justiça
 
 - Um link só é considerado **quebrado** depois de 3 falhas em dias diferentes seguidos, para um erro passageiro não virar acusação.
-- Timeout, falha de conexão e HTTP 403 **não contam como falha**: vários sites do governo não respondem às máquinas do GitHub ou bloqueiam robôs, e o órgão não pode ser acusado por isso. Só contam resposta de erro do servidor (como 404), erro de DNS e erro de certificado.
+- Timeout, falha de conexão e HTTP 403 ou 405 **não contam como falha**: vários sites do governo não respondem às máquinas do GitHub ou bloqueiam robôs, e o órgão não pode ser acusado por isso. Só contam resposta de erro do servidor (como 404), erro de DNS e erro de certificado.
 - "Não verificável" nunca é tratado como "desatualizado": fica fora da nota e aparece como cobertura, lado a lado.
 - Coleta educada: uma requisição por vez em cada servidor, pausa entre elas e identificação no `User-Agent`.
 
