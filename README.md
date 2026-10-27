@@ -79,7 +79,7 @@ O prazo esperado vem da periodicidade declarada **ou**, quando não há (70% das
 ### Regras de justiça
 
 - Um link só é considerado **quebrado** depois de 3 falhas em dias diferentes seguidos, para um erro passageiro não virar acusação.
-- Timeout e falha de conexão **não contam como falha**: vários sites do governo não respondem às máquinas do GitHub, e o órgão não pode ser acusado por isso. Só contam resposta de erro do servidor, erro de DNS e erro de certificado.
+- Timeout, falha de conexão e HTTP 403 **não contam como falha**: vários sites do governo não respondem às máquinas do GitHub ou bloqueiam robôs, e o órgão não pode ser acusado por isso. Só contam resposta de erro do servidor (como 404), erro de DNS e erro de certificado.
 - "Não verificável" nunca é tratado como "desatualizado": fica fora da nota e aparece como cobertura, lado a lado.
 - Coleta educada: uma requisição por vez em cada servidor, pausa entre elas e identificação no `User-Agent`.
 
@@ -89,9 +89,9 @@ O prazo esperado vem da periodicidade declarada **ou**, quando não há (70% das
 |---|---|---|
 | 0 | Ambiente: Python, DuckDB, estrutura do projeto | Concluída |
 | 1 | Inventário: catálogo do dados.gov.br e painel da CGU (Bronze e Silver), publicador real de cada base | Concluída |
-| 2 | Saúde dos links e pipeline diário no GitHub Actions | Primeira execução completa validada (4h15); agendamento diário ainda desligado |
+| 2 | Saúde dos links e pipeline diário no GitHub Actions | Primeira execução completa validada (4h15); roda sozinho todo dia às 03:17 (Brasília) |
 | 3 | Conteúdo: hash e schema de cada arquivo | Em andamento |
-| 4 | Atualização real: prazo esperado e status de cada base | |
+| 4 | Atualização real: prazo esperado e status de cada base | Em andamento: regras de status prontas; falta o histórico de conteúdo |
 | 5 | Modelo Gold: histórico, nota e ranking por órgão | |
 | 6 | API estática (JSON gerado pelo motor) | |
 | 7 | Site público | |
@@ -130,8 +130,8 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 
 | Comando | O que faz |
 |---|---|
-| `python coletor/motor.py` | Execução do dia, em ordem e com a mesma data: listagem, painel da CGU, detalhe, Silver, teste de links e Silver dos links |
-| `python coletor/motor.py --tempo-maximo 330` | Igual ao anterior, mas o teste de links para a tempo de o motor caber em 330 minutos (o que faltou fica para o dia seguinte) |
+| `python coletor/motor.py` | Execução do dia, em ordem e com a mesma data: listagem, painel da CGU, detalhe, Silver, teste de links, Silver dos links, download de conteúdo, Silver do conteúdo e status das bases |
+| `python coletor/motor.py --tempo-maximo 330` | Igual ao anterior, mas o teste de links e o download de conteúdo param a tempo de o motor caber em 330 minutos (o que faltou fica para o dia seguinte) |
 | `python coletor/motor.py --desde detalhe` | Retoma o motor a partir de um passo (`lista`, `painel`, `detalhe`, `silver`, `links` ou `silver_links`) |
 | `python coletor/motor.py --apenas detalhe` | Roda só um passo. É assim que o workflow chama o motor: uma etapa para cada passo, cada uma com seu log e seu tempo |
 | `python coletor/catalogo_lista.py --max-paginas 5` | Teste rápido: coleta 5 páginas da listagem (não sobrescreve a listagem que já existe no dia) |
@@ -149,6 +149,7 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/links.py --reconstruir` | Recria o estado dos links a partir de toda a Bronze (use depois de mudar a regra de falha); não testa nenhum link |
 | `python coletor/conteudo_baixar.py --max-links 50` | Lê o conteúdo de uma amostra de 50 arquivos (hash e schema) e apaga o que baixou; precisa da Silver e do `link_status` do dia |
 | `python coletor/silver_links.py` | Gera a Silver da saúde dos links (`link_status` e `base_saude`) depois do `links.py` |
+| `python coletor/gold_status.py` | Gera o status de cada base (`gold/fato_status_base_diario`) a partir da Silver, da saúde dos links e do estado do conteúdo |
 | `python coletor/nuvem.py baixar` / `subir` / `historico` | Estado e histórico nos releases do GitHub (usados pelo workflow `pipeline-diario.yml`; precisam do `gh` com login) |
 | `pytest -v` | Roda os testes automáticos |
 

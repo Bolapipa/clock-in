@@ -159,10 +159,11 @@ def subir(data):
 
 
 def arquivos_do_dia(data):
-    """Arquivos que o dia produziu: Silver, tentativas de links e de leitura de conteúdo, detalhes coletados."""
+    """Arquivos que o dia produziu: Silver, Gold, tentativas de links e de leitura de conteúdo, detalhes coletados."""
     dados = portal.RAIZ / "dados"
     padroes = [
         dados.glob(f"silver/*/data={data}/*.parquet"),
+        dados.glob(f"gold/*/data={data}/*.parquet"),
         dados.glob(f"bronze/link_tentativa/data={data}/*.parquet"),
         dados.glob(f"bronze/conteudo_tentativa/data={data}/*.parquet"),
         dados.glob(f"bronze/catalogo_detalhe/data={data}/*.parquet"),

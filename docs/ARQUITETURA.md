@@ -9,7 +9,7 @@ Referência técnica do Clock-in: o que é coletado, o que é guardado, como os 
 ## Visão geral
 
 ```text
-GitHub Actions (agendado; hoje disparado à mão)
+GitHub Actions (agendado todos os dias às 03:17 de Brasília)
   1. Baixa o estado de ontem          <- release "estado-atual" do GitHub
   2. Coleta o catálogo                 -> Bronze (resposta crua)
   3. Testa os links e lê o conteúdo    -> Silver (status HTTP, hash, schema)
@@ -43,7 +43,7 @@ Não há servidor de banco de dados. O "banco" são **arquivos Parquet em pastas
 | Job agendado | Workflow do GitHub Actions com `schedule` |
 | Unity Catalog | Organização por pastas (`bronze/`, `silver/`, `gold/`) |
 
-Persistência entre execuções (decisão 16): o GitHub Actions começa do zero a cada execução, então o estado precisa ser baixado no início e enviado no fim. O workflow `.github/workflows/pipeline-diario.yml` (Pipeline diário dados.gov.br) faz isso: baixa o estado, roda uma etapa para cada passo do `motor.py` (listagem, painel da CGU, detalhe, Silver, teste de links e Silver dos links, cada uma com seu log e seu tempo na aba Actions) e sobe o estado e o histórico (estes dois mesmo se uma etapa falhar no meio). Só o teste de links tem limite de tempo (decisão 28). Por enquanto só roda quando disparado à mão; o agendamento diário (`schedule`) fica comentado no arquivo até algumas execuções darem certo.
+Persistência entre execuções (decisão 16): o GitHub Actions começa do zero a cada execução, então o estado precisa ser baixado no início e enviado no fim. O workflow `.github/workflows/pipeline-diario.yml` (Pipeline diário dados.gov.br) faz isso: baixa o estado, roda uma etapa para cada passo do `motor.py` (listagem, painel da CGU, detalhe, Silver, teste de links e Silver dos links, cada uma com seu log e seu tempo na aba Actions) e sobe o estado e o histórico (estes dois mesmo se uma etapa falhar no meio). Só o teste de links tem limite de tempo (decisão 28). Roda todos os dias às 03:17 de Brasília (`schedule`, 06:17 UTC) e também pode ser disparado à mão.
 
 | Onde | O que guarda | Como |
 |---|---|---|
@@ -103,8 +103,8 @@ Regra: guardar exatamente o que veio, antes de qualquer transformação.
 | Tabela | Grão | Colunas principais |
 |---|---|---|
 | `estado/detalhe_atual` | uma linha por base | `id`, `ultima_alteracao`, `payload` (último detalhe que deu certo; nulo se nunca deu), `data_coleta` e `coletado_em` (do último sucesso), `falhas_seguidas` (dias seguidos com falha; zera no sucesso), `ultima_tentativa`, `ultimo_erro`. Atualizada por `coletor/estado.py` no fim de cada coleta do detalhe; pode ser recriada da Bronze com `python coletor/estado.py --reconstruir` |
-| `estado/links_atual` | uma linha por link | `link`, `servidor`, `ultima_tentativa`, `status_http` e `erro_tipo` da última tentativa, `falhas_seguidas` (dias diferentes seguidos com falha; zera no sucesso), `falha_desde` (primeira falha da série atual), `ultimo_sucesso`. Atualizada por `coletor/links.py` no fim de cada teste; pode ser recriada da Bronze com `python coletor/links.py --reconstruir` |
-| `estado/conteudo_atual` | uma linha por link tabular | `link`, `servidor`, `ultima_tentativa`, `ultima_leitura` (último download que deu certo), `hash_conteudo`, `tamanho_bytes`, `qtd_colunas`, `schema`, `schema_hash`, `erro_schema`, `verificacao_parcial`, `schema_anterior` (estrutura antes da última mudança), `ultima_mudanca` (dia em que o hash mudou), `ultima_mudanca_schema` (dia em que a estrutura mudou), `erro_tipo` (erro da última tentativa). Download que falha não apaga o que já se sabia, e a primeira leitura de um link não conta como mudança. Atualizada por `coletor/conteudo_estado.py` |
+| `estado/links_atual` | uma linha por link | `link`, `servidor`, `ultima_tentativa`, `status_http` e `erro_tipo` da última tentativa, `falhas_seguidas` (dias diferentes seguidos com falha; zera no sucesso), `falha_desde` (primeira falha da série atual), `ultimo_sucesso`, `content_length`, `last_modified` e `etag` (metadados da última resposta boa) e `ultima_mudanca_metadados` (dia em que algum deles mudou, decisão 33). Atualizada por `coletor/links.py` no fim de cada teste; pode ser recriada da Bronze com `python coletor/links.py --reconstruir` |
+| `estado/conteudo_atual` | uma linha por link tabular | `link`, `servidor`, `ultima_tentativa`, `ultima_leitura` (último download que deu certo), `primeira_leitura` (primeiro download que deu certo; nunca muda), `hash_conteudo`, `tamanho_bytes`, `qtd_colunas`, `schema`, `schema_hash`, `erro_schema`, `verificacao_parcial`, `schema_anterior` (estrutura antes da última mudança), `ultima_mudanca` (dia em que o hash mudou), `ultima_mudanca_schema` (dia em que a estrutura mudou), `erro_tipo` (erro da última tentativa). Download que falha não apaga o que já se sabia, e a primeira leitura de um link não conta como mudança. Atualizada por `coletor/conteudo_estado.py` |
 
 O rodízio de 7 dias da decisão 27 escolhe os links pela data da última leitura registrada em `estado/conteudo_atual`.
 
@@ -117,7 +117,7 @@ O coletor do detalhe decide o que buscar a partir deste estado, e a Silver lê o
 | `silver/base` | uma linha por base por dia | `id` (chave), `slug`, `titulo`, `organizacao_listagem`, `organizacao_detalhe`, `responsavel`, `email_responsavel`, `periodicidade` (valores da API; vazia vira `NAO_DECLARADA`; nula enquanto a base não tem detalhe), `periodicidade_comparavel` (verdadeiro só para periodicidades com prazo; falso para `NAO_DECLARADA`, `OUTRAS` e `SOB_DEMANDA`; nulo sem detalhe), `portal_diz_atualizado`, `status_portal`, `descontinuado`, `selo`, `ultima_atualizacao_dados`, `ultima_alteracao_metadados`, `data_catalogacao`, `qtd_recursos`, `tem_detalhe`, `data_detalhe`, `data_coleta`. Gerada por `sql/silver_base.sql`. O publicador real fica numa tabela separada, `silver/publicador` |
 | `silver/recurso` | uma linha por link por dia | `recurso_id` (chave), `id_base`, `titulo`, `link`, `formato` (maiúsculas, como veio do portal), `formato_limpo` (sem ruído de digitação e com erros comuns corrigidos, ver decisão 26), `formato_tabular` (`true` para CSV, JSON, XLSX, XLS, XML, TXT, ODS e PARQUET), `tipo`, `data_ultima_atualizacao_arquivo`, `data_catalogacao`, `data_coleta`. Só bases presentes na listagem do dia. Gerada por `sql/silver_recurso.sql` |
 | `silver/publicador` | uma linha por base por dia | `id` (chave), `publicador`, `esfera` (`FEDERAL`, `ESTADUAL`, `MUNICIPAL`, `NAO_CLASSIFICADA`; nula quando não identificado), `origem_publicador` (`PAINEL_CGU`, `ORGANIZACAO`, `DOMINIO_LINK`, `DOMINIO_EMAIL`, `NAO_IDENTIFICADO`), `evidencia` (o valor exato que a fonte forneceu), `data_coleta`. Gerada por `sql/silver_publicador.sql` com `referencia/dominios.csv` (decisão 13). O domínio do link é o que tem mais links na base; no empate, o primeiro em ordem alfabética, para o resultado não mudar entre execuções |
-| `silver/link_status` | uma linha por link testado que ainda existe nos recursos | `link`, `servidor`, `ultima_tentativa`, `ultimo_status_http`, `ultimo_erro_tipo`, `falhas_seguidas`, `quebrado` (3 falhas seguidas em dias diferentes, decisão 14), `quebrado_desde`, `ultimo_sucesso`, `data_coleta`. Gerada por `sql/silver_link_status.sql` a partir de `estado/links_atual` |
+| `silver/link_status` | uma linha por link testado que ainda existe nos recursos | `link`, `servidor`, `ultima_tentativa`, `ultimo_status_http`, `ultimo_erro_tipo`, `falhas_seguidas`, `quebrado` (3 falhas seguidas em dias diferentes, decisão 14), `quebrado_desde`, `ultimo_sucesso`, `content_length`, `last_modified`, `etag`, `ultima_mudanca_metadados`, `data_coleta`. Gerada por `sql/silver_link_status.sql` a partir de `estado/links_atual` |
 | `silver/base_saude` | uma linha por base por dia | `id`, `qtd_links` (links http(s) distintos), `qtd_testados`, `qtd_ok`, `qtd_em_observacao` (1 ou 2 falhas), `qtd_quebrados`, `fora_do_ar` (a base tem links e todos estão quebrados), `data_coleta`. Link ainda não testado, ou só com resultado inconclusivo (decisão 29), não conta como quebrado nem como testado. Gerada por `sql/silver_base_saude.sql` |
 | `silver/versao_conteudo` | uma linha por arquivo lido no dia (Fase 3) | `link`, `data_coleta`, `hash_conteudo`, `tamanho_bytes`, `verificacao_parcial`, `qtd_colunas`, `schema` (nome, ordem e tipo), `schema_hash`, `erro_schema`, `mudou_conteudo` (hash diferente do da leitura anterior), `mudou_schema` (estrutura diferente da leitura anterior). A primeira leitura de um link nunca conta como mudança. Gerada por `sql/silver_versao_conteudo.sql` a partir de `estado/conteudo_atual`. A data máxima do conteúdo (tarefa 5 da Fase 3) ainda não existe |
 | `silver/mudanca_schema` | uma linha por mudança de estrutura detectada no dia | `link`, `data_coleta`, `tipo_mudanca` (`ADICIONADA`, `REMOVIDA`, `TIPO_ALTERADO`, `RENOMEADA_PROVAVEL`, `ORDEM_ALTERADA`), `coluna`, `coluna_depois` (só na renomeação), `tipo_antes`, `tipo_depois`. Renomeação provável: uma coluna sumiu e outra de mesmo tipo apareceu na mesma posição. Gerada por `sql/silver_mudanca_schema.sql` comparando `schema_anterior` e `schema` do estado |
@@ -133,7 +133,7 @@ Modelo dimensional (Star Schema).
 | `gold/dim_base` | dimensão | uma linha por base | `slug`, `titulo`, `orgao_id`, `periodicidade`, `url_portal` |
 | `gold/dim_orgao` | dimensão | uma linha por publicador real | `orgao_id`, `nome`, `sigla`, `esfera` |
 | `gold/dim_data` | dimensão | uma linha por dia | `data`, `ano`, `mes`, `dia_semana` |
-| `gold/fato_status_base_diario` | fato | uma linha por base por dia | `data`, `slug`, `status`, `motivo` (frase explicável), `prazo_esperado_dias`, `origem_prazo` (`DECLARADO` ou `INFERIDO`), `ultima_mudanca_real`, `dias_sem_mudanca`, `links_total`, `links_quebrados`, `schema_mudou`, `status_portal`, `diverge_do_portal` |
+| `gold/fato_status_base_diario` | fato | uma linha por base por dia | `data_coleta`, `id`, `slug`, `status`, `motivo` (frase explicável), `prazo_esperado_dias`, `origem_prazo` (`DECLARADO` ou `INFERIDO`), `ultima_mudanca_real`, `dias_sem_mudanca`, `links_total`, `janela_observacao_dias`, `links_quebrados`, `schema_mudou`, `status_portal`, `diverge_do_portal`. Gerada por `coletor/gold_status.py` a partir da Silver e do estado do conteúdo (decisão 32); por enquanto o prazo só vem da periodicidade declarada |
 | `gold/fato_nota_orgao_diario` | fato | uma linha por órgão por dia | `data`, `orgao_id`, `bases_total`, `bases_verificaveis`, `em_dia`, `atrasada`, `parada`, `fora_do_ar`, `nao_verificavel`, `nota`, `cobertura`, `entra_ranking` |
 | `gold/fato_evento_base` | fato | uma linha por acontecimento | `data`, `slug`, `tipo_evento` (`STATUS_MUDOU`, `CONTEUDO_MUDOU`, `SCHEMA_MUDOU`, `LINK_QUEBROU`, `LINK_VOLTOU`), `detalhe` |
 
@@ -145,12 +145,12 @@ Modelo dimensional (Star Schema).
 
 ### Link quebrado e base fora do ar (decisão 14)
 
-- Um link é **quebrado** depois de **3 falhas em dias seguidos**. Volta a OK no primeiro sucesso. Conta como falha uma resposta HTTP de 400 em diante, um erro de DNS ou um erro de certificado SSL.
+- Um link é **quebrado** depois de **3 falhas em dias seguidos**. Volta a OK no primeiro sucesso. Conta como falha uma resposta HTTP de 400 em diante (menos o 403), um erro de DNS ou um erro de certificado SSL.
 - Uma base está **fora do ar** quando todos os seus links estão quebrados.
 - Teste: `HEAD`; se o servidor responder 400, 403, 405 ou 501, `GET` com `Range: bytes=0-2047` (só os cabeçalhos são lidos). Timeout de 20 s. Redireciona até 5 vezes. Vale como sucesso um status abaixo de 400.
 - A contagem é de **dias diferentes com falha, seguidos**, um teste por link por dia. Em servidores com mais de 5.000 links, cada link é testado a cada poucos dias (rodízio pelo teste mais antigo), então a série leva mais dias corridos para fechar as 3 falhas.
 - Servidor com 5 falhas de rede seguidas (timeout, DNS, SSL ou conexão) é dispensado no resto do dia: os links dele são registrados como `SERVIDOR_FORA`, sem esperar o timeout de cada um.
-- **Resultado inconclusivo (decisão 29):** timeout, falha de conexão e `SERVIDOR_FORA` não contam como falha nem como sucesso. O link continua como estava, sem somar nem zerar a série de falhas. Quem só teve resultado inconclusivo não entra em `estado/links_atual` e aparece como não verificado. Isso evita acusar um órgão quando o servidor só não responde à origem do teste.
+- **Resultado inconclusivo (decisão 29):** timeout, falha de conexão e `SERVIDOR_FORA` não contam como falha nem como sucesso. O link continua como estava, sem somar nem zerar a série de falhas. O HTTP 403 também entra aqui (decisão 31): é a proteção anti-robô de sites como o do IBGE, que bloqueia o teste até a partir do Brasil. Quem só teve resultado inconclusivo não entra em `estado/links_atual` e aparece como não verificado. Isso evita acusar um órgão quando o servidor só não responde ao teste.
 
 ### Conteúdo (decisão 15)
 
@@ -167,18 +167,20 @@ Modelo dimensional (Star Schema).
 ### Prazo esperado e status (Fase 4)
 
 Prazo esperado:
-- **Periodicidade declarada:** prazo com folga. Valores iniciais a calibrar: diária 3 dias, semanal 10, mensal 40, trimestral 100, semestral 200, anual 400.
+- **Periodicidade declarada:** prazo com folga. Valores iniciais a calibrar, em `referencia/periodicidade.csv`: diária 3 dias, semanal 10, quinzenal 20, mensal 40, trimestral 100, quadrimestral 135, semestral 200, anual 400.
 - **Sem periodicidade:** ritmo inferido pela mediana dos intervalos entre mudanças de hash. Sem histórico suficiente, a base fica "não verificável".
 
 Última mudança real: a data em que o hash mudou ou a data máxima dentro do conteúdo, a que for mais confiável. `Last-Modified` é só pista.
 
 | Status | Regra |
 |---|---|
-| Em dia | Mudou dentro do prazo esperado |
+| Em dia | Uma mudança vista dentro do prazo esperado |
 | Atrasada | Passou do prazo esperado |
 | Parada | Passou de 3 vezes o prazo esperado |
 | Fora do ar | Todos os links quebrados |
-| Não verificável | Só página HTML, sem arquivo, ou histórico insuficiente |
+| Não verificável | Só página HTML, sem arquivo, sem periodicidade declarada (por enquanto) ou histórico insuficiente |
+
+Como o status é decidido (decisão 32), na ordem: sem o detalhe da base ainda, não verificável; todos os links quebrados, fora do ar; nenhum arquivo tabular lido ou sem prazo, não verificável; sem mudança há mais de 3 vezes o prazo, parada; há mais que o prazo, atrasada; com uma mudança vista dentro do prazo, em dia; senão, não verificável. Os dias sem mudança contam desde a última mudança vista; sem nenhuma mudança vista, contam desde a primeira leitura, e vale o arquivo observado há menos tempo (a base só "não mudou" se todos os arquivos foram vistos pelo mesmo período). A divergência com o portal só existe quando ele diz "Atualizado" ou "Desatualizado" e o status é em dia, atrasada ou parada.
 
 ### Nota por órgão (decisão 17)
 
