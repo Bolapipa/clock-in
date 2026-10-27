@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clock-in · Monitor de dados abertos do Brasil</title>
+  <meta name="description" content="Verifica todo dia se cada base do dados.gov.br ainda está viva, órgão por órgão.">
+  <link rel="stylesheet" href="estilo.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="miolo">
+      <a class="marca" href="#" aria-label="Clock-in, página inicial">Clock-in</a>
+      <p class="chamada">Monitor de dados abertos do Brasil</p>
+    </div>
+  </header>
+
+  <main class="miolo">
+    <p id="erro" class="erro" role="alert" hidden></p>
+
+    <!-- Página inicial: totais do Brasil e a lista de órgãos -->
+    <div id="inicio">
+      <section aria-labelledby="titulo-resumo">
+        <h1 id="titulo-resumo">Os dados abertos do Brasil continuam vivos?</h1>
+        <p class="lide">
+          Todo dia o Clock-in testa os links de cada base do
+          <a href="https://dados.gov.br" rel="noopener">dados.gov.br</a>
+          e mostra o resultado por órgão publicador.
+        </p>
+        <p id="data-coleta" class="data-coleta"></p>
+        <div id="cartoes" class="cartoes" aria-live="polite"></div>
+        <p class="aviso">
+          <strong>Protótipo.</strong> O status pelo conteúdo dos arquivos (em dia, atrasada, parada) começa
+          quando houver histórico de leituras. Por enquanto o site mostra a saúde dos links.
+          Os números vêm de poucos dias de testes e podem mudar bastante nas próximas semanas, conforme o histórico cresce.
+          Órgãos com menos de 30 links testados ficam sem porcentagem.
+        </p>
+        <details class="metodo">
+          <summary>Como medimos</summary>
+          <ul>
+            <li>Cada link recebe um teste por dia, de forma educada: uma requisição por vez em cada servidor.</li>
+            <li>Um link só é considerado <strong>quebrado</strong> depois de 3 falhas em dias diferentes seguidos.
+                Com 1 ou 2 falhas ele fica <strong>em observação</strong>.</li>
+            <li>Timeout, falha de conexão e erro 403 (proteção contra robôs) <strong>não contam como falha</strong>:
+                o órgão não pode ser acusado por algo que o teste não consegue provar.</li>
+            <li>Os links que não conseguimos verificar ficam de fora da conta e aparecem na cobertura.</li>
+          </ul>
+        </details>
+      </section>
+
+      <section aria-labelledby="titulo-orgaos">
+        <h2 id="titulo-orgaos">Órgãos publicadores</h2>
+        <div class="filtros">
+          <label class="campo">
+            <span>Buscar órgão</span>
+            <input id="busca-orgao" type="search" placeholder="Ex.: IBGE, Fortaleza, Saúde" autocomplete="off">
+          </label>
+          <label class="campo">
+            <span>Esfera</span>
+            <select id="filtro-esfera"><option value="">Todas</option></select>
+          </label>
+        </div>
+        <p id="contagem-orgaos" class="contagem" aria-live="polite"></p>
+        <div class="tabela-rolagem">
+          <table id="tabela-orgaos">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <button id="mais-orgaos" class="botao" type="button" hidden>Mostrar mais órgãos</button>
+      </section>
+    </div>
+
+    <!-- Página de um órgão: as bases dele -->
+    <div id="detalhe" hidden>
+      <p><a id="voltar" href="#">&larr; Todos os órgãos</a></p>
+      <h1 id="orgao-nome"></h1>
+      <p id="orgao-meta" class="lide"></p>
+      <div id="orgao-cartoes" class="cartoes"></div>
+      <div class="filtros">
+        <label class="campo">
+          <span>Buscar base</span>
+          <input id="busca-base" type="search" placeholder="Parte do título da base" autocomplete="off">
+        </label>
+        <label class="marcar">
+          <input id="so-problemas" type="checkbox">
+          <span>Só bases com problema</span>
+        </label>
+      </div>
+      <p id="contagem-bases" class="contagem" aria-live="polite"></p>
+      <div class="tabela-rolagem">
+        <table id="tabela-bases">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <button id="mais-bases" class="botao" type="button" hidden>Mostrar mais bases</button>
+    </div>
+  </main>
+
+  <footer class="rodape">
+    <div class="miolo">
+      <p>
+        Dados abertos do <a href="https://dados.gov.br" rel="noopener">dados.gov.br</a>, coletados todo dia.
+        Código e metodologia no <a href="https://github.com/Bolapipa/clock-in" rel="noopener">GitHub</a> (licença MIT).
+      </p>
+    </div>
+  </footer>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
