@@ -144,7 +144,7 @@ def subir(data):
 
     nome = f"estado-{data}.tar.gz"
     garantir_release(RELEASE_ESTADO, "Estado atual",
-                     "Estado que o motor diário lê e atualiza a cada execução. Gerado por coletor/nuvem.py.")
+                     "Estado que a coleta diária lê e atualiza a cada execução. Gerado por coletor/nuvem.py.")
     with tempfile.TemporaryDirectory() as pasta:
         pacote = Path(pasta) / nome
         empacotar(pacote, arquivos)
@@ -180,7 +180,7 @@ def historico(data):
 
     tag = f"historico-{data:%Y-%m}"
     garantir_release(tag, f"Histórico {data:%Y-%m}",
-                     "Tabelas geradas pelo motor diário, um arquivo dia-AAAA-MM-DD.tar.gz por dia.")
+                     "Tabelas geradas pela coleta diária, um arquivo dia-AAAA-MM-DD.tar.gz por dia.")
     with tempfile.TemporaryDirectory() as pasta:
         pacote = Path(pasta) / f"dia-{data}.tar.gz"
         empacotar(pacote, arquivos)

@@ -43,7 +43,7 @@ Não há servidor de banco de dados. O "banco" são **arquivos Parquet em pastas
 | Job agendado | Workflow do GitHub Actions com `schedule` |
 | Unity Catalog | Organização por pastas (`bronze/`, `silver/`, `gold/`) |
 
-Persistência entre execuções (decisão 16): o GitHub Actions começa do zero a cada execução, então o estado precisa ser baixado no início e enviado no fim. O workflow `.github/workflows/motor-diario.yml` faz isso: baixa o estado, roda o `motor.py` e sobe o estado e o histórico (estes dois mesmo se o motor falhar no meio). Por enquanto só roda quando disparado à mão; o agendamento diário (`schedule`) fica comentado no arquivo até algumas execuções darem certo.
+Persistência entre execuções (decisão 16): o GitHub Actions começa do zero a cada execução, então o estado precisa ser baixado no início e enviado no fim. O workflow `.github/workflows/coleta-diaria.yml` (Coleta diária dados.gov.br) faz isso: baixa o estado, roda uma etapa para cada passo do `motor.py` (listagem, painel da CGU, detalhe, Silver, teste de links e Silver dos links, cada uma com seu log e seu tempo na aba Actions) e sobe o estado e o histórico (estes dois mesmo se uma etapa falhar no meio). Só o teste de links tem limite de tempo (decisão 28). Por enquanto só roda quando disparado à mão; o agendamento diário (`schedule`) fica comentado no arquivo até algumas execuções darem certo.
 
 | Onde | O que guarda | Como |
 |---|---|---|

@@ -68,7 +68,7 @@ Depois, se houver demanda: biblioteca Python / CLI ("checar a base X antes de ro
 
 ## Como chega às pessoas
 
-Tudo sai do mesmo motor diário e chega por quatro canais gratuitos.
+Tudo sai da mesma coleta diária e chega por quatro canais gratuitos.
 
 | Canal | Para quem | O que a pessoa faz com ele |
 |---|---|---|

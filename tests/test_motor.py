@@ -1,10 +1,11 @@
-"""Testes do motor diário (coletor/motor.py) e da data de referência (portal.data_de_hoje).
+"""Testes do motor da coleta diária (coletor/motor.py) e da data de referência (portal.data_de_hoje).
 
 Nenhum script de verdade é executado: rodar_passo é trocado por uma
 função falsa que só anota o que foi chamado.
 """
 
 import sys
+import time
 from datetime import date, datetime, timezone
 
 import pytest
@@ -85,6 +86,51 @@ def test_desde_retoma_a_partir_de_um_passo(monkeypatch):
     motor.main()
 
     assert [script for script, _ in chamadas] == ["catalogo_detalhe.py", "silver.py", "links.py", "silver_links.py"]
+
+
+def test_apenas_roda_so_um_passo(monkeypatch):
+    chamadas = motor_falso(monkeypatch, argumentos=["--apenas", "detalhe"])
+
+    motor.main()
+
+    assert chamadas == [("catalogo_detalhe.py", DATA)]
+
+
+def test_apenas_antes_do_desde_nao_roda_nada(monkeypatch):
+    chamadas = motor_falso(monkeypatch, argumentos=["--apenas", "lista", "--desde", "detalhe"])
+
+    motor.main()
+
+    assert chamadas == []
+
+
+def test_apenas_depois_do_desde_roda(monkeypatch):
+    chamadas = motor_falso(monkeypatch, argumentos=["--apenas", "silver", "--desde", "detalhe"])
+
+    motor.main()
+
+    assert chamadas == [("silver.py", DATA)]
+
+
+def test_apenas_com_passo_obrigatorio_que_falha_encerra_com_erro(monkeypatch):
+    motor_falso(monkeypatch, falham={"catalogo_detalhe.py"}, argumentos=["--apenas", "detalhe"])
+
+    # O erro faz a etapa do workflow falhar e as seguintes não rodarem
+    with pytest.raises(SystemExit):
+        motor.main()
+
+
+def test_orcamento_conta_a_partir_do_inicio_informado(monkeypatch):
+    extras = {}
+    # A execução começou há 60 minutos, em outro processo
+    inicio = time.time() - 60 * 60
+    motor_falso(monkeypatch, argumentos=["--apenas", "links", "--tempo-maximo", "100", "--inicio", str(inicio)],
+                extras_recebidos=extras)
+
+    motor.main()
+
+    # 100 min de orçamento, menos 60 já gastos, menos 15 de reserva
+    assert 24 < float(extras["links.py"][1]) <= 25
 
 
 def test_sem_orcamento_de_tempo_nenhum_passo_recebe_extras(monkeypatch):

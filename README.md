@@ -39,7 +39,7 @@ O Painel da CGU mede se a base **foi aberta**. O dados.gov.br mostra um selo de 
 ## Como funciona
 
 ```text
-              Motor diário (GitHub Actions, sem servidor)
+              Coleta diária (GitHub Actions, sem servidor)
  ┌────────────────────────────────────────────────────────────────────────┐
  │  Bronze              Silver                  Gold                      │
  │  respostas cruas  ─▶ dados padronizados  ─▶  status por base,          │
@@ -88,7 +88,7 @@ O prazo esperado vem da periodicidade declarada **ou**, quando não há (70% das
 |---|---|---|
 | 0 | Ambiente: Python, DuckDB, estrutura do projeto | Concluída |
 | 1 | Inventário: catálogo do dados.gov.br e painel da CGU (Bronze e Silver), publicador real de cada base | Concluída |
-| 2 | Saúde dos links e motor diário no GitHub Actions | Código pronto; primeira execução completa em validação |
+| 2 | Saúde dos links e coleta diária no GitHub Actions | Primeira execução completa validada (4h15); agendamento diário ainda desligado |
 | 3 | Conteúdo: hash e schema de cada arquivo | Em andamento |
 | 4 | Atualização real: prazo esperado e status de cada base | |
 | 5 | Modelo Gold: histórico, nota e ranking por órgão | |
@@ -132,6 +132,7 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/motor.py` | Execução do dia, em ordem e com a mesma data: listagem, painel da CGU, detalhe, Silver, teste de links e Silver dos links |
 | `python coletor/motor.py --tempo-maximo 330` | Igual ao anterior, mas o teste de links para a tempo de o motor caber em 330 minutos (o que faltou fica para o dia seguinte) |
 | `python coletor/motor.py --desde detalhe` | Retoma o motor a partir de um passo (`lista`, `painel`, `detalhe`, `silver`, `links` ou `silver_links`) |
+| `python coletor/motor.py --apenas detalhe` | Roda só um passo. É assim que o workflow chama o motor: uma etapa para cada passo, cada uma com seu log e seu tempo |
 | `python coletor/catalogo_lista.py --max-paginas 5` | Teste rápido: coleta 5 páginas da listagem (não sobrescreve a listagem que já existe no dia) |
 | `python coletor/catalogo_lista.py` | Coleta a listagem inteira para a Bronze (cerca de 40 minutos); recusa uma listagem com menos de 95% das bases da anterior |
 | `python coletor/catalogo_lista.py --aceitar-queda` | Igual ao anterior, mas aceita uma listagem bem menor (use só se a queda for real) |
@@ -146,7 +147,7 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/links.py --tempo-maximo 90` | Igual ao anterior, mas para depois de 90 minutos; os links que faltaram são os primeiros do dia seguinte |
 | `python coletor/conteudo_baixar.py --max-links 50` | Lê o conteúdo de uma amostra de 50 arquivos (hash e schema) e apaga o que baixou; precisa da Silver e do `link_status` do dia |
 | `python coletor/silver_links.py` | Gera a Silver da saúde dos links (`link_status` e `base_saude`) depois do `links.py` |
-| `python coletor/nuvem.py baixar` / `subir` / `historico` | Estado e histórico nos releases do GitHub (usados pelo workflow `motor-diario.yml`; precisam do `gh` com login) |
+| `python coletor/nuvem.py baixar` / `subir` / `historico` | Estado e histórico nos releases do GitHub (usados pelo workflow `coleta-diaria.yml`; precisam do `gh` com login) |
 | `pytest -v` | Roda os testes automáticos |
 
 ## Estrutura do repositório
@@ -159,7 +160,7 @@ clock-in/
 ├── tests/         # testes automáticos (pytest), sem chamar nenhuma API
 ├── docs/          # ideia, pesquisa, validação, arquitetura, decisões e roadmap
 ├── validacao/     # pesquisa feita antes do projeto (não é código do produto)
-└── .github/       # workflow do motor diário
+└── .github/       # workflow da coleta diária
 ```
 
 ## Documentação
@@ -182,7 +183,7 @@ O Clock-in é gratuito para quem constrói e para quem usa. Toda escolha técnic
 |---|---|
 | Coleta e transformação | Python, DuckDB, SQL |
 | Armazenamento | Parquet (Bronze, Silver, Gold) em arquivos de release do GitHub; nenhum dado no Git |
-| Motor diário | GitHub Actions agendado (repositório público: sem limite de minutos) |
+| Coleta diária | GitHub Actions agendado (repositório público: sem limite de minutos) |
 | API | Arquivos JSON estáticos gerados pelo motor |
 | Site | HTML, CSS e JavaScript na Vercel (plano Hobby) |
 | Alertas | RSS e webhook |

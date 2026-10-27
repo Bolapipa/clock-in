@@ -19,7 +19,7 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 |---|---|---|
 | Desenvolvimento | Python + DuckDB, sem servidor de banco | Nada para instalar além do Python |
 | Armazenamento | Arquivos Parquet (Bronze, Silver, Gold) | Compactos, rápidos, cabem no GitHub |
-| Motor diário | GitHub Actions agendado | Grátis e sem limite de minutos em **repositório público** |
+| Coleta diária | GitHub Actions agendado | Grátis e sem limite de minutos em **repositório público** |
 | Histórico | Parquet por mês em arquivos de release do GitHub | Até 2 GB por arquivo, sem custo |
 | API | API estática: arquivos JSON gerados pelo motor | Sem servidor, sem custo, rápida |
 | Site | Estático na Vercel (plano Hobby, uso não comercial) | Grátis |
@@ -37,7 +37,7 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 - [x] Validação (24/10/2026): ver [VALIDACAO.md](VALIDACAO.md)
 - [x] Fase 0: Ambiente
 - [x] Fase 1: Inventário (26/10/2026)
-- [ ] Fase 2: Saúde dos links e motor diário (código pronto; falta conferir a primeira execução completa no GitHub e ligar o agendamento)
+- [ ] Fase 2: Saúde dos links e coleta diária (primeira execução completa validada em 26/10/2026; falta ligar o agendamento)
 - [ ] Fase 3: Conteúdo (hash e schema) (em andamento: falta o downloader)
 - [ ] Fase 4: Atualização real e status
 - [ ] Fase 5: Gold, histórico e nota por órgão
@@ -128,7 +128,7 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 ---
 
-## Fase 2: Saúde dos links e motor diário
+## Fase 2: Saúde dos links e coleta diária
 
 **Objetivo:** saber, todo dia, quais links funcionam e desde quando estão quebrados, com o motor rodando sozinho e de graça.
 
@@ -140,9 +140,11 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 **Etapa C, feita em 26/10/2026 (pendência 3):** `coletor/catalogo_lista.py` recusa uma listagem com menos de 95% das bases da listagem anterior (`--aceitar-queda` libera uma queda real), recusa resposta que não é JSON ou não é uma lista e não deixa um teste com `--max-paginas` sobrescrever a listagem que já existe no dia. Testes novos em `tests/test_catalogo_lista.py` (59 no total). Com isso, as 5 pendências do review estão resolvidas.
 
-**Teste de links, primeira parte, feita em 26/10/2026 (tarefas 1 a 3 e 5):** `coletor/links.py` testa os links de `silver/recurso` com `HEAD` (e `GET` com `Range` quando o servidor recusa), registra cada tentativa em `bronze/link_tentativa` e mantém `estado/links_atual`. Escolha dos links, teto de 5.000 por servidor por dia e disjuntor para servidor fora do ar na decisão 25. Testes em `tests/test_links.py` (77 no total). Amostra real de 200 links: 45 s, 77,5% responderam. **Workflow do GitHub Actions, escrito em 26/10/2026 (tarefa 6):** `.github/workflows/motor-diario.yml` (disparo manual por enquanto; o `schedule` diário está comentado) baixa o estado do release `estado-atual`, roda o `motor.py` e sobe o estado e o histórico; `coletor/nuvem.py` faz o envio e o download com o `gh`, e guarda os 3 estados mais recentes. Testes em `tests/test_nuvem.py` com um GitHub falso (93 no total). Falta, feito por você no GitHub: criar o secret `CHAVE_API_DADOS_GOV`, subir o primeiro estado a partir do seu computador e disparar o workflow à mão.
+**Teste de links, primeira parte, feita em 26/10/2026 (tarefas 1 a 3 e 5):** `coletor/links.py` testa os links de `silver/recurso` com `HEAD` (e `GET` com `Range` quando o servidor recusa), registra cada tentativa em `bronze/link_tentativa` e mantém `estado/links_atual`. Escolha dos links, teto de 5.000 por servidor por dia e disjuntor para servidor fora do ar na decisão 25. Testes em `tests/test_links.py` (77 no total). Amostra real de 200 links: 45 s, 77,5% responderam. **Workflow do GitHub Actions, escrito em 26/10/2026 (tarefa 6):** `.github/workflows/coleta-diaria.yml` (chamado `motor-diario.yml` até 27/10/2026; disparo manual por enquanto; o `schedule` diário está comentado) baixa o estado do release `estado-atual`, roda o `motor.py` e sobe o estado e o histórico; `coletor/nuvem.py` faz o envio e o download com o `gh`, e guarda os 3 estados mais recentes. Testes em `tests/test_nuvem.py` com um GitHub falso (93 no total). Falta, feito por você no GitHub: criar o secret `CHAVE_API_DADOS_GOV`, subir o primeiro estado a partir do seu computador e disparar o workflow à mão.
 
 **Teste de links, segunda parte, feita em 26/10/2026 (tarefa 5 e critério de pronto):** `coletor/silver_links.py` gera `silver/link_status` (link quebrado e desde quando) e `silver/base_saude` (bases fora do ar); `links.py` e `silver_links.py` entraram no `motor.py` depois da Silver. Testes em `tests/test_silver_links.py` (85 no total). Validado com dados reais: 3 dias seguidos de testes de uma amostra de 200 links deixaram 40 dos 247 links testados quebrados (desde 25/10) e 2 bases fora do ar. Já dá para responder "quais links estão quebrados hoje e desde quando" com uma consulta DuckDB.
+
+**Primeira execução completa no GitHub Actions, em 26/10/2026:** terminou com sucesso em 4h15 (255 minutos), dentro do limite de 6 horas. Tempo por passo: listagem 46,8 min, painel 0,1 min, detalhe 45,8 min (bases novas, alteradas e o rodízio do dia), Silver de bases e de links poucos segundos cada e teste de links 162,6 min. O estado (31,3 MB) e o histórico do dia (27,9 MB) foram enviados aos releases `estado-atual` e `historico-2026-10`. Depois dela, o workflow foi renomeado para **Coleta diária dados.gov.br** e separado em uma etapa por passo (`motor.py --apenas`, com `--inicio` para o orçamento de tempo contar do começo da execução): a aba Actions mostra o log e o tempo de cada ingestão. Testes em `tests/test_motor.py` (163 no total). O agendamento diário continua desligado até uma execução com o novo workflow dar certo.
 
 **Antes de começar: pendências do review de 26/10/2026**
 1. **Estado do detalhe no GitHub Actions:** a coleta incremental e a Silver leem todo o histórico de `bronze/catalogo_detalhe`, mas o release `estado-atual` (decisão 16) não o guarda. Sem isso, a primeira execução na nuvem trataria as 19.596 bases como novas (9 horas). Guardar um "detalhe atual" compacto (última versão bem-sucedida de cada base) no estado e fazer o coletor e a Silver lerem dele.
@@ -157,7 +159,7 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 3. **Uma requisição por vez por servidor**, com pausa. Agrupe os links por domínio para não sobrecarregar um órgão.
 4. Concorrência entre domínios diferentes (asyncio) para a coleta caber no tempo do job.
 5. Regra de "fora do ar": erros 502, 503 e 520 podem ser temporários. Por exemplo, só considerar quebrado após 3 falhas em dias diferentes.
-6. **Motor diário no GitHub Actions:**
+6. **Coleta diária no GitHub Actions:**
    - torne o repositório **público** (ver princípio de custo zero). **Feito em 26/10/2026**, com licença MIT;
    - workflow com `schedule` (cron) que roda o coletor;
    - como o Actions começa sempre do zero, o estado precisa ser baixado no início e enviado no fim: estado atual no release `estado-atual` (sobrescrito todo dia) e histórico no release `historico-AAAA-MM`. Nenhum dado gerado é commitado no Git (decisão 16, detalhes em [ARQUITETURA.md](ARQUITETURA.md#onde-os-dados-ficam));

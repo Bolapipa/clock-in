@@ -1,6 +1,8 @@
-name: Motor diário
+name: Coleta diária dados.gov.br
 
-# Por enquanto só roda quando disparado à mão (aba Actions > Motor diário > Run workflow).
+# Coleta o catálogo do dados.gov.br, testa os links dos recursos e monta a Silver.
+# Cada passo é uma etapa própria, com seu log e seu tempo na aba Actions.
+# Por enquanto só roda quando disparado à mão (aba Actions > Coleta diária dados.gov.br > Run workflow).
 # Depois de conferir algumas execuções, remova o "#" das duas linhas do schedule para rodar
 # todo dia às 03:00 de Brasília (06:00 UTC).
 on:
@@ -11,7 +13,7 @@ on:
         required: false
         default: ""
       desde:
-        description: "Passo em que o motor começa (para retomar uma execução)"
+        description: "Passo em que a coleta começa (para retomar uma execução)"
         type: choice
         default: lista
         options: [lista, painel, detalhe, silver, links, silver_links]
@@ -24,11 +26,11 @@ permissions:
 
 # Nunca duas execuções ao mesmo tempo: as duas mexeriam no mesmo estado
 concurrency:
-  group: motor-diario
+  group: coleta-diaria
   cancel-in-progress: false
 
 jobs:
-  motor:
+  coleta:
     runs-on: ubuntu-latest
     # Limite do GitHub: 6 horas por job
     timeout-minutes: 350
@@ -50,10 +52,10 @@ jobs:
       - name: Instala as dependências
         run: pip install -r requirements.txt
 
-      - name: Define a data da execução
-        id: data
+      - name: Define a data e o início da execução
         env:
           DATA_INFORMADA: ${{ inputs.data }}
+          DESDE_INFORMADO: ${{ inputs.desde || 'lista' }}
         run: |
           if [ -n "$DATA_INFORMADA" ]; then
             DATA="$DATA_INFORMADA"
@@ -62,29 +64,44 @@ jobs:
           fi
           # Confere o formato antes de usar a data em qualquer comando
           python -c "import sys, datetime; datetime.date.fromisoformat(sys.argv[1])" "$DATA"
-          echo "data=$DATA" >> "$GITHUB_OUTPUT"
           echo "Data da execução: $DATA"
+          # Variáveis lidas pelas etapas seguintes: a data, o passo inicial (para retomar) e o início
+          # da execução em segundos, de onde o motor conta o orçamento de tempo do teste de links
+          echo "DATA=$DATA" >> "$GITHUB_ENV"
+          echo "DESDE=$DESDE_INFORMADO" >> "$GITHUB_ENV"
+          echo "INICIO=$(date +%s)" >> "$GITHUB_ENV"
 
       - name: Baixa o estado de ontem
         id: baixar
         run: python coletor/nuvem.py baixar
 
-      - name: Roda o motor
-        env:
-          DATA: ${{ steps.data.outputs.data }}
-          DESDE: ${{ inputs.desde || 'lista' }}
-        run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --tempo-maximo 330
+      # Cada etapa abaixo chama o motor para um passo só. Se o passo vem antes do "desde"
+      # escolhido, o motor não faz nada, e é assim que uma execução é retomada.
+      - name: Coleta a listagem do catálogo
+        run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas lista
 
-      # Os dois passos abaixo rodam mesmo se o motor falhar no meio: o que já foi coletado
+      - name: Coleta o cronograma do painel da CGU (opcional)
+        run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas painel
+
+      - name: Coleta o detalhe das bases
+        run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas detalhe
+
+      - name: Monta a Silver de bases, recursos e publicadores
+        run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas silver
+
+      # Único passo com limite de tempo: para a tempo de sobrar uma reserva para a etapa seguinte
+      - name: Testa a saúde dos links dos recursos
+        run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas links --tempo-maximo 330 --inicio "$INICIO"
+
+      - name: Monta a Silver dos links e da saúde das bases
+        run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas silver_links
+
+      # As duas etapas abaixo rodam mesmo se uma etapa da coleta falhar: o que já foi coletado
       # não se perde, e o dia seguinte continua de onde parou
       - name: Sobe o estado de hoje
         if: always() && steps.baixar.outcome == 'success'
-        env:
-          DATA: ${{ steps.data.outputs.data }}
         run: python coletor/nuvem.py subir --data "$DATA"
 
       - name: Sobe o que o dia produziu para o histórico
         if: always() && steps.baixar.outcome == 'success'
-        env:
-          DATA: ${{ steps.data.outputs.data }}
         run: python coletor/nuvem.py historico --data "$DATA"

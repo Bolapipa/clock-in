@@ -13,7 +13,7 @@ Registre aqui cada decisão importante: **o que** decidiu, **as opções** e **o
 | 5 | Prazo esperado | Só periodicidade declarada; inferido | Declarada quando existe; inferida pelo histórico quando não | 69% das bases não declaram periodicidade |
 | 6 | Custo | Serviços pagos; custo zero | **Custo zero** para quem constrói e para quem usa | Projeto de interesse público e pessoal; precisa durar sem orçamento |
 | 7 | Armazenamento | PostgreSQL no Docker; DuckDB + Parquet | DuckDB + Parquet | Pipeline em lote diário; nada para hospedar; cabe no GitHub; mesmo mundo do Databricks. Docker e DBeaver deixam de ser necessários |
-| 8 | Motor diário | Cron no PC; GitHub Actions; Airflow | GitHub Actions agendado | Grátis e sem limite de minutos em repositório público; roda sem o PC ligado |
+| 8 | Coleta diária | Cron no PC; GitHub Actions; Airflow | GitHub Actions agendado | Grátis e sem limite de minutos em repositório público; roda sem o PC ligado |
 | 9 | API | Servidor (FastAPI) com banco; API estática (JSON) | API estática gerada pelo motor | Sem servidor e sem custo. Perde consultas livres, mas entrega respostas prontas por base, órgão e resumo |
 | 10 | Site | Vercel; GitHub Pages | Vercel (Hobby) | Grátis para uso não comercial; já usado no portfólio |
 | 11 | Visibilidade do repositório | Sempre privado; público desde já; público quando o motor rodar | Privado até a Fase 1; **público a partir da Fase 2** | Em repositório privado a cota grátis do Actions acaba rápido; código aberto combina com transparência |
