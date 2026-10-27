@@ -5,13 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Clock-in · Monitor de dados abertos do Brasil</title>
   <meta name="description" content="Verifica todo dia se cada base do dados.gov.br ainda está viva, órgão por órgão.">
+  <link rel="preload" href="fontes/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="estilo.css">
 </head>
 <body>
   <header class="topo">
     <div class="miolo">
-      <a class="marca" href="#" aria-label="Clock-in, página inicial">Clock-in</a>
-      <p class="chamada">Monitor de dados abertos do Brasil</p>
+      <a class="marca" href="#" aria-label="Clock-in, página inicial">
+        <svg class="relogio" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2.4"/>
+          <path d="M12 6v6l4 2.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Clock-in
+      </a>
       <nav class="menu" aria-label="Principal">
         <a href="#">Início</a>
         <a href="#metodologia">Metodologia</a>
@@ -23,17 +29,26 @@
   <main class="miolo">
     <p id="erro" class="erro" role="alert" hidden></p>
 
-    <!-- Página inicial: totais do Brasil e a lista de órgãos -->
+    <!-- Página inicial: a resposta do dia, a régua de saúde dos links e a lista de órgãos -->
     <div id="inicio">
-      <section aria-labelledby="titulo-resumo">
-        <h1 id="titulo-resumo">Os dados abertos do Brasil continuam vivos?</h1>
-        <p class="lide">
-          Todo dia o Clock-in testa os links de cada base do
-          <a href="https://dados.gov.br" rel="noopener">dados.gov.br</a>
-          e mostra o resultado por órgão publicador.
-        </p>
-        <p id="data-coleta" class="data-coleta"></p>
-        <div id="cartoes" class="cartoes" aria-live="polite"></div>
+      <section class="abertura" aria-labelledby="titulo-resumo">
+        <div class="abertura-texto">
+          <h1 id="titulo-resumo">Os dados abertos do Brasil continuam vivos?</h1>
+          <p id="resposta" class="resposta" aria-live="polite"></p>
+          <p class="lide">
+            Todo dia o Clock-in testa os links de cada base do
+            <a href="https://dados.gov.br" rel="noopener">dados.gov.br</a>
+            e mostra o resultado por órgão publicador.
+          </p>
+        </div>
+        <aside class="ficha" aria-labelledby="data-coleta">
+          <h2 id="data-coleta"></h2>
+          <div id="cartoes" aria-live="polite"></div>
+        </aside>
+      </section>
+
+      <section class="regua-secao" aria-label="Saúde dos links">
+        <div id="regua-brasil" class="regua-bloco"></div>
         <p class="aviso">
           <strong>Protótipo.</strong> O status pelo conteúdo dos arquivos (em dia, atrasada, parada) começa
           quando houver histórico de leituras. Por enquanto o site mostra a saúde dos links.
@@ -54,7 +69,7 @@
         </details>
       </section>
 
-      <section aria-labelledby="titulo-orgaos">
+      <section class="lista" aria-labelledby="titulo-orgaos">
         <h2 id="titulo-orgaos">Órgãos publicadores</h2>
         <div class="filtros">
           <label class="campo">
@@ -79,51 +94,66 @@
 
     <!-- Página de um órgão: as bases dele -->
     <div id="detalhe" hidden>
-      <p><a id="voltar" href="#">&larr; Todos os órgãos</a></p>
-      <h1 id="orgao-nome"></h1>
-      <p id="orgao-meta" class="lide"></p>
-      <div id="orgao-cartoes" class="cartoes"></div>
-      <div class="filtros">
-        <label class="campo">
-          <span>Buscar base</span>
-          <input id="busca-base" type="search" placeholder="Parte do título da base" autocomplete="off">
-        </label>
-        <label class="marcar">
-          <input id="so-problemas" type="checkbox">
-          <span>Só bases com problema</span>
-        </label>
-      </div>
-      <p id="contagem-bases" class="contagem" aria-live="polite"></p>
-      <div class="tabela-rolagem">
-        <table id="tabela-bases">
-          <thead></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <button id="mais-bases" class="botao" type="button" hidden>Mostrar mais bases</button>
+      <p class="voltar"><a id="voltar" href="#">&larr; Todos os órgãos</a></p>
+      <section class="abertura abertura-interna">
+        <div class="abertura-texto">
+          <h1 id="orgao-nome" class="titulo-interno"></h1>
+          <p id="orgao-meta" class="lide"></p>
+        </div>
+        <aside class="ficha" aria-label="Totais do órgão">
+          <div id="orgao-cartoes"></div>
+        </aside>
+      </section>
+      <section class="regua-secao" aria-label="Saúde dos links do órgão">
+        <div id="regua-orgao" class="regua-bloco"></div>
+      </section>
+      <section class="lista" aria-label="Bases do órgão">
+        <div class="filtros">
+          <label class="campo">
+            <span>Buscar base</span>
+            <input id="busca-base" type="search" placeholder="Parte do título da base" autocomplete="off">
+          </label>
+          <label class="marcar">
+            <input id="so-problemas" type="checkbox">
+            <span>Só bases com problema</span>
+          </label>
+        </div>
+        <p id="contagem-bases" class="contagem" aria-live="polite"></p>
+        <div class="tabela-rolagem">
+          <table id="tabela-bases">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <button id="mais-bases" class="botao" type="button" hidden>Mostrar mais bases</button>
+      </section>
     </div>
 
     <!-- Página de uma base: status, motivo e saúde dos links -->
     <div id="pagina-base" hidden>
-      <p><a id="voltar-orgao" href="#">&larr; Voltar</a></p>
-      <h1 id="base-titulo"></h1>
-      <p id="base-meta" class="lide"></p>
-      <section aria-labelledby="titulo-status">
-        <h2 id="titulo-status">Status</h2>
-        <p><span id="base-selo" class="selo"></span></p>
-        <p id="base-motivo"></p>
-        <p id="base-explicacao" class="suave"></p>
+      <p class="voltar"><a id="voltar-orgao" href="#">&larr; Voltar</a></p>
+      <section class="abertura abertura-interna">
+        <div class="abertura-texto">
+          <h1 id="base-titulo" class="titulo-interno"></h1>
+          <p id="base-meta" class="lide"></p>
+          <h2 id="titulo-status" class="oculto">Status</h2>
+          <p><span id="base-selo" class="selo"></span></p>
+          <p id="base-motivo" class="resposta"></p>
+          <p id="base-explicacao" class="suave"></p>
+        </div>
+        <aside class="ficha" aria-label="Links da base">
+          <div id="base-cartoes"></div>
+        </aside>
       </section>
-      <section aria-labelledby="titulo-links-base">
-        <h2 id="titulo-links-base">Links</h2>
-        <div id="base-cartoes" class="cartoes"></div>
+      <section class="regua-secao" aria-label="Saúde dos links da base">
+        <div id="regua-base" class="regua-bloco"></div>
+        <p><a id="base-portal" class="botao-link" href="#" target="_blank" rel="noopener">Ver esta base no dados.gov.br &rarr;</a></p>
       </section>
-      <p><a id="base-portal" class="botao-link" href="#" target="_blank" rel="noopener">Ver esta base no dados.gov.br &rarr;</a></p>
     </div>
 
     <!-- Metodologia: as regras, uma a uma -->
     <div id="pagina-metodologia" class="pagina-texto" hidden>
-      <h1>Como medimos</h1>
+      <h1 class="titulo-interno">Como medimos</h1>
       <p class="lide">O Clock-in só afirma o que consegue provar. Esta página explica as regras, uma a uma.</p>
 
       <h2>O que o Clock-in faz</h2>
@@ -201,7 +231,7 @@
 
     <!-- API: onde estão os JSON -->
     <div id="pagina-api" class="pagina-texto" hidden>
-      <h1>API</h1>
+      <h1 class="titulo-interno">API</h1>
       <p class="lide">
         Todos os dados deste site estão em arquivos JSON abertos, sem chave e sem limite de uso. Basta um <code>GET</code> em cada arquivo.
       </p>

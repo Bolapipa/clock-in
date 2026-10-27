@@ -6,7 +6,7 @@ const assert = require("node:assert/strict");
 
 const {
   normalizar, formatarNumero, formatarPercentual, rotulo, lerRota, linkDaBase, explicarStatus, primeiraMaiuscula, filtrarOrgaos,
-  filtrarBases, temProblema, ordenar, ROTULOS_PERIODICIDADE, EXPLICACOES_STATUS,
+  filtrarBases, temProblema, ordenar, partesDaRegua, fraseDaResposta, ROTULOS_PERIODICIDADE, EXPLICACOES_STATUS,
 } = require("../../site/app.js");
 
 const ORGAOS = [
@@ -128,4 +128,34 @@ test("filtrarBases combina busca e só problemas", () => {
   assert.equal(filtrarBases(BASES, { apenasProblemas: true }).length, 3);
   assert.deepEqual(filtrarBases(BASES, { texto: "orcamento" }).map((b) => b.titulo), ["Orçamento"]);
   assert.deepEqual(filtrarBases(BASES, { texto: "frota", apenasProblemas: true }), []);
+});
+
+test("partesDaRegua: as quatro partes somam o total e o que sobra é 'sem teste conclusivo'", () => {
+  // Números reais do dia 26/10/2026: 124.375 links, 68.343 com teste conclusivo
+  const partes = partesDaRegua({ total: 124375, ok: 64097, emObservacao: 4246, quebrados: 0 });
+
+  assert.deepEqual(partes.map((p) => p.chave), ["ok", "observacao", "quebrados", "nao_testados"]);
+  assert.deepEqual(partes.map((p) => p.quantidade), [64097, 4246, 0, 56032]);
+  assert.equal(partes.reduce((soma, p) => soma + p.quantidade, 0), 124375);
+  assert.ok(Math.abs(partes.reduce((soma, p) => soma + p.percentual, 0) - 100) < 1e-9);
+  assert.equal(partes[0].rotulo, "respondendo bem");
+});
+
+test("partesDaRegua aguenta total zero, campos ausentes e soma maior que o total", () => {
+  assert.deepEqual(partesDaRegua({ total: 0 }).map((p) => [p.quantidade, p.percentual]), [[0, 0], [0, 0], [0, 0], [0, 0]]);
+  // Nunca devolve quantidade negativa para os links sem teste
+  assert.equal(partesDaRegua({ total: 5, ok: 9, emObservacao: 0, quebrados: 0 })[3].quantidade, 0);
+});
+
+test("fraseDaResposta dá a porcentagem e conta os problemas no singular e no plural", () => {
+  assert.equal(fraseDaResposta({ percentual_ok: 93.8, em_observacao: 4246, quebrados: 0 }),
+    "93,8% dos links testados respondem bem. 4.246 estão em observação e nenhum está quebrado.");
+  assert.equal(fraseDaResposta({ percentual_ok: 99.9, em_observacao: 0, quebrados: 1 }),
+    "99,9% dos links testados respondem bem. Nenhum está em observação e 1 está quebrado.");
+  assert.equal(fraseDaResposta({ percentual_ok: 80, em_observacao: 1, quebrados: 12 }),
+    "80,0% dos links testados respondem bem. 1 está em observação e 12 estão quebrados.");
+});
+
+test("fraseDaResposta não inventa porcentagem quando não há links testados o bastante", () => {
+  assert.match(fraseDaResposta({ percentual_ok: null, em_observacao: 0, quebrados: 0 }), /Ainda não há links testados/);
 });

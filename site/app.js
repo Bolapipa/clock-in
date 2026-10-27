@@ -131,6 +131,37 @@ function ordenar(lista, coluna, direcao = "desc") {
   });
 }
 
+// As quatro partes da régua de saúde dos links. A soma delas é sempre o total de links:
+// "sem teste conclusivo" é o que sobra (timeout, 403, 405 ou ainda não alcançado pelo teste)
+const PARTES_DA_REGUA = [
+  { chave: "ok", rotulo: "respondendo bem" },
+  { chave: "observacao", rotulo: "em observação" },
+  { chave: "quebrados", rotulo: "quebrados" },
+  { chave: "nao_testados", rotulo: "sem teste conclusivo" },
+];
+
+function partesDaRegua({ total, ok, emObservacao, quebrados }) {
+  const valores = { ok: ok ?? 0, observacao: emObservacao ?? 0, quebrados: quebrados ?? 0 };
+  valores.nao_testados = Math.max(0, (total ?? 0) - valores.ok - valores.observacao - valores.quebrados);
+  const soma = Object.values(valores).reduce((a, b) => a + b, 0);
+  return PARTES_DA_REGUA.map(({ chave, rotulo }) => ({
+    chave, rotulo, quantidade: valores[chave], percentual: soma > 0 ? (100 * valores[chave]) / soma : 0,
+  }));
+}
+
+// "nenhum está quebrado", "1 está quebrado", "4.246 estão em observação"
+function contarEstados(quantidade, singular, plural = singular) {
+  if (!quantidade) return `nenhum está ${singular}`;
+  return quantidade === 1 ? `1 está ${singular}` : `${formatarNumero(quantidade)} estão ${plural}`;
+}
+
+// A resposta do dia, em duas frases, a partir dos totais do Brasil
+function fraseDaResposta({ percentual_ok, em_observacao, quebrados }) {
+  if (percentual_ok == null) return "Ainda não há links testados o bastante para dar uma porcentagem.";
+  return `${formatarPercentual(percentual_ok)} dos links testados respondem bem. `
+    + `${primeiraMaiuscula(contarEstados(em_observacao, "em observação"))} e ${contarEstados(quebrados, "quebrado", "quebrados")}.`;
+}
+
 // --- Tela (só roda no navegador) ---
 
 const estado = {
@@ -159,8 +190,15 @@ const $ = (id) => document.getElementById(id);
 // Telas da página: só uma aparece por vez
 const TELAS = ["inicio", "detalhe", "pagina-base", "pagina-metodologia", "pagina-api"];
 
+// Qual item do menu fica marcado em cada tela (órgão e base pertencem ao início)
+const MENU_DA_TELA = { inicio: "#", detalhe: "#", "pagina-base": "#", "pagina-metodologia": "#metodologia", "pagina-api": "#api" };
+
 function mostrarTela(id, titulo) {
   for (const tela of TELAS) $(tela).hidden = tela !== id;
+  for (const item of document.querySelectorAll(".menu a")) {
+    if (item.getAttribute("href") === MENU_DA_TELA[id]) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
+  }
   document.title = titulo ? `${titulo} · Clock-in` : "Clock-in · Monitor de dados abertos do Brasil";
   window.scrollTo(0, 0);
 }
@@ -184,17 +222,67 @@ function cartao(titulo, valor, detalhe, tom = "") {
     el("div", { classe: "detalhe" }, detalhe));
 }
 
+// Marcas de relógio sob a régua: 60 "minutos", com uma marca maior a cada 5 ("horas")
+function marcasDeRelogio() {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "marcas");
+  svg.setAttribute("aria-hidden", "true");
+  for (let minuto = 0; minuto <= 60; minuto += 1) {
+    const hora = minuto % 5 === 0;
+    const marca = document.createElementNS(ns, "line");
+    marca.setAttribute("x1", `${(minuto / 60) * 100}%`);
+    marca.setAttribute("x2", `${(minuto / 60) * 100}%`);
+    marca.setAttribute("y1", "0");
+    marca.setAttribute("y2", hora ? "14" : "7");
+    marca.setAttribute("stroke", "currentColor");
+    marca.setAttribute("stroke-width", hora ? "2" : "1");
+    svg.append(marca);
+  }
+  return svg;
+}
+
+// Uma parte da régua: a largura vem da quantidade de links
+function parteDaRegua(parte) {
+  const segmento = el("i", { classe: `parte ${parte.chave}` });
+  segmento.style.flexGrow = parte.quantidade;
+  return segmento;
+}
+
+// Desenha a régua de saúde dos links (barra, marcas de relógio e legenda) dentro da caixa indicada
+function renderizarRegua(idDaCaixa, partes) {
+  const descricao = partes.map((parte) => `${formatarNumero(parte.quantidade)} ${parte.rotulo}`).join(", ");
+  const regua = el("div", { classe: "regua", role: "img", "aria-label": `Links: ${descricao}` },
+    ...partes.filter((parte) => parte.quantidade > 0).map(parteDaRegua));
+  const legenda = el("ul", { classe: "legenda" }, ...partes.map((parte) => el("li", { classe: parte.chave },
+    el("span", { classe: "amostra", "aria-hidden": "true" }),
+    el("span", {}, el("strong", {}, formatarNumero(parte.quantidade)), ` ${parte.rotulo} (${formatarPercentual(parte.percentual)})`))));
+  $(idDaCaixa).replaceChildren(regua, marcasDeRelogio(), legenda);
+}
+
+// Régua pequena de uma linha da tabela; fica tracejada quando o órgão tem poucos links testados
+function reguaMini(orgao) {
+  const mini = el("span", { classe: "mini", "aria-hidden": "true" });
+  const partes = partesDaRegua({
+    total: orgao.links_total, ok: orgao.links_ok, emObservacao: orgao.links_em_observacao, quebrados: orgao.links_quebrados,
+  }).filter((parte) => parte.chave !== "nao_testados" && parte.quantidade > 0);
+  if (orgao.percentual_ok == null || partes.length === 0) mini.classList.add("vazia");
+  else mini.append(...partes.map(parteDaRegua));
+  return mini;
+}
+
 function renderizarResumo(resumo) {
   const links = resumo.links;
-  $("data-coleta").textContent = `Dados de ${resumo.data_coleta.split("-").reverse().join("/")}`;
+  $("data-coleta").textContent = `Coleta de ${resumo.data_coleta.split("-").reverse().join("/")}`;
+  $("resposta").textContent = fraseDaResposta(links);
   $("cartoes").replaceChildren(
     cartao("Bases monitoradas", formatarNumero(resumo.bases), `${formatarNumero(resumo.recursos)} arquivos e links`),
     cartao("Órgãos publicadores", formatarNumero(resumo.orgaos), "órgãos e entidades"),
     cartao("Links testados", formatarNumero(links.testados), `de ${formatarNumero(links.total)} (cobertura de ${formatarPercentual(links.cobertura)})`),
-    cartao("Respondendo bem", formatarPercentual(links.percentual_ok), `${formatarNumero(links.ok)} links`, "bom"),
-    cartao("Em observação", formatarNumero(links.em_observacao), "1 ou 2 falhas seguidas", "atencao"),
-    cartao("Quebrados", formatarNumero(links.quebrados), "3 ou mais falhas seguidas", "ruim"),
     cartao("Bases fora do ar", formatarNumero(resumo.bases_fora_do_ar), "todos os links quebrados", "ruim"));
+  renderizarRegua("regua-brasil", partesDaRegua({
+    total: links.total, ok: links.ok, emObservacao: links.em_observacao, quebrados: links.quebrados,
+  }));
 }
 
 function cabecalho(colunas, ordem, aoOrdenar) {
@@ -208,12 +296,6 @@ function cabecalho(colunas, ordem, aoOrdenar) {
     linha.append(th);
   }
   return linha;
-}
-
-function barraDePercentual(percentual) {
-  const barra = el("span", { classe: "barra", "aria-hidden": "true" }, el("i"));
-  barra.firstChild.style.width = `${percentual ?? 0}%`;
-  return barra;
 }
 
 function renderizarOrgaos() {
@@ -235,7 +317,7 @@ function renderizarOrgaos() {
       el("td", {}, formatarNumero(orgao.qtd_bases)),
       el("td", {}, formatarNumero(orgao.links_testados)),
       el("td", { title: orgao.percentual_ok == null ? "Poucos links testados para calcular a porcentagem" : "" },
-        formatarPercentual(orgao.percentual_ok), barraDePercentual(orgao.percentual_ok)),
+        formatarPercentual(orgao.percentual_ok), reguaMini(orgao)),
       el("td", {}, formatarNumero(orgao.links_em_observacao)),
       el("td", {}, formatarNumero(orgao.links_quebrados)),
       el("td", {}, formatarNumero(orgao.bases_fora_do_ar)));
@@ -302,9 +384,10 @@ async function abrirOrgao(slug) {
   $("orgao-cartoes").replaceChildren(
     cartao("Links testados", formatarNumero(orgao.links_testados), `de ${formatarNumero(orgao.links_total)} (cobertura de ${formatarPercentual(orgao.cobertura_links)})`),
     cartao("Respondendo bem", formatarPercentual(orgao.percentual_ok), `${formatarNumero(orgao.links_ok)} links`, "bom"),
-    cartao("Em observação", formatarNumero(orgao.links_em_observacao), "1 ou 2 falhas seguidas", "atencao"),
-    cartao("Quebrados", formatarNumero(orgao.links_quebrados), "3 ou mais falhas seguidas", "ruim"),
     cartao("Bases fora do ar", formatarNumero(orgao.bases_fora_do_ar), "todos os links quebrados", "ruim"));
+  renderizarRegua("regua-orgao", partesDaRegua({
+    total: orgao.links_total, ok: orgao.links_ok, emObservacao: orgao.links_em_observacao, quebrados: orgao.links_quebrados,
+  }));
 
   mostrarTela("detalhe", orgao.nome);
   renderizarBases();
@@ -328,6 +411,7 @@ async function abrirBase(slugDoOrgao, slugDaBase) {
     $("base-selo").className = "selo";
     $("base-selo").textContent = "";
     $("base-cartoes").replaceChildren();
+    $("regua-base").replaceChildren();
     mostrarTela("pagina-base", "Base não encontrada");
     return;
   }
@@ -343,10 +427,10 @@ async function abrirBase(slugDoOrgao, slugDaBase) {
   $("base-explicacao").textContent = explicarStatus(base.status);
   $("base-cartoes").replaceChildren(
     cartao("Links", formatarNumero(base.links_total), "cadastrados na base"),
-    cartao("Testados", formatarNumero(base.links_testados), "com algum teste conclusivo"),
-    cartao("Respondendo bem", formatarNumero(base.links_ok), "último teste bom", "bom"),
-    cartao("Em observação", formatarNumero(base.links_em_observacao), "1 ou 2 falhas seguidas", "atencao"),
-    cartao("Quebrados", formatarNumero(base.links_quebrados), "3 ou mais falhas seguidas", "ruim"));
+    cartao("Testados", formatarNumero(base.links_testados), "com algum teste conclusivo"));
+  renderizarRegua("regua-base", partesDaRegua({
+    total: base.links_total, ok: base.links_ok, emObservacao: base.links_em_observacao, quebrados: base.links_quebrados,
+  }));
   $("base-portal").href = URL_BASE_DO_PORTAL + encodeURIComponent(base.slug);
   mostrarTela("pagina-base", base.titulo || base.slug);
 }
@@ -400,6 +484,6 @@ if (typeof document !== "undefined") {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     normalizar, formatarNumero, formatarPercentual, rotulo, lerRota, linkDaBase, explicarStatus, primeiraMaiuscula,
-    filtrarOrgaos, filtrarBases, temProblema, ordenar, ROTULOS_PERIODICIDADE, EXPLICACOES_STATUS,
+    filtrarOrgaos, filtrarBases, temProblema, ordenar, partesDaRegua, fraseDaResposta, ROTULOS_PERIODICIDADE, EXPLICACOES_STATUS,
   };
 }
