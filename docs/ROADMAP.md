@@ -38,11 +38,11 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 - [x] Fase 0: Ambiente
 - [x] Fase 1: Inventário (26/10/2026)
 - [ ] Fase 2: Saúde dos links e pipeline diário (primeira execução completa validada em 26/10/2026; agendamento ligado em 27/10/2026, falta conferir as primeiras execuções agendadas)
-- [ ] Fase 3: Conteúdo (hash e schema) (em andamento: falta o downloader)
+- [ ] Fase 3: Conteúdo (hash e schema) (código pronto e ligado ao pipeline em 27/10/2026; falta medir o download no GitHub Actions e ler a data máxima dentro dos arquivos)
 - [ ] Fase 4: Atualização real e status (parte 1 feita: prazos declarados e regras de status; falta inferir o ritmo e ter histórico de conteúdo)
 - [ ] Fase 5: Gold, histórico e nota por órgão
-- [ ] Fase 6: API estática
-- [ ] Fase 7: Site público
+- [ ] Fase 6: API estática (protótipo feito em 27/10/2026: resumo e órgãos; falta o contrato, as bases e a publicação automática)
+- [ ] Fase 7: Site público (protótipo da página inicial e da página do órgão feito em 27/10/2026; falta publicar, a página da base, a metodologia e o ranking)
 - [ ] Fase 8: Alertas
 - [ ] Fase 9: Lançamento e impacto
 
@@ -279,6 +279,10 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 4. Escreva testes que validam os JSON gerados contra o contrato.
 5. Documente a API numa página do site.
 
+**Feito em 27/10/2026 (protótipo, decisão 35):** `publicar/gerar_api.py` e `sql/api_base.sql` geram `site/api/resumo.json`, `orgaos.json` e `orgaos/<slug>.json` a partir da Silver do dia, com a saúde dos links por órgão. Testes em `tests/test_publicar.py`. Com a Silver real de 26/10/2026 a API tem 597 órgãos e 599 arquivos (8,9 MB). Órgãos com menos de 30 links testados ficam sem porcentagem.
+
+**Falta na Fase 6:** `api/bases/{slug}.json` com o status e a linha do tempo, `api/ranking.json` (depende da nota), o contrato em JSON Schema com testes, `"versao": 1` nos arquivos e a geração dentro do workflow diário.
+
 **Entregável:** geração dos JSON no workflow diário, contrato documentado, testes.
 
 **Pronto quando:** um engenheiro consegue fazer `GET .../api/bases/{slug}.json` e decidir se roda o pipeline dele.
@@ -299,6 +303,10 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 5. Acessível e bom no celular.
 6. Página de metodologia com as regras de status e a fórmula da nota.
 7. O workflow diário publica o site atualizado automaticamente.
+
+**Feito em 27/10/2026 (protótipo, decisão 35):** `site/index.html`, `estilo.css` e `app.js` (JavaScript puro, sem bibliotecas) com a página inicial (totais do Brasil e a lista de órgãos, com busca, filtro de esfera e ordenação) e a página de cada órgão (as bases dele, com filtro de "só com problema"). Tem modo escuro, funciona no celular e explica como medimos. As funções de busca, filtro e ordenação têm testes em `tests/site/app.test.js`, que rodam com `node --test tests/site/app.test.js`.
+
+**Falta na Fase 7:** publicar na Vercel, a página de cada base, a página de metodologia, o ranking (depende do status por conteúdo e da nota) e a publicação automática no workflow diário.
 
 **Entregável:** site publicado e atualizado todo dia.
 

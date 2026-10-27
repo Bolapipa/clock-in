@@ -208,6 +208,18 @@ Arquivos JSON gerados a partir da Gold ao fim de cada execução e publicados co
 
 O contrato de cada arquivo é documentado em JSON Schema e validado por testes (Fase 6).
 
+### Protótipo atual (decisão 35)
+
+Enquanto o status por conteúdo não tem histórico, a API traz só o que a Silver já sabe. `publicar/gerar_api.py` a gera em `site/api/`, que não vai para o Git:
+
+| Arquivo | Conteúdo |
+|---|---|
+| `api/resumo.json` | Totais do Brasil: bases, recursos, órgãos, links (testados, respondendo bem, em observação, quebrados, porcentagem e cobertura), bases fora do ar, status, esferas e periodicidades |
+| `api/orgaos.json` | Um resumo por órgão publicador, dos que têm mais bases para os que têm menos, sem a lista de bases |
+| `api/orgaos/{slug}.json` | O órgão e as bases dele (título, periodicidade, links, status e motivo), com as que têm problema primeiro |
+
+O `slug` do órgão é o nome sem acentos, em minúsculas e com hífens. A porcentagem de links respondendo bem só existe para órgãos com 30 ou mais links testados. O contrato em JSON Schema e o `api/bases/{slug}.json` ficam para a Fase 6. O site em `site/` (`index.html`, `estilo.css` e `app.js`) lê esses arquivos e tem a página inicial e a página de cada órgão.
+
 ## Alertas
 
 | Canal | Como | Custo |

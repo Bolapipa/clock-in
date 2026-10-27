@@ -93,8 +93,8 @@ O prazo esperado vem da periodicidade declarada **ou**, quando não há (70% das
 | 3 | Conteúdo: hash e schema de cada arquivo | Em andamento |
 | 4 | Atualização real: prazo esperado e status de cada base | Em andamento: regras de status prontas; falta o histórico de conteúdo |
 | 5 | Modelo Gold: histórico, nota e ranking por órgão | |
-| 6 | API estática (JSON gerado pelo motor) | |
-| 7 | Site público | |
+| 6 | API estática (JSON gerado pelo motor) | Protótipo feito (órgãos e totais); falta o contrato e a publicação automática |
+| 7 | Site público | Protótipo feito (página inicial e página do órgão); falta publicar |
 | 8 | Alertas | |
 | 9 | Lançamento e impacto | |
 
@@ -150,6 +150,8 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/conteudo_baixar.py --max-links 50` | Lê o conteúdo de uma amostra de 50 arquivos (hash e schema) e apaga o que baixou; precisa da Silver e do `link_status` do dia |
 | `python coletor/silver_links.py` | Gera a Silver da saúde dos links (`link_status` e `base_saude`) depois do `links.py` |
 | `python coletor/gold_status.py` | Gera o status de cada base (`gold/fato_status_base_diario`) a partir da Silver, da saúde dos links e do estado do conteúdo |
+| `python publicar/gerar_api.py` | Gera a API estática (`site/api/*.json`) a partir da Silver do dia; o `site/` lê esses arquivos (veja a pasta `site/` para abrir o site no navegador) |
+| `node --test tests/site/app.test.js` | Roda os testes das funções de busca, filtro e ordenação do site (precisa do Node 20 ou mais novo) |
 | `python coletor/nuvem.py baixar` / `subir` / `historico` | Estado e histórico nos releases do GitHub (usados pelo workflow `pipeline-diario.yml`; precisam do `gh` com login) |
 | `pytest -v` | Roda os testes automáticos |
 
@@ -160,6 +162,8 @@ clock-in/
 ├── coletor/       # motor de coleta e Silver (Python)
 ├── sql/           # transformações da Silver (um arquivo por tabela)
 ├── referencia/    # tabelas de referência mantidas à mão
+├── publicar/      # gera os JSON da API estática
+├── site/          # site estático (lê os JSON de site/api)
 ├── tests/         # testes automáticos (pytest), sem chamar nenhuma API
 ├── docs/          # ideia, pesquisa, validação, arquitetura, decisões e roadmap
 ├── validacao/     # pesquisa feita antes do projeto (não é código do produto)
