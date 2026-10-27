@@ -1,0 +1,9 @@
+periodicidade;rotulo;prazo_dias
+DIARIA;diária;3
+SEMANAL;semanal;10
+QUINZENAL;quinzenal;20
+MENSAL;mensal;40
+TRIMESTRAL;trimestral;100
+QUADRIMESTRAL;quadrimestral;135
+SEMESTRAL;semestral;200
+ANUAL;anual;400

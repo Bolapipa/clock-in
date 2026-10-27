@@ -6,6 +6,7 @@ A Bronze recebe uma linha por download; o estado junta isso ao que já se sabia:
 dados/bronze/conteudo_tentativa/data=AAAA-MM-DD/parte-0001.parquet
 dados/estado/conteudo_atual.parquet  (uma linha por link)
     link, servidor, ultima_tentativa, ultima_leitura (último download que deu certo),
+    primeira_leitura (primeiro download que deu certo; nunca muda depois),
     hash_conteudo, tamanho_bytes, qtd_colunas, schema, schema_hash, erro_schema,
     verificacao_parcial, schema_anterior (schema antes da última mudança de estrutura),
     ultima_mudanca (dia em que o hash mudou), ultima_mudanca_schema (dia em que a estrutura mudou),
@@ -30,6 +31,7 @@ COLUNAS_ESTADO = """
     servidor              VARCHAR,
     ultima_tentativa      DATE,
     ultima_leitura        DATE,
+    primeira_leitura      DATE,
     hash_conteudo         VARCHAR,
     tamanho_bytes         BIGINT,
     qtd_colunas           INTEGER,
@@ -151,6 +153,7 @@ def aplicar_dia(con, data):
                 h.schema_hash IS NOT NULL AND e.schema_hash IS NOT NULL
                     AND e.schema_hash <> h.schema_hash AS mudou_schema,
                 e.ultima_leitura          AS e_ultima_leitura,
+                e.primeira_leitura        AS e_primeira_leitura,
                 e.hash_conteudo           AS e_hash_conteudo,
                 e.tamanho_bytes           AS e_tamanho_bytes,
                 e.qtd_colunas             AS e_qtd_colunas,
@@ -176,6 +179,7 @@ def aplicar_dia(con, data):
             servidor,
             CAST($data AS DATE),
             CASE WHEN leu THEN CAST($data AS DATE) ELSE e_ultima_leitura END,
+            CASE WHEN leu THEN COALESCE(e_primeira_leitura, CAST($data AS DATE)) ELSE e_primeira_leitura END,
             CASE WHEN leu THEN hash_conteudo ELSE e_hash_conteudo END,
             CASE WHEN leu THEN tamanho_bytes ELSE e_tamanho_bytes END,
             CASE WHEN leu_schema THEN qtd_colunas ELSE e_qtd_colunas END,

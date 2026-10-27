@@ -70,6 +70,26 @@ def test_primeira_leitura_nao_conta_como_mudanca():
     assert estado["ultima_mudanca_schema"] is None
 
 
+def test_primeira_leitura_e_o_primeiro_download_que_deu_certo_e_nao_muda_depois():
+    # Um download que falha antes de qualquer leitura não define a primeira leitura
+    registrar(DIA_1, falha(DIA_1))
+    assert estado_do_link()["primeira_leitura"] is None
+
+    registrar(DIA_2, leitura(DIA_2, "h1"))
+    registrar(DIA_3, leitura(DIA_3, "h2"))
+
+    estado = estado_do_link()
+    assert estado["primeira_leitura"] == DIA_2
+    assert estado["ultima_leitura"] == DIA_3
+
+
+def test_aplicar_o_mesmo_dia_duas_vezes_mantem_a_primeira_leitura():
+    registrar(DIA_1, leitura(DIA_1, "h1"))
+    conteudo_estado.atualizar_estado(DIA_1)
+
+    assert estado_do_link()["primeira_leitura"] == DIA_1
+
+
 def test_mesmo_hash_atualiza_a_leitura_mas_nao_a_mudanca():
     registrar(DIA_1, leitura(DIA_1, "h1"))
     registrar(DIA_2, leitura(DIA_2, "h1"))
