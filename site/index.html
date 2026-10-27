@@ -12,6 +12,11 @@
     <div class="miolo">
       <a class="marca" href="#" aria-label="Clock-in, página inicial">Clock-in</a>
       <p class="chamada">Monitor de dados abertos do Brasil</p>
+      <nav class="menu" aria-label="Principal">
+        <a href="#">Início</a>
+        <a href="#metodologia">Metodologia</a>
+        <a href="#api">API</a>
+      </nav>
     </div>
   </header>
 
@@ -41,10 +46,11 @@
             <li>Cada link recebe um teste por dia, de forma educada: uma requisição por vez em cada servidor.</li>
             <li>Um link só é considerado <strong>quebrado</strong> depois de 3 falhas em dias diferentes seguidos.
                 Com 1 ou 2 falhas ele fica <strong>em observação</strong>.</li>
-            <li>Timeout, falha de conexão e erro 403 (proteção contra robôs) <strong>não contam como falha</strong>:
+            <li>Timeout, falha de conexão e erros 403 e 405 (proteção contra robôs) <strong>não contam como falha</strong>:
                 o órgão não pode ser acusado por algo que o teste não consegue provar.</li>
             <li>Os links que não conseguimos verificar ficam de fora da conta e aparecem na cobertura.</li>
           </ul>
+          <p><a href="#metodologia">Ler a metodologia completa</a></p>
         </details>
       </section>
 
@@ -95,6 +101,136 @@
         </table>
       </div>
       <button id="mais-bases" class="botao" type="button" hidden>Mostrar mais bases</button>
+    </div>
+
+    <!-- Página de uma base: status, motivo e saúde dos links -->
+    <div id="pagina-base" hidden>
+      <p><a id="voltar-orgao" href="#">&larr; Voltar</a></p>
+      <h1 id="base-titulo"></h1>
+      <p id="base-meta" class="lide"></p>
+      <section aria-labelledby="titulo-status">
+        <h2 id="titulo-status">Status</h2>
+        <p><span id="base-selo" class="selo"></span></p>
+        <p id="base-motivo"></p>
+        <p id="base-explicacao" class="suave"></p>
+      </section>
+      <section aria-labelledby="titulo-links-base">
+        <h2 id="titulo-links-base">Links</h2>
+        <div id="base-cartoes" class="cartoes"></div>
+      </section>
+      <p><a id="base-portal" class="botao-link" href="#" target="_blank" rel="noopener">Ver esta base no dados.gov.br &rarr;</a></p>
+    </div>
+
+    <!-- Metodologia: as regras, uma a uma -->
+    <div id="pagina-metodologia" class="pagina-texto" hidden>
+      <h1>Como medimos</h1>
+      <p class="lide">O Clock-in só afirma o que consegue provar. Esta página explica as regras, uma a uma.</p>
+
+      <h2>O que o Clock-in faz</h2>
+      <p>
+        Todo dia o Clock-in lê o catálogo do dados.gov.br, testa os links dos arquivos de cada base e guarda o resultado.
+        O teste é educado: uma requisição por vez em cada servidor, com pausa entre elas, e o robô se identifica.
+      </p>
+
+      <h2>Quando um link é considerado quebrado</h2>
+      <p>
+        Um link só é <strong>quebrado</strong> depois de <strong>3 falhas em dias diferentes seguidos</strong>. Com 1 ou 2 falhas
+        ele fica <strong>em observação</strong>, e um único sucesso zera a contagem. Erros como 502, 503 e 520 costumam ser
+        temporários, e acusar um órgão por uma falha de um dia seria injusto.
+      </p>
+
+      <h2>O que não conta como falha</h2>
+      <ul>
+        <li><strong>Timeout e falha de conexão:</strong> o servidor pode simplesmente não responder ao nosso teste.</li>
+        <li><strong>Erro 403 (acesso negado):</strong> é a proteção contra robôs de vários sites do governo, que bloqueia o teste mesmo a partir do Brasil.</li>
+        <li><strong>Erro 405 (método não permitido):</strong> o servidor recusa o método do teste, mesmo com o arquivo abrindo normalmente no navegador.</li>
+      </ul>
+      <p>
+        Esses links ficam de fora da conta e aparecem como não verificados na cobertura. Já contam como falha uma resposta de
+        erro do servidor (como 404 e 500), um erro de DNS (o endereço não existe mais) e um erro de certificado.
+      </p>
+
+      <h2>Cobertura e porcentagens</h2>
+      <p>
+        A <strong>cobertura</strong> é a parte dos links que conseguimos testar de verdade. A porcentagem de links respondendo
+        bem só aparece para órgãos com <strong>30 ou mais links testados</strong>: com poucos links, 1 ou 2 falhas distorcem o resultado.
+      </p>
+
+      <h2>Status de cada base</h2>
+      <div class="tabela-rolagem">
+        <table class="tabela-simples">
+          <thead><tr><th scope="col">Status</th><th scope="col">Quando</th></tr></thead>
+          <tbody>
+            <tr><td><span class="selo em_dia">Em dia</span></td><td>Mudou dentro do prazo esperado para a periodicidade declarada.</td></tr>
+            <tr><td><span class="selo atrasada">Atrasada</span></td><td>Passou do prazo esperado sem mudança no conteúdo.</td></tr>
+            <tr><td><span class="selo parada">Parada</span></td><td>Passou de 3 vezes o prazo esperado sem mudança.</td></tr>
+            <tr><td><span class="selo fora_do_ar">Fora do ar</span></td><td>Todos os links da base estão quebrados.</td></tr>
+            <tr><td><span class="selo nao_verificavel">Não verificável</span></td><td>Ainda não dá para dizer: poucos arquivos lidos, pouco histórico ou nenhuma periodicidade declarada. Isso não quer dizer que a base esteja desatualizada.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        O status pelo conteúdo depende de arquivos lidos ao longo de semanas. Enquanto o histórico cresce, a maioria das bases
+        aparece como não verificável.
+      </p>
+
+      <h2>Prazo esperado por periodicidade</h2>
+      <p>O prazo é a periodicidade declarada pelo órgão com uma folga. Quase 7 em cada 10 bases não declaram periodicidade e, por enquanto, ficam sem prazo.</p>
+      <div class="tabela-rolagem">
+        <table class="tabela-simples">
+          <thead><tr><th scope="col">Periodicidade</th><th scope="col">Prazo</th></tr></thead>
+          <tbody>
+            <tr><td>Diária</td><td>3 dias</td></tr>
+            <tr><td>Semanal</td><td>10 dias</td></tr>
+            <tr><td>Quinzenal</td><td>20 dias</td></tr>
+            <tr><td>Mensal</td><td>40 dias</td></tr>
+            <tr><td>Trimestral</td><td>100 dias</td></tr>
+            <tr><td>Quadrimestral</td><td>135 dias</td></tr>
+            <tr><td>Semestral</td><td>200 dias</td></tr>
+            <tr><td>Anual</td><td>400 dias</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Limites</h2>
+      <p>
+        Os números vêm de poucos dias de testes e podem mudar bastante nas próximas semanas. O código, as decisões e os
+        motivos de cada regra estão abertos no <a href="https://github.com/Bolapipa/clock-in" rel="noopener">GitHub</a>.
+      </p>
+    </div>
+
+    <!-- API: onde estão os JSON -->
+    <div id="pagina-api" class="pagina-texto" hidden>
+      <h1>API</h1>
+      <p class="lide">
+        Todos os dados deste site estão em arquivos JSON abertos, sem chave e sem limite de uso. Basta um <code>GET</code> em cada arquivo.
+      </p>
+
+      <h2>Arquivos</h2>
+      <div class="tabela-rolagem">
+        <table class="tabela-simples">
+          <thead><tr><th scope="col">Arquivo</th><th scope="col">O que traz</th></tr></thead>
+          <tbody>
+            <tr><td><a href="api/resumo.json">api/resumo.json</a></td><td>Totais do Brasil</td></tr>
+            <tr><td><a href="api/orgaos.json">api/orgaos.json</a></td><td>Um resumo por órgão publicador (o <code>slug</code> de cada órgão está aqui)</td></tr>
+            <tr><td><code>api/orgaos/{slug}.json</code></td><td>Um órgão e as bases dele, com as que têm problema primeiro</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Exemplo</h2>
+      <pre><code>const resposta = await fetch("api/resumo.json");
+const resumo = await resposta.json();
+console.log(resumo.links.percentual_ok, "% dos links respondendo bem");</code></pre>
+
+      <h2>Versões</h2>
+      <p>
+        Todo arquivo traz <code>versao</code>, <code>data_coleta</code> e <code>gerado_em</code>. A versão só sobe quando uma
+        chave é removida, renomeada ou muda de significado; chaves novas podem aparecer sem aviso, então ignore as que você não conhece.
+        A descrição de cada campo está em
+        <a href="https://github.com/Bolapipa/clock-in/blob/main/docs/API.md" rel="noopener">docs/API.md</a>.
+      </p>
+      <p id="api-versao" class="suave"></p>
     </div>
   </main>
 

@@ -86,6 +86,11 @@ def ler(pasta, *caminho):
     return json.loads(pasta.joinpath(*caminho).read_text(encoding="utf-8"))
 
 
+def lista_de_orgaos(pasta):
+    """A lista de órgãos do orgaos.json (ela fica na chave "orgaos", ao lado do cabeçalho)."""
+    return ler(pasta, "orgaos.json")["orgaos"]
+
+
 # --- Slug do órgão ---
 
 @pytest.mark.parametrize("nome, esperado", [
@@ -114,7 +119,7 @@ def test_resumo_soma_bases_recursos_e_links():
                                "percentual_ok": 84.6, "cobertura": 86.7}
     assert resumo["bases_sem_link"] == 1
     assert resumo["data_coleta"] == "2026-10-26"
-    assert resumo["versao"] == "prototipo"
+    assert resumo["versao"] == 1
 
 
 def test_resumo_conta_bases_fora_do_ar_esferas_e_periodicidades():
@@ -145,7 +150,7 @@ def test_orgaos_ordenados_pelo_numero_de_bases_e_depois_pelo_nome():
 
     pasta, _ = gerar()
 
-    nomes = [orgao["nome"] for orgao in ler(pasta, "orgaos.json")]
+    nomes = [orgao["nome"] for orgao in lista_de_orgaos(pasta)]
     assert nomes == ["Beta", "Alfa", "Zeta"]
 
 
@@ -155,7 +160,7 @@ def test_orgao_resume_links_cobertura_e_status():
 
     pasta, _ = gerar()
 
-    orgao = ler(pasta, "orgaos.json")[0]
+    orgao = lista_de_orgaos(pasta)[0]
     assert orgao["qtd_bases"] == 2
     assert (orgao["links_total"], orgao["links_testados"], orgao["links_ok"]) == (60, 50, 40)
     assert (orgao["links_em_observacao"], orgao["links_quebrados"]) == (9, 1)
@@ -172,7 +177,7 @@ def test_porcentagem_do_orgao_so_com_links_testados_suficientes(testados, espera
 
     pasta, _ = gerar()
 
-    orgao = ler(pasta, "orgaos.json")[0]
+    orgao = lista_de_orgaos(pasta)[0]
     assert orgao["percentual_ok"] == esperado
     # A cobertura continua aparecendo, para o leitor ver o tamanho da amostra
     assert orgao["cobertura_links"] == 100.0
@@ -184,7 +189,7 @@ def test_base_sem_publicador_vira_orgao_nao_identificado():
 
     pasta, _ = gerar()
 
-    orgaos = {orgao["slug"]: orgao for orgao in ler(pasta, "orgaos.json")}
+    orgaos = {orgao["slug"]: orgao for orgao in lista_de_orgaos(pasta)}
     assert orgaos["nao-identificado"]["nome"] == "Não identificado"
     assert orgaos["nao-identificado"]["esfera"] == "NAO_CLASSIFICADA"
     assert (pasta / "orgaos" / "nao-identificado.json").exists()
@@ -209,7 +214,7 @@ def test_nomes_que_dao_o_mesmo_slug_ganham_um_numero():
 
     pasta, _ = gerar()
 
-    slugs = sorted(orgao["slug"] for orgao in ler(pasta, "orgaos.json"))
+    slugs = sorted(orgao["slug"] for orgao in lista_de_orgaos(pasta))
     assert slugs == ["orgao-x", "orgao-x-2"]
 
 
@@ -235,6 +240,86 @@ def test_status_e_motivo_vem_do_gold_quando_existe():
     assert bases["a"]["status"] == "ATRASADA"
     assert bases["a"]["motivo"].startswith("atrasada porque é mensal")
     assert bases["b"]["status"] == "NAO_VERIFICAVEL"
+
+
+# --- Contrato da API, versão 1 (docs/API.md) ---
+# As chaves abaixo são o contrato: tirar, renomear ou mudar o significado de uma exige subir a versão
+
+CABECALHO = {"versao", "data_coleta", "gerado_em"}
+CHAVES_DO_RESUMO = CABECALHO | {"bases", "recursos", "orgaos", "links", "bases_fora_do_ar", "bases_sem_link", "status", "esferas", "periodicidades"}
+CHAVES_DOS_LINKS = {"total", "testados", "ok", "em_observacao", "quebrados", "percentual_ok", "cobertura"}
+CHAVES_DO_ORGAO = {"nome", "slug", "esfera", "qtd_bases", "links_total", "links_testados", "links_ok", "links_em_observacao",
+                   "links_quebrados", "bases_fora_do_ar", "percentual_ok", "cobertura_links", "status"}
+CHAVES_DA_BASE = {"id", "slug", "titulo", "periodicidade", "publicador", "esfera", "links_total", "links_testados", "links_ok",
+                  "links_em_observacao", "links_quebrados", "fora_do_ar", "status", "motivo"}
+
+
+def montar_um_pouco_de_tudo():
+    """Uma Silver com dois órgãos, uma base com problema e uma com status vindo do Gold."""
+    montar(base("a", "Órgão A", links=40, testados=30, ok=24, observacao=6, titulo="Base A"),
+           base("b", "Órgão B", links=2, testados=2, ok=0, quebrados=2, fora_do_ar=True, titulo="Base B"), recursos=3)
+    gravar_status(("a", "EM_DIA", "em dia porque é mensal e mudou há 12 dias (prazo de 40 dias)"))
+
+
+def test_contrato_todo_arquivo_traz_versao_data_e_geracao():
+    montar_um_pouco_de_tudo()
+
+    pasta, _ = gerar()
+
+    for caminho in (("resumo.json",), ("orgaos.json",), ("orgaos", "orgao-a.json")):
+        arquivo = ler(pasta, *caminho)
+        assert CABECALHO <= set(arquivo), caminho
+        assert arquivo["versao"] == gerar_api.VERSAO_DA_API == 1
+        assert arquivo["data_coleta"] == "2026-10-26"
+        assert arquivo["gerado_em"].endswith("Z") and "T" in arquivo["gerado_em"]
+    # Os arquivos de uma mesma execução têm o mesmo momento de geração
+    momentos = {ler(pasta, *c)["gerado_em"] for c in (("resumo.json",), ("orgaos.json",), ("orgaos", "orgao-a.json"))}
+    assert len(momentos) == 1
+
+
+def test_contrato_resumo_tem_exatamente_estas_chaves_e_tipos():
+    montar_um_pouco_de_tudo()
+
+    pasta, _ = gerar()
+
+    resumo = ler(pasta, "resumo.json")
+    assert set(resumo) == CHAVES_DO_RESUMO
+    assert set(resumo["links"]) == CHAVES_DOS_LINKS
+    for chave in ("bases", "recursos", "orgaos", "bases_fora_do_ar", "bases_sem_link"):
+        assert isinstance(resumo[chave], int), chave
+    assert isinstance(resumo["status"], dict)
+    assert all(set(item) == {"esfera", "bases"} for item in resumo["esferas"])
+    assert all(set(item) == {"periodicidade", "bases"} for item in resumo["periodicidades"])
+
+
+def test_contrato_orgao_e_base_tem_exatamente_estas_chaves_e_tipos():
+    montar_um_pouco_de_tudo()
+
+    pasta, _ = gerar()
+
+    # Na lista de órgãos: o resumo, sem as bases
+    primeiro = lista_de_orgaos(pasta)[0]
+    assert set(primeiro) == CHAVES_DO_ORGAO
+    # No arquivo do órgão: o resumo, o cabeçalho e as bases
+    orgao = ler(pasta, "orgaos", "orgao-a.json")
+    assert set(orgao) == CHAVES_DO_ORGAO | CABECALHO | {"bases"}
+    assert all(set(b) == CHAVES_DA_BASE for b in orgao["bases"])
+
+    base_a = orgao["bases"][0]
+    assert isinstance(base_a["fora_do_ar"], bool)
+    assert base_a["status"] == "EM_DIA" and isinstance(base_a["motivo"], str)
+    for chave in ("links_total", "links_testados", "links_ok", "links_em_observacao", "links_quebrados"):
+        assert isinstance(base_a[chave], int), chave
+
+
+def test_contrato_valores_possiveis_do_status():
+    montar_um_pouco_de_tudo()
+
+    pasta, resumo = gerar()
+
+    status_validos = {"EM_DIA", "ATRASADA", "PARADA", "FORA_DO_AR", "NAO_VERIFICAVEL"}
+    assert set(resumo["status"]) <= status_validos
+    assert ler(pasta, "orgaos", "orgao-b.json")["bases"][0]["status"] in status_validos
 
 
 # --- Arquivos ---

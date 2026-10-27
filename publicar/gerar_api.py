@@ -1,11 +1,12 @@
-"""Gera a API estática do Clock-in (protótipo da Fase 6): arquivos JSON lidos pelo site.
+"""Gera a API estática do Clock-in (Fase 6): arquivos JSON lidos pelo site.
 
 Lê a Silver do dia (bases, órgão publicador e saúde dos links) e, se existir, o status
 das bases (Gold). Grava, por padrão em site/api/:
     resumo.json           totais do Brasil
-    orgaos.json           um resumo por órgão publicador
+    orgaos.json           um resumo por órgão publicador (a lista fica na chave "orgaos")
     orgaos/<slug>.json    o órgão e a lista das bases dele
 
+Todo arquivo traz "versao", "data_coleta" e "gerado_em". O contrato de cada um está em docs/API.md.
 Os arquivos são gerados a cada execução e não vão para o Git (decisão 16).
 
 Uso:
@@ -36,6 +37,10 @@ import silver
 # Pasta de saída padrão e arquivo SQL que lista as bases
 PASTA_SAIDA = portal.RAIZ / "site" / "api"
 ARQUIVO_SQL = "api_base.sql"
+
+# Versão do contrato da API (docs/API.md). Sobe quando uma chave é removida, renomeada ou muda de
+# significado; acrescentar uma chave nova não muda a versão
+VERSAO_DA_API = 1
 
 # Um órgão com menos links testados que isto fica sem porcentagem: com poucos links, 1 ou 2 falhas
 # fariam o órgão parecer muito pior (ou melhor) do que ele é
@@ -116,15 +121,21 @@ def agrupar_por_orgao(bases):
     return orgaos
 
 
-def montar_resumo(bases, orgaos, recursos, data):
-    """Totais do Brasil, para a página inicial."""
+def cabecalho_da_api(data):
+    """As três chaves que todo arquivo da API traz: versão do contrato, dia dos dados e momento da geração."""
+    return {
+        "versao": VERSAO_DA_API,
+        "data_coleta": str(data),
+        "gerado_em": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+
+
+def montar_resumo(bases, orgaos, recursos):
+    """Totais do Brasil, para a página inicial (sem o cabeçalho, que a geração acrescenta)."""
     total = sum(base["links_total"] for base in bases)
     testados = sum(base["links_testados"] for base in bases)
     ok = sum(base["links_ok"] for base in bases)
     return {
-        "versao": "prototipo",
-        "data_coleta": str(data),
-        "gerado_em": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "bases": len(bases),
         "recursos": recursos,
         "orgaos": len(orgaos),
@@ -162,17 +173,20 @@ def gerar(con, data, saida):
     for antigo in (saida / "orgaos").glob("*.json"):
         antigo.unlink()
 
+    # Todos os arquivos da execução levam o mesmo cabeçalho
+    cabecalho = cabecalho_da_api(data)
+
     # Lista de órgãos, sem as bases: os mais bases primeiro
     ordenados = sorted(orgaos.values(), key=lambda orgao: (-orgao["qtd_bases"], orgao["nome"]))
-    resumo_dos_orgaos = [{chave: valor for chave, valor in orgao.items() if chave != "bases"} for orgao in ordenados]
-    gravar_json(saida / "orgaos.json", resumo_dos_orgaos)
+    sem_as_bases = [{chave: valor for chave, valor in orgao.items() if chave != "bases"} for orgao in ordenados]
+    gravar_json(saida / "orgaos.json", {**cabecalho, "orgaos": sem_as_bases})
 
     # Um arquivo por órgão, com as bases que têm problema primeiro
-    for orgao in ordenados:
+    for orgao, resumo_do_orgao in zip(ordenados, sem_as_bases):
         bases_do_orgao = sorted(orgao["bases"], key=lambda base: (-base["links_quebrados"], -base["links_em_observacao"], base["titulo"] or ""))
-        gravar_json(saida / "orgaos" / f"{orgao['slug']}.json", {**{k: v for k, v in orgao.items() if k != "bases"}, "bases": bases_do_orgao})
+        gravar_json(saida / "orgaos" / f"{orgao['slug']}.json", {**cabecalho, **resumo_do_orgao, "bases": bases_do_orgao})
 
-    resumo = montar_resumo(bases, orgaos, recursos, data)
+    resumo = {**cabecalho, **montar_resumo(bases, orgaos, recursos)}
     gravar_json(saida / "resumo.json", resumo)
     return resumo, len(orgaos)
 

@@ -5,8 +5,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
-  normalizar, formatarNumero, formatarPercentual, rotulo, lerHash, filtrarOrgaos, filtrarBases, temProblema, ordenar,
-  ROTULOS_PERIODICIDADE,
+  normalizar, formatarNumero, formatarPercentual, rotulo, lerRota, linkDaBase, explicarStatus, primeiraMaiuscula, filtrarOrgaos,
+  filtrarBases, temProblema, ordenar, ROTULOS_PERIODICIDADE, EXPLICACOES_STATUS,
 } = require("../../site/app.js");
 
 const ORGAOS = [
@@ -42,13 +42,44 @@ test("as periodicidades conhecidas têm rótulo com acento", () => {
   assert.equal(rotulo(ROTULOS_PERIODICIDADE, "BIMESTRAL"), "Bimestral");
 });
 
-test("lerHash aceita só o formato #orgao=slug", () => {
-  assert.equal(lerHash("#orgao=ibge"), "ibge");
-  assert.equal(lerHash("#orgao=prefeitura-de-fortaleza"), "prefeitura-de-fortaleza");
-  assert.equal(lerHash(""), null);
-  assert.equal(lerHash("#outra=coisa"), null);
-  assert.equal(lerHash("#orgao=../../etc"), null);
-  assert.equal(lerHash("#orgao=A<script>"), null);
+test("lerRota entende o início, as páginas de texto, o órgão e a base", () => {
+  assert.deepEqual(lerRota(""), { tipo: "inicio" });
+  assert.deepEqual(lerRota("#"), { tipo: "inicio" });
+  assert.deepEqual(lerRota("#metodologia"), { tipo: "metodologia" });
+  assert.deepEqual(lerRota("#api"), { tipo: "api" });
+  assert.deepEqual(lerRota("#orgao=ibge"), { tipo: "orgao", orgao: "ibge" });
+  assert.deepEqual(lerRota("#orgao=prefeitura-de-fortaleza"), { tipo: "orgao", orgao: "prefeitura-de-fortaleza" });
+  assert.deepEqual(lerRota("#orgao=ibge&base=frota-de-veiculos-rab1"), { tipo: "base", orgao: "ibge", base: "frota-de-veiculos-rab1" });
+});
+
+test("lerRota manda para o início qualquer endereço estranho ou malicioso", () => {
+  for (const hash of ["#outra=coisa", "#orgao=../../etc", "#orgao=A<script>", "#orgao=ibge&base=<img src=x>",
+    "#orgao=ibge&base=a/b", "#orgao=ibge&outra=x", "#orgao=&base=x", "#metodologia=1", "#API", null, undefined]) {
+    assert.deepEqual(lerRota(hash), { tipo: "inicio" }, String(hash));
+  }
+});
+
+test("linkDaBase monta o endereço interno e protege caracteres especiais", () => {
+  assert.equal(linkDaBase("ibge", "frota-de-veiculos"), "#orgao=ibge&base=frota-de-veiculos");
+  assert.equal(linkDaBase("ibge", "a b"), "#orgao=ibge&base=a%20b");
+  // O que linkDaBase gera é lido de volta por lerRota quando o slug é normal
+  assert.deepEqual(lerRota(linkDaBase("ibge", "base-1.csv")), { tipo: "base", orgao: "ibge", base: "base-1.csv" });
+});
+
+test("primeiraMaiuscula só mexe na primeira letra", () => {
+  assert.equal(primeiraMaiuscula("nenhum arquivo tabular da base foi lido"), "Nenhum arquivo tabular da base foi lido");
+  assert.equal(primeiraMaiuscula("IBGE publica"), "IBGE publica");
+  assert.equal(primeiraMaiuscula(""), "");
+  assert.equal(primeiraMaiuscula(null), "");
+});
+
+test("explicarStatus tem uma frase para cada status e fica vazio para um desconhecido", () => {
+  for (const status of ["EM_DIA", "ATRASADA", "PARADA", "FORA_DO_AR", "NAO_VERIFICAVEL"]) {
+    assert.ok(explicarStatus(status).length > 20, status);
+  }
+  assert.equal(explicarStatus("STATUS_NOVO"), "");
+  // Não verificável nunca é descrito como desatualizado
+  assert.match(EXPLICACOES_STATUS.NAO_VERIFICAVEL, /não quer dizer que a base esteja desatualizada/);
 });
 
 test("filtrarOrgaos busca por parte do nome sem acento e filtra a esfera", () => {

@@ -1,4 +1,4 @@
-// Clock-in: página inicial e página de cada órgão (protótipo).
+// Clock-in: página inicial, página de cada órgão e de cada base, metodologia e API (protótipo).
 // JavaScript puro, sem bibliotecas. Lê os JSON da pasta api/, gerados por publicar/gerar_api.py.
 
 const URL_BASE_DO_PORTAL = "https://dados.gov.br/dados/conjuntos-dados/";
@@ -15,7 +15,17 @@ const ROTULOS_PERIODICIDADE = {
   SOB_DEMANDA: "Sob demanda", OUTRAS: "Outras", SEM_DETALHE: "Sem detalhe",
 };
 
-// Colunas da tabela de órgãos: chave do JSON, título e se o texto vai à esquerda
+// O que cada status quer dizer, em uma frase (também na página de metodologia)
+const EXPLICACOES_STATUS = {
+  EM_DIA: "A base mudou dentro do prazo esperado para a periodicidade dela.",
+  ATRASADA: "A base passou do prazo esperado sem mudança no conteúdo.",
+  PARADA: "A base passou de 3 vezes o prazo esperado sem mudança no conteúdo.",
+  FORA_DO_AR: "Todos os links da base estão quebrados.",
+  NAO_VERIFICAVEL: "Ainda não dá para dizer: faltam arquivos lidos ou histórico, ou a base não declara periodicidade. "
+    + "Isso não quer dizer que a base esteja desatualizada.",
+};
+
+// Colunas da tabela de órgãos: chave do JSON e título
 const COLUNAS_ORGAOS = [
   { chave: "nome", titulo: "Órgão" },
   { chave: "esfera", titulo: "Esfera" },
@@ -60,10 +70,35 @@ function rotulo(tabela, chave) {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
-// Lê "#orgao=slug" do endereço da página; devolve o slug ou null
-function lerHash(hash) {
-  const achado = /^#orgao=([a-z0-9-]+)$/.exec(hash ?? "");
-  return achado ? achado[1] : null;
+// Lê o endereço da página e diz qual tela abrir:
+//   ""                          -> início
+//   "#metodologia", "#api"      -> páginas de texto
+//   "#orgao=slug"               -> um órgão
+//   "#orgao=slug&base=slug"     -> uma base do órgão
+// Qualquer outra coisa (inclusive texto estranho) volta para o início
+function lerRota(hash) {
+  const texto = String(hash ?? "").replace(/^#/, "");
+  if (texto === "metodologia") return { tipo: "metodologia" };
+  if (texto === "api") return { tipo: "api" };
+  const achado = /^orgao=([a-z0-9-]+)(?:&base=([A-Za-z0-9._~-]+))?$/.exec(texto);
+  if (!achado) return { tipo: "inicio" };
+  return achado[2] ? { tipo: "base", orgao: achado[1], base: achado[2] } : { tipo: "orgao", orgao: achado[1] };
+}
+
+// Endereço interno da página de uma base
+function linkDaBase(slugDoOrgao, slugDaBase) {
+  return `#orgao=${slugDoOrgao}&base=${encodeURIComponent(slugDaBase)}`;
+}
+
+// Primeira letra maiúscula, sem mexer no resto: "nenhum arquivo lido" vira "Nenhum arquivo lido"
+function primeiraMaiuscula(texto) {
+  const frase = String(texto ?? "");
+  return frase.charAt(0).toUpperCase() + frase.slice(1);
+}
+
+// A frase que explica o status; para um status que a API passe a mandar e a página não conheça, devolve vazio
+function explicarStatus(status) {
+  return EXPLICACOES_STATUS[status] ?? "";
 }
 
 function filtrarOrgaos(orgaos, { texto = "", esfera = "" } = {}) {
@@ -120,6 +155,15 @@ function el(tag, atributos = {}, ...filhos) {
 }
 
 const $ = (id) => document.getElementById(id);
+
+// Telas da página: só uma aparece por vez
+const TELAS = ["inicio", "detalhe", "pagina-base", "pagina-metodologia", "pagina-api"];
+
+function mostrarTela(id, titulo) {
+  for (const tela of TELAS) $(tela).hidden = tela !== id;
+  document.title = titulo ? `${titulo} · Clock-in` : "Clock-in · Monitor de dados abertos do Brasil";
+  window.scrollTo(0, 0);
+}
 
 async function carregar(caminho) {
   const resposta = await fetch(caminho);
@@ -218,7 +262,7 @@ function renderizarBases() {
     const selo = el("span", { classe: `selo ${base.status.toLowerCase()}`, title: base.motivo ?? "" }, rotulo(ROTULOS_STATUS, base.status));
     const linha = el("tr");
     linha.append(
-      el("td", {}, el("a", { href: URL_BASE_DO_PORTAL + base.slug, rel: "noopener" }, base.titulo || base.slug)),
+      el("td", {}, el("a", { href: linkDaBase(orgao.slug, base.slug) }, base.titulo || base.slug)),
       el("td", {}, rotulo(ROTULOS_PERIODICIDADE, base.periodicidade)),
       el("td", {}, formatarNumero(base.links_total)),
       el("td", {}, formatarNumero(base.links_ok)),
@@ -232,20 +276,27 @@ function renderizarBases() {
   $("mais-bases").hidden = visiveis.length >= ordenadas.length;
 }
 
-async function abrirOrgao(slug) {
+// Carrega o arquivo de um órgão (reaproveita o que já está na memória); devolve null se falhar
+async function carregarOrgao(slug) {
+  if (estado.orgao && estado.orgao.slug === slug) return estado.orgao;
   try {
     estado.orgao = await carregar(`api/orgaos/${slug}.json`);
   } catch (erro) {
     mostrarErro("Não foi possível carregar este órgão.");
-    return;
+    return null;
   }
-  const orgao = estado.orgao;
+  // Ao trocar de órgão, a tabela de bases volta ao começo
   estado.ordemBases = { coluna: "links_quebrados", direcao: "desc" };
   estado.paginaBases = 1;
   $("busca-base").value = "";
   $("so-problemas").checked = false;
+  return estado.orgao;
+}
 
-  document.title = `${orgao.nome} · Clock-in`;
+async function abrirOrgao(slug) {
+  const orgao = await carregarOrgao(slug);
+  if (!orgao) return;
+
   $("orgao-nome").textContent = orgao.nome;
   $("orgao-meta").textContent = `Esfera ${rotulo(ROTULOS_ESFERA, orgao.esfera).toLowerCase()} · ${formatarNumero(orgao.qtd_bases)} bases`;
   $("orgao-cartoes").replaceChildren(
@@ -255,33 +306,73 @@ async function abrirOrgao(slug) {
     cartao("Quebrados", formatarNumero(orgao.links_quebrados), "3 ou mais falhas seguidas", "ruim"),
     cartao("Bases fora do ar", formatarNumero(orgao.bases_fora_do_ar), "todos os links quebrados", "ruim"));
 
-  $("inicio").hidden = true;
-  $("detalhe").hidden = false;
+  mostrarTela("detalhe", orgao.nome);
   renderizarBases();
-  window.scrollTo(0, 0);
 }
 
-function mostrarInicio() {
-  document.title = "Clock-in · Monitor de dados abertos do Brasil";
-  $("detalhe").hidden = true;
-  $("inicio").hidden = false;
+// Página de uma base: o status e o motivo, e a saúde dos links dela
+async function abrirBase(slugDoOrgao, slugDaBase) {
+  const orgao = await carregarOrgao(slugDoOrgao);
+  if (!orgao) return;
+
+  const voltar = $("voltar-orgao");
+  voltar.href = `#orgao=${orgao.slug}`;
+  voltar.textContent = `← ${orgao.nome}`;
+
+  const base = orgao.bases.find((candidata) => candidata.slug === slugDaBase);
+  $("base-portal").hidden = !base;
+  if (!base) {
+    $("base-titulo").textContent = "Base não encontrada";
+    $("base-meta").textContent = "Esta base não está na coleta deste dia.";
+    for (const id of ["base-motivo", "base-explicacao"]) $(id).textContent = "";
+    $("base-selo").className = "selo";
+    $("base-selo").textContent = "";
+    $("base-cartoes").replaceChildren();
+    mostrarTela("pagina-base", "Base não encontrada");
+    return;
+  }
+
+  $("base-titulo").textContent = base.titulo || base.slug;
+  $("base-meta").textContent = `${orgao.nome} · Periodicidade ${rotulo(ROTULOS_PERIODICIDADE, base.periodicidade).toLowerCase()}`;
+  $("base-selo").className = `selo ${base.status.toLowerCase()}`;
+  $("base-selo").textContent = rotulo(ROTULOS_STATUS, base.status);
+  const semMotivo = base.fora_do_ar
+    ? "Todos os links desta base estão quebrados."
+    : "O status pelo conteúdo ainda não foi calculado para esta base.";
+  $("base-motivo").textContent = primeiraMaiuscula(base.motivo ?? semMotivo);
+  $("base-explicacao").textContent = explicarStatus(base.status);
+  $("base-cartoes").replaceChildren(
+    cartao("Links", formatarNumero(base.links_total), "cadastrados na base"),
+    cartao("Testados", formatarNumero(base.links_testados), "com algum teste conclusivo"),
+    cartao("Respondendo bem", formatarNumero(base.links_ok), "último teste bom", "bom"),
+    cartao("Em observação", formatarNumero(base.links_em_observacao), "1 ou 2 falhas seguidas", "atencao"),
+    cartao("Quebrados", formatarNumero(base.links_quebrados), "3 ou mais falhas seguidas", "ruim"));
+  $("base-portal").href = URL_BASE_DO_PORTAL + encodeURIComponent(base.slug);
+  mostrarTela("pagina-base", base.titulo || base.slug);
 }
 
 function aoMudarOEndereco() {
-  const slug = lerHash(window.location.hash);
-  if (slug) abrirOrgao(slug);
-  else mostrarInicio();
+  const rota = lerRota(window.location.hash);
+  if (rota.tipo === "orgao") abrirOrgao(rota.orgao);
+  else if (rota.tipo === "base") abrirBase(rota.orgao, rota.base);
+  else if (rota.tipo === "metodologia") mostrarTela("pagina-metodologia", "Como medimos");
+  else if (rota.tipo === "api") mostrarTela("pagina-api", "API");
+  else mostrarTela("inicio");
 }
 
 async function iniciar() {
   try {
-    [estado.resumo, estado.orgaos] = await Promise.all([carregar("api/resumo.json"), carregar("api/orgaos.json")]);
+    const [resumo, orgaos] = await Promise.all([carregar("api/resumo.json"), carregar("api/orgaos.json")]);
+    estado.resumo = resumo;
+    // O orgaos.json traz o cabeçalho da API e a lista na chave "orgaos"
+    estado.orgaos = orgaos.orgaos;
   } catch (erro) {
     mostrarErro("Não foi possível carregar os dados. Tente de novo mais tarde.");
     return;
   }
 
   renderizarResumo(estado.resumo);
+  $("api-versao").textContent = `Versão atual do contrato: ${estado.resumo.versao}. Dados de ${estado.resumo.data_coleta}, gerados em ${estado.resumo.gerado_em}.`;
 
   // Filtro de esfera: só as que existem nos dados
   const esferas = [...new Set(estado.orgaos.map((orgao) => orgao.esfera))].sort();
@@ -308,7 +399,7 @@ if (typeof document !== "undefined") {
 // Para os testes em Node (tests/site/app.test.js); no navegador não existe "module"
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
-    normalizar, formatarNumero, formatarPercentual, rotulo, lerHash, filtrarOrgaos, filtrarBases, temProblema, ordenar,
-    ROTULOS_PERIODICIDADE,
+    normalizar, formatarNumero, formatarPercentual, rotulo, lerRota, linkDaBase, explicarStatus, primeiraMaiuscula,
+    filtrarOrgaos, filtrarBases, temProblema, ordenar, ROTULOS_PERIODICIDADE, EXPLICACOES_STATUS,
   };
 }
