@@ -41,10 +41,10 @@ def gravar_silver(bases, recursos):
                    TO '{(pasta / "recurso" / f"data={HOJE}" / "recurso.parquet").as_posix()}' (FORMAT parquet)""")
 
 
-def registrar_teste(link, data, status_http):
+def registrar_teste(link, data, status_http, etag=None):
     """Registra um teste de link na Bronze e atualiza o estado do dia."""
     servidor = link.split("/")[2]
-    linha = (data, link, servidor, "HEAD", status_http, None, None, None, None, None, 50, None, None,
+    linha = (data, link, servidor, "HEAD", status_http, None, None, None, None, etag, 50, None, None,
              datetime(data.year, data.month, data.day, 12))
     links.gravar_lote([linha], data)
     links.atualizar_estado(data)
@@ -85,6 +85,18 @@ def test_link_quebrado_depois_de_tres_falhas_com_a_data_de_inicio():
     assert linha["quebrado_desde"] == DIA_1
     assert linha["falhas_seguidas"] == 3
     assert linha["ultimo_status_http"] == 404
+
+
+def test_link_status_traz_os_metadados_e_o_dia_em_que_mudaram():
+    gravar_silver(["a"], [("a", "https://x.gov.br/1")])
+    registrar_teste("https://x.gov.br/1", DIA_2, 200, etag='"v1"')
+    registrar_teste("https://x.gov.br/1", HOJE, 200, etag='"v2"')
+
+    status, _ = gerar()
+
+    linha = status["https://x.gov.br/1"]
+    assert linha["etag"] == '"v2"'
+    assert linha["ultima_mudanca_metadados"] == HOJE
 
 
 def test_link_com_duas_falhas_ainda_nao_esta_quebrado():

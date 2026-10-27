@@ -18,8 +18,8 @@ dados/estado/links_atual.parquet  (uma linha por link)
     falha_desde (primeira falha da série atual), ultimo_sucesso
 
 Um link está quebrado com 3 falhas seguidas em dias diferentes (decisão 14). Timeout, falha
-de conexão e servidor não testado (SERVIDOR_FORA) não provam nada: não contam como falha nem
-como sucesso, e o link continua como estava (decisão 29).
+de conexão, servidor não testado (SERVIDOR_FORA) e HTTP 403 (proteção anti-robô) não provam
+nada: não contam como falha nem como sucesso, e o link continua como estava (decisões 29 e 31).
 
 Uso:
     python coletor/links.py                    # links do dia, a partir da Silver (recurso)
@@ -73,6 +73,11 @@ ERROS_DE_REDE = ("TIMEOUT", "DNS", "SSL", "CONEXAO")
 # de erro continuam contando.
 ERROS_INCONCLUSIVOS = ("TIMEOUT", "CONEXAO", "SERVIDOR_FORA")
 
+# Status HTTP que também não provam nada: o 403 vem da proteção anti-robô de sites do governo
+# (por exemplo a do Cloudflare), que bloqueia o teste até de um computador no Brasil e devolve
+# uma página HTML (decisão 31). Um link apagado costuma dar 404 ou 410, que continuam contando.
+STATUS_INCONCLUSIVOS = (403,)
+
 # Posição de erro_tipo nas linhas da Bronze (ver montar_linha)
 POSICAO_ERRO_TIPO = 11
 
@@ -81,15 +86,28 @@ STATUS_SEM_HEAD = (400, 403, 405, 501)
 
 # Colunas do estado, na ordem em que são gravadas
 COLUNAS_ESTADO = """
-    link             VARCHAR,
-    servidor         VARCHAR,
-    ultima_tentativa DATE,
-    status_http      INTEGER,
-    erro_tipo        VARCHAR,
-    falhas_seguidas  INTEGER,
-    falha_desde      DATE,
-    ultimo_sucesso   DATE
+    link                     VARCHAR,
+    servidor                 VARCHAR,
+    ultima_tentativa         DATE,
+    status_http              INTEGER,
+    erro_tipo                VARCHAR,
+    falhas_seguidas          INTEGER,
+    falha_desde              DATE,
+    ultimo_sucesso           DATE,
+    content_length           BIGINT,
+    last_modified            VARCHAR,
+    etag                     VARCHAR,
+    ultima_mudanca_metadados DATE
 """
+
+# Colunas acrescentadas depois da primeira versão do estado: um estado gravado antes delas
+# ganha estas colunas, vazias, ao ser carregado
+COLUNAS_NOVAS = {
+    "content_length": "BIGINT",
+    "last_modified": "VARCHAR",
+    "etag": "VARCHAR",
+    "ultima_mudanca_metadados": "DATE",
+}
 
 
 def pasta_tentativas():
@@ -183,6 +201,9 @@ def carregar_estado(con):
     arquivo = arquivo_estado()
     if arquivo.exists():
         con.execute(f"CREATE OR REPLACE TABLE estado AS SELECT * FROM read_parquet('{arquivo.as_posix()}')")
+        # Estado gravado antes de algumas colunas existirem: acrescenta as que faltam, vazias
+        for coluna, tipo in COLUNAS_NOVAS.items():
+            con.execute(f"ALTER TABLE estado ADD COLUMN IF NOT EXISTS {coluna} {tipo}")
     else:
         con.execute(f"CREATE OR REPLACE TABLE estado ({COLUNAS_ESTADO})")
 
@@ -370,16 +391,23 @@ def aplicar_dia(con, data):
                 link,
                 arg_max(servidor, tentado_em)    AS servidor,
                 arg_max(status_http, tentado_em) AS status_http,
-                arg_max(erro_tipo, tentado_em)   AS erro_tipo
+                arg_max(erro_tipo, tentado_em)   AS erro_tipo,
+                arg_max(content_length, tentado_em) AS content_length,
+                arg_max(last_modified, tentado_em)  AS last_modified,
+                arg_max(etag, tentado_em)           AS etag
             FROM tentativas
             GROUP BY link
         ),
         -- Resultado de hoje de cada link. Sem resposta por timeout, falha de conexão ou servidor
-        -- não testado, o teste não provou nada: o link fica como estava (decisão 29)
+        -- não testado, ou com um status que só bloqueia o teste (403), o teste não provou nada:
+        -- o link fica como estava (decisões 29 e 31)
         hoje AS (
             SELECT *
             FROM ultimas
-            WHERE NOT (status_http IS NULL AND COALESCE(list_contains($inconclusivos, erro_tipo), false))
+            WHERE NOT (
+                (status_http IS NULL AND COALESCE(list_contains($inconclusivos, erro_tipo), false))
+                OR COALESCE(list_contains($status_inconclusivos, status_http), false)
+            )
         ),
         -- Combina o resultado de hoje com o estado de ontem
         novos AS (
@@ -392,7 +420,18 @@ def aplicar_dia(con, data):
                     ELSE COALESCE(e.falhas_seguidas, 0) + 1
                 END AS falhas_seguidas,
                 e.falha_desde    AS falha_desde_anterior,
-                e.ultimo_sucesso AS ultimo_sucesso_anterior
+                e.ultimo_sucesso AS ultimo_sucesso_anterior,
+                -- Mudou algum metadado em relação à última resposta boa: o tamanho (só numa resposta 200, porque
+                -- na 206 ele é o tamanho do pedaço), o Last-Modified ou o ETag. Campo ausente não conta como mudança
+                COALESCE(h.status_http < 400 AND (
+                    (h.status_http = 200 AND h.content_length <> e.content_length)
+                    OR h.last_modified <> e.last_modified
+                    OR h.etag <> e.etag
+                ), false) AS mudou_metadados,
+                e.content_length AS e_content_length,
+                e.last_modified  AS e_last_modified,
+                e.etag           AS e_etag,
+                e.ultima_mudanca_metadados AS e_ultima_mudanca_metadados
             FROM hoje h
             LEFT JOIN estado e ON e.link = h.link
         )
@@ -406,9 +445,14 @@ def aplicar_dia(con, data):
         SELECT
             link, servidor, CAST($data AS DATE), status_http, erro_tipo, falhas_seguidas,
             CASE WHEN ok THEN NULL WHEN falhas_seguidas = 1 THEN CAST($data AS DATE) ELSE falha_desde_anterior END,
-            CASE WHEN ok THEN CAST($data AS DATE) ELSE ultimo_sucesso_anterior END
+            CASE WHEN ok THEN CAST($data AS DATE) ELSE ultimo_sucesso_anterior END,
+            -- Metadados da última resposta boa: só uma resposta boa atualiza, e um campo ausente não apaga o anterior
+            CASE WHEN ok AND status_http = 200 THEN COALESCE(content_length, e_content_length) ELSE e_content_length END,
+            CASE WHEN ok THEN COALESCE(last_modified, e_last_modified) ELSE e_last_modified END,
+            CASE WHEN ok THEN COALESCE(etag, e_etag) ELSE e_etag END,
+            CASE WHEN mudou_metadados THEN CAST($data AS DATE) ELSE e_ultima_mudanca_metadados END
         FROM novos
-    """, {"data": data, "inconclusivos": list(ERROS_INCONCLUSIVOS)})
+    """, {"data": data, "inconclusivos": list(ERROS_INCONCLUSIVOS), "status_inconclusivos": list(STATUS_INCONCLUSIVOS)})
 
 
 def salvar_estado(con):

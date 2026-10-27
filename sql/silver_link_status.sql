@@ -16,6 +16,11 @@ SELECT
         WHEN a.falhas_seguidas >= getvariable('falhas_para_quebrado') THEN a.falha_desde
     END AS quebrado_desde,
     a.ultimo_sucesso,
+    -- Metadados da última resposta boa e o dia em que algum deles mudou (sinal de mudança sem baixar o arquivo)
+    a.content_length,
+    a.last_modified,
+    a.etag,
+    a.ultima_mudanca_metadados,
     (SELECT max(data_coleta) FROM silver_recurso) AS data_coleta
 FROM link_atual a
 WHERE EXISTS (SELECT 1 FROM silver_recurso r WHERE r.link = a.link)

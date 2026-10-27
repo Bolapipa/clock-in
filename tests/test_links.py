@@ -52,11 +52,11 @@ def gravar_silver(data, lista_de_links):
     duckdb.sql(f"COPY (SELECT * FROM (VALUES {valores}) t(link)) TO '{arquivo.as_posix()}' (FORMAT parquet)")
 
 
-def tentativa(link, data, status_http, erro_tipo=None, hora=12):
+def tentativa(link, data, status_http, erro_tipo=None, hora=12, content_length=None, last_modified=None, etag=None):
     """Grava uma tentativa de teste de link na Bronze."""
     servidor = link.split("/")[2]
-    linha = (data, link, servidor, "HEAD", status_http, None, None, None, None, None, 50, erro_tipo, None,
-             datetime(data.year, data.month, data.day, hora))
+    linha = (data, link, servidor, "HEAD", status_http, None, None, content_length, last_modified, etag, 50, erro_tipo,
+             None, datetime(data.year, data.month, data.day, hora))
     links.gravar_lote([linha], data)
 
 
@@ -246,6 +246,39 @@ def test_resultado_inconclusivo_nao_conta_como_falha(erro):
     assert linha["status_http"] == 503
 
 
+def test_http_403_nao_conta_como_falha():
+    link = "https://a.gov.br/1"
+    tentativa(link, DIA_1, 503)
+    links.atualizar_estado(DIA_1)
+    tentativa(link, DIA_2, 403)
+    links.atualizar_estado(DIA_2)
+
+    # O 403 é bloqueio do teste, não prova que o link quebrou: o link continua como estava
+    linha = ler_estado()[link]
+    assert linha["falhas_seguidas"] == 1
+    assert linha["ultima_tentativa"] == DIA_1
+    assert linha["status_http"] == 503
+
+
+def test_link_nunca_testado_que_deu_403_fica_fora_do_estado():
+    link = "https://a.gov.br/1"
+    tentativa(link, DIA_1, 403)
+    links.atualizar_estado(DIA_1)
+
+    assert link not in ler_estado()
+
+
+@pytest.mark.parametrize("status", [401, 404, 410, 500, 502])
+def test_outros_status_de_erro_continuam_contando_como_falha(status):
+    link = "https://a.gov.br/1"
+    tentativa(link, DIA_1, 503)
+    links.atualizar_estado(DIA_1)
+    tentativa(link, DIA_2, status)
+    links.atualizar_estado(DIA_2)
+
+    assert ler_estado()[link]["falhas_seguidas"] == 2
+
+
 @pytest.mark.parametrize("erro", ["DNS", "SSL"])
 def test_dns_e_ssl_contam_como_falha(erro):
     link = "https://a.gov.br/1"
@@ -335,6 +368,105 @@ def test_main_reconstruir_nao_testa_nada_e_recria_o_estado(monkeypatch, capsys):
 
     assert ler_estado()[link]["falhas_seguidas"] == 1
     assert "1 dia(s)" in capsys.readouterr().out
+
+
+# --- Sinal de mudança pelos metadados (sem baixar o arquivo) ---
+
+LINK_ARQUIVO = "https://a.gov.br/grande.csv"
+
+
+def test_primeira_resposta_guarda_os_metadados_e_nao_conta_como_mudanca():
+    tentativa(LINK_ARQUIVO, DIA_1, 200, content_length=5000, last_modified="Mon, 01 Jan 2026", etag='"v1"')
+    links.atualizar_estado(DIA_1)
+
+    linha = ler_estado()[LINK_ARQUIVO]
+    assert (linha["content_length"], linha["last_modified"], linha["etag"]) == (5000, "Mon, 01 Jan 2026", '"v1"')
+    assert linha["ultima_mudanca_metadados"] is None
+
+
+def test_metadados_iguais_nao_contam_como_mudanca():
+    for dia in (DIA_1, DIA_2):
+        tentativa(LINK_ARQUIVO, dia, 200, content_length=5000, last_modified="Mon, 01 Jan 2026", etag='"v1"')
+        links.atualizar_estado(dia)
+
+    assert ler_estado()[LINK_ARQUIVO]["ultima_mudanca_metadados"] is None
+
+
+@pytest.mark.parametrize("campo, novo", [
+    ("content_length", 6000),
+    ("last_modified", "Tue, 02 Feb 2026"),
+    ("etag", '"v2"'),
+])
+def test_mudanca_de_qualquer_metadado_marca_o_dia(campo, novo):
+    antes = {"content_length": 5000, "last_modified": "Mon, 01 Jan 2026", "etag": '"v1"'}
+    tentativa(LINK_ARQUIVO, DIA_1, 200, **antes)
+    links.atualizar_estado(DIA_1)
+    tentativa(LINK_ARQUIVO, DIA_2, 200, **{**antes, campo: novo})
+    links.atualizar_estado(DIA_2)
+
+    assert ler_estado()[LINK_ARQUIVO]["ultima_mudanca_metadados"] == DIA_2
+
+
+def test_tamanho_de_resposta_206_nao_conta_como_mudanca():
+    # No GET com Range (206) o Content-Length é o tamanho do pedaço, não o do arquivo
+    tentativa(LINK_ARQUIVO, DIA_1, 200, content_length=5000)
+    links.atualizar_estado(DIA_1)
+    tentativa(LINK_ARQUIVO, DIA_2, 206, content_length=2048)
+    links.atualizar_estado(DIA_2)
+
+    linha = ler_estado()[LINK_ARQUIVO]
+    assert linha["ultima_mudanca_metadados"] is None
+    assert linha["content_length"] == 5000
+
+
+def test_campo_ausente_nao_apaga_o_anterior_nem_conta_como_mudanca():
+    tentativa(LINK_ARQUIVO, DIA_1, 200, content_length=5000, etag='"v1"')
+    links.atualizar_estado(DIA_1)
+    tentativa(LINK_ARQUIVO, DIA_2, 200)
+    links.atualizar_estado(DIA_2)
+
+    linha = ler_estado()[LINK_ARQUIVO]
+    assert (linha["content_length"], linha["etag"]) == (5000, '"v1"')
+    assert linha["ultima_mudanca_metadados"] is None
+
+
+@pytest.mark.parametrize("status, erro", [(503, None), (None, "TIMEOUT")])
+def test_falha_ou_resultado_inconclusivo_mantem_os_metadados(status, erro):
+    tentativa(LINK_ARQUIVO, DIA_1, 200, content_length=5000, last_modified="Mon, 01 Jan 2026", etag='"v1"')
+    links.atualizar_estado(DIA_1)
+    tentativa(LINK_ARQUIVO, DIA_2, status, erro)
+    links.atualizar_estado(DIA_2)
+
+    linha = ler_estado()[LINK_ARQUIVO]
+    assert (linha["content_length"], linha["last_modified"], linha["etag"]) == (5000, "Mon, 01 Jan 2026", '"v1"')
+    assert linha["ultima_mudanca_metadados"] is None
+
+
+def test_aplicar_o_mesmo_dia_duas_vezes_mantem_a_data_da_mudanca():
+    tentativa(LINK_ARQUIVO, DIA_1, 200, etag='"v1"')
+    links.atualizar_estado(DIA_1)
+    tentativa(LINK_ARQUIVO, DIA_2, 200, etag='"v2"')
+    links.atualizar_estado(DIA_2)
+    links.atualizar_estado(DIA_2)
+
+    assert ler_estado()[LINK_ARQUIVO]["ultima_mudanca_metadados"] == DIA_2
+
+
+def test_estado_antigo_sem_as_colunas_novas_continua_funcionando():
+    # Estado gravado antes do sinal de mudança: só as 8 colunas originais
+    arquivo = links.arquivo_estado()
+    arquivo.parent.mkdir(parents=True, exist_ok=True)
+    duckdb.sql(f"""COPY (SELECT 'https://a.gov.br/velho.csv' AS link, 'a.gov.br' AS servidor, DATE '2026-10-23' AS ultima_tentativa,
+                         200 AS status_http, NULL::VARCHAR AS erro_tipo, 0 AS falhas_seguidas, NULL::DATE AS falha_desde,
+                         DATE '2026-10-23' AS ultimo_sucesso)
+                   TO '{arquivo.as_posix()}' (FORMAT parquet)""")
+    tentativa("https://a.gov.br/velho.csv", DIA_1, 200, etag='"v1"')
+    links.atualizar_estado(DIA_1)
+
+    linha = ler_estado()["https://a.gov.br/velho.csv"]
+    assert linha["etag"] == '"v1"'
+    assert linha["ultima_mudanca_metadados"] is None
+    assert linha["ultimo_sucesso"] == DIA_1
 
 
 def test_partes_numeradas_sem_sobrescrever():
