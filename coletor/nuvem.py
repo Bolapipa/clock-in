@@ -9,7 +9,7 @@ entre uma execução e a próxima, sem commitar nenhum dado no Git (decisão 16)
   Conteúdo: dados/estado/*.parquet, a última listagem do catálogo (para a
   conferência de tamanho) e o último cronograma da CGU (para o publicador).
 - release "historico-AAAA-MM": o que o dia produziu (Silver, tentativas de links,
-  detalhes coletados), num arquivo dia-AAAA-MM-DD.tar.gz.
+  tentativas de leitura de conteúdo, detalhes coletados), num arquivo dia-AAAA-MM-DD.tar.gz.
 
 Usa o GitHub CLI (gh), já instalado nos runners do Actions; lá o login vem da
 variável GH_TOKEN.
@@ -159,11 +159,12 @@ def subir(data):
 
 
 def arquivos_do_dia(data):
-    """Arquivos que o dia produziu: Silver, tentativas de links e detalhes coletados."""
+    """Arquivos que o dia produziu: Silver, tentativas de links e de leitura de conteúdo, detalhes coletados."""
     dados = portal.RAIZ / "dados"
     padroes = [
         dados.glob(f"silver/*/data={data}/*.parquet"),
         dados.glob(f"bronze/link_tentativa/data={data}/*.parquet"),
+        dados.glob(f"bronze/conteudo_tentativa/data={data}/*.parquet"),
         dados.glob(f"bronze/catalogo_detalhe/data={data}/*.parquet"),
         dados.glob(f"bronze/catalogo_lista/data={data}/*.parquet"),
     ]

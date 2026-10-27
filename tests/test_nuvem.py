@@ -142,6 +142,7 @@ def test_extrair_recusa_caminho_fora_da_raiz(tmp_path):
 def test_historico_vai_para_o_release_do_mes_so_com_o_dia(github):
     gravar(f"silver/link_status/data={DIA}/link_status.parquet", b"status")
     gravar(f"bronze/link_tentativa/data={DIA}/parte-0001.parquet", b"tentativas")
+    gravar(f"bronze/conteudo_tentativa/data={DIA}/parte-0001.parquet", b"leituras")
     gravar("silver/link_status/data=2026-10-25/link_status.parquet", b"dia-anterior")
 
     nuvem.historico(DIA)
@@ -154,6 +155,7 @@ def test_historico_vai_para_o_release_do_mes_so_com_o_dia(github):
     with tarfile.open(pacote) as tar:
         nomes = sorted(tar.getnames())
     assert nomes == [
+        f"dados/bronze/conteudo_tentativa/data={DIA}/parte-0001.parquet",
         f"dados/bronze/link_tentativa/data={DIA}/parte-0001.parquet",
         f"dados/silver/link_status/data={DIA}/link_status.parquet",
     ]
