@@ -112,6 +112,7 @@ def test_recursos_viram_uma_linha_por_link():
     assert recursos["r1"]["data_ultima_atualizacao_arquivo"] == date(2024, 1, 29)
     assert recursos["r2"]["data_ultima_atualizacao_arquivo"] is None
 
+
 def test_formato_limpo_corrige_ruido_e_erros_de_digitacao():
     # (formato como vem do portal, formato_limpo esperado, é tabular?)
     casos = [
@@ -141,6 +142,7 @@ def test_formato_limpo_corrige_ruido_e_erros_de_digitacao():
         linha = silver_recursos[f"r{i}"]
         assert linha["formato_limpo"] == limpo, formato
         assert linha["formato_tabular"] is tabular, formato
+
 
 def test_base_que_saiu_da_listagem_nao_gera_recursos():
     # A base "b" tem detalhe, mas não está mais na listagem do dia

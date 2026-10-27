@@ -16,8 +16,6 @@ Uso:
 
 """
 
-
-
 import argparse
 import sys
 import time
@@ -80,6 +78,7 @@ def ler_registros(resposta, pagina):
         sys.exit(f"Página {pagina}: esperava uma lista de bases, veio {type(registros).__name__}. Nada foi gravado.")
     return registros
 
+
 def buscar_pagina(cliente, pagina):
     """Busca uma página da listagem; encerra o script se ela falhar de vez."""
     try:
@@ -93,7 +92,6 @@ def gravar_bronze(linhas, data_coleta):
     # Partição estilo Hive: uma pasta por data de coleta
     arquivo = arquivo_da_listagem(data_coleta)
     arquivo.parent.mkdir(parents=True, exist_ok=True)
-
 
     con = duckdb.connect()
 
@@ -168,11 +166,10 @@ def main():
 
     if not linhas:
         sys.exit("Nenhuma página coletada. Nada foi gravado.")
-        
+
     # Listagem completa: confere o tamanho contra a anterior antes de gravar
     if not args.max_paginas and not args.aceitar_queda:
         conferir_tamanho(sum(linha[2] for linha in linhas), data_coleta)
-
 
     arquivo = gravar_bronze(linhas, data_coleta)
 

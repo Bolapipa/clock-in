@@ -52,7 +52,6 @@ def criar_views_entrada(con, data):
     con.execute(f"CREATE VIEW detalhe_atual AS SELECT * FROM read_parquet('{arquivo_estado.as_posix()}')")
 
 
-
 def criar_views_referencia(con, data):
     """Cria as views painel_cronograma e ref_dominios, usadas pelo SQL do publicador."""
     # Cronograma da CGU: a coleta mais recente até o dia escolhido (o painel muda uma vez por mês)

@@ -12,8 +12,8 @@ import httpx
 import pytest
 
 import catalogo_lista
-
 import portal
+
 
 def cliente_falso(respostas):
     """Cria um cliente HTTP que devolve as respostas da lista, em ordem."""
@@ -92,7 +92,6 @@ def test_gravar_bronze_nao_duplica(tmp_path, monkeypatch):
     assert arquivo.parent.name == "data=2026-10-25"
     total = duckdb.sql(f"SELECT COUNT(*) FROM '{arquivo.as_posix()}'").fetchall()[0][0]
     assert total == 2
-
 
 
 # --- Proteções da listagem (etapa C) ---
