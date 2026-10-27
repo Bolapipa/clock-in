@@ -4,6 +4,7 @@ Nenhum teste acessa a internet: os servidores são simulados com o MockTransport
 """
 
 import asyncio
+import shutil
 import sys
 import time
 from datetime import date, datetime
@@ -186,7 +187,8 @@ def test_tres_falhas_em_dias_seguidos_e_sucesso_zera():
     link = "https://a.gov.br/1"
     tentativa(link, DIA_1, 503)
     links.atualizar_estado(DIA_1)
-    tentativa(link, DIA_2, None, "TIMEOUT")
+    # Erro de DNS conta como falha (timeout não conta: decisão 29)
+    tentativa(link, DIA_2, None, "DNS")
     links.atualizar_estado(DIA_2)
     tentativa(link, DIA_3, 404)
     links.atualizar_estado(DIA_3)
@@ -227,6 +229,112 @@ def test_falha_mantem_a_data_do_ultimo_sucesso():
     assert linha["ultimo_sucesso"] == DIA_1
     assert linha["falha_desde"] == DIA_2
     assert linha["falhas_seguidas"] == 1
+
+
+@pytest.mark.parametrize("erro", ["TIMEOUT", "CONEXAO", "SERVIDOR_FORA"])
+def test_resultado_inconclusivo_nao_conta_como_falha(erro):
+    link = "https://a.gov.br/1"
+    tentativa(link, DIA_1, 503)
+    links.atualizar_estado(DIA_1)
+    tentativa(link, DIA_2, None, erro)
+    links.atualizar_estado(DIA_2)
+
+    # O dia sem resposta não soma falha: o link continua como estava
+    linha = ler_estado()[link]
+    assert linha["falhas_seguidas"] == 1
+    assert linha["ultima_tentativa"] == DIA_1
+    assert linha["status_http"] == 503
+
+
+@pytest.mark.parametrize("erro", ["DNS", "SSL"])
+def test_dns_e_ssl_contam_como_falha(erro):
+    link = "https://a.gov.br/1"
+    tentativa(link, DIA_1, 503)
+    links.atualizar_estado(DIA_1)
+    tentativa(link, DIA_2, None, erro)
+    links.atualizar_estado(DIA_2)
+
+    assert ler_estado()[link]["falhas_seguidas"] == 2
+
+
+def test_link_nunca_testado_com_resultado_inconclusivo_fica_fora_do_estado():
+    link = "https://a.gov.br/1"
+    tentativa(link, DIA_1, None, "SERVIDOR_FORA")
+    links.atualizar_estado(DIA_1)
+
+    assert link not in ler_estado()
+
+
+def test_dia_inconclusivo_no_meio_nao_zera_nem_soma():
+    link = "https://a.gov.br/1"
+    tentativa(link, DIA_1, 503)
+    links.atualizar_estado(DIA_1)
+    tentativa(link, DIA_2, None, "TIMEOUT")
+    links.atualizar_estado(DIA_2)
+    tentativa(link, DIA_3, 404)
+    links.atualizar_estado(DIA_3)
+
+    # Duas falhas de verdade em dias diferentes: ainda não é quebrado (decisão 14)
+    linha = ler_estado()[link]
+    assert linha["falhas_seguidas"] == 2
+    assert linha["falha_desde"] == DIA_1
+
+
+def test_inconclusivo_depois_de_sucesso_mantem_o_link_como_estava():
+    link = "https://a.gov.br/1"
+    tentativa(link, DIA_1, 200)
+    links.atualizar_estado(DIA_1)
+    tentativa(link, DIA_2, None, "TIMEOUT")
+    links.atualizar_estado(DIA_2)
+
+    linha = ler_estado()[link]
+    assert linha["falhas_seguidas"] == 0
+    assert linha["ultimo_sucesso"] == DIA_1
+    assert linha["ultima_tentativa"] == DIA_1
+
+
+def test_reconstruir_refaz_o_estado_com_a_regra_atual(monkeypatch):
+    link = "https://a.gov.br/1"
+    tentativa(link, DIA_1, 503)
+    tentativa(link, DIA_2, None, "TIMEOUT")
+    tentativa(link, DIA_3, 404)
+
+    # Estado feito com a regra antiga (o timeout contava como falha): 3 falhas, link quebrado
+    with monkeypatch.context() as antiga:
+        antiga.setattr(links, "ERROS_INCONCLUSIVOS", ())
+        for dia in (DIA_1, DIA_2, DIA_3):
+            links.atualizar_estado(dia)
+    assert ler_estado()[link]["falhas_seguidas"] == 3
+
+    dias = links.reconstruir_estado()
+
+    assert dias == ["2026-10-24", "2026-10-25", "2026-10-26"]
+    linha = ler_estado()[link]
+    assert linha["falhas_seguidas"] == 2
+    assert linha["falha_desde"] == DIA_1
+
+
+def test_reconstruir_sem_bronze_encerra_sem_mexer_no_estado():
+    link = "https://a.gov.br/1"
+    tentativa(link, DIA_1, 503)
+    links.atualizar_estado(DIA_1)
+    shutil.rmtree(links.pasta_tentativas())
+
+    with pytest.raises(SystemExit):
+        links.reconstruir_estado()
+
+    assert ler_estado()[link]["falhas_seguidas"] == 1
+
+
+def test_main_reconstruir_nao_testa_nada_e_recria_o_estado(monkeypatch, capsys):
+    link = "https://a.gov.br/1"
+    tentativa(link, DIA_1, 503)
+    monkeypatch.setattr(sys, "argv", ["links.py", "--reconstruir"])
+
+    links.main()
+
+    assert ler_estado()[link]["falhas_seguidas"] == 1
+    assert "1 dia(s)" in capsys.readouterr().out
 
 
 def test_partes_numeradas_sem_sobrescrever():

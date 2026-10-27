@@ -4,6 +4,9 @@
 --   silver_recurso      -> os links de cada base
 --   silver_link_status  -> situação de cada link testado
 
+-- qtd_testados conta os links com algum teste conclusivo: timeout, falha de conexão e servidor
+-- não testado não entram (decisão 29). Os links que ficam de fora são os "não verificados".
+
 -- Links http(s) de cada base, sem repetir o mesmo link dentro da base
 WITH links_da_base AS (
     SELECT DISTINCT id_base, link

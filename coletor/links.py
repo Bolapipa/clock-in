@@ -17,13 +17,16 @@ dados/estado/links_atual.parquet  (uma linha por link)
     falhas_seguidas (dias seguidos com falha; zera no sucesso),
     falha_desde (primeira falha da série atual), ultimo_sucesso
 
-Um link está quebrado com 3 falhas seguidas em dias diferentes (decisão 14).
+Um link está quebrado com 3 falhas seguidas em dias diferentes (decisão 14). Timeout, falha
+de conexão e servidor não testado (SERVIDOR_FORA) não provam nada: não contam como falha nem
+como sucesso, e o link continua como estava (decisão 29).
 
 Uso:
     python coletor/links.py                    # links do dia, a partir da Silver (recurso)
     python coletor/links.py --max-links 200    # teste com uma amostra
     python coletor/links.py --tempo-maximo 90  # para depois de 90 minutos; o que faltou fica para o dia seguinte
     python coletor/links.py --data 2026-10-26  # usa a Silver de outro dia (retoma o dia)
+    python coletor/links.py --reconstruir      # recria o estado dos links a partir de toda a Bronze
 """
 
 import argparse
@@ -63,6 +66,12 @@ FALHAS_DE_REDE_PARA_DESISTIR = 5
 
 # Tipos de erro que indicam o servidor inteiro com problema (e não só aquele link)
 ERROS_DE_REDE = ("TIMEOUT", "DNS", "SSL", "CONEXAO")
+
+# Resultados que não provam nada sobre o link: o teste roda no GitHub Actions e vários servidores
+# do governo respondem de lá com timeout ou recusam a conexão (provavelmente por a máquina ficar
+# fora do Brasil). Não contam como falha nem como sucesso (decisão 29). DNS, SSL e resposta HTTP
+# de erro continuam contando.
+ERROS_INCONCLUSIVOS = ("TIMEOUT", "CONEXAO", "SERVIDOR_FORA")
 
 # Posição de erro_tipo nas linhas da Bronze (ver montar_linha)
 POSICAO_ERRO_TIPO = 11
@@ -344,6 +353,7 @@ def aplicar_dia(con, data):
     """Junta à tabela 'estado' as tentativas gravadas na Bronze no dia 'data'.
 
     Pode ser chamada mais de uma vez no mesmo dia sem contar a falha em dobro.
+    Tentativas inconclusivas (ERROS_INCONCLUSIVOS) são ignoradas: o link continua como estava.
     """
     partes = partes_do_dia(data)
     if not partes:
@@ -354,8 +364,8 @@ def aplicar_dia(con, data):
     con.execute("""
         CREATE OR REPLACE TABLE estado AS
         WITH
-        -- Resultado de hoje de cada link (vale a última tentativa do dia)
-        hoje AS (
+        -- Última tentativa de cada link hoje
+        ultimas AS (
             SELECT
                 link,
                 arg_max(servidor, tentado_em)    AS servidor,
@@ -363,6 +373,13 @@ def aplicar_dia(con, data):
                 arg_max(erro_tipo, tentado_em)   AS erro_tipo
             FROM tentativas
             GROUP BY link
+        ),
+        -- Resultado de hoje de cada link. Sem resposta por timeout, falha de conexão ou servidor
+        -- não testado, o teste não provou nada: o link fica como estava (decisão 29)
+        hoje AS (
+            SELECT *
+            FROM ultimas
+            WHERE NOT (status_http IS NULL AND COALESCE(list_contains($inconclusivos, erro_tipo), false))
         ),
         -- Combina o resultado de hoje com o estado de ontem
         novos AS (
@@ -391,7 +408,7 @@ def aplicar_dia(con, data):
             CASE WHEN ok THEN NULL WHEN falhas_seguidas = 1 THEN CAST($data AS DATE) ELSE falha_desde_anterior END,
             CASE WHEN ok THEN CAST($data AS DATE) ELSE ultimo_sucesso_anterior END
         FROM novos
-    """, {"data": data})
+    """, {"data": data, "inconclusivos": list(ERROS_INCONCLUSIVOS)})
 
 
 def salvar_estado(con):
@@ -411,6 +428,31 @@ def atualizar_estado(data):
     aplicar_dia(con, data)
     salvar_estado(con)
     con.close()
+
+
+def dias_com_tentativas():
+    """Dias que têm tentativas gravadas na Bronze, em ordem."""
+    dias = (pasta.name.removeprefix("data=") for pasta in pasta_tentativas().glob("data=*"))
+    return sorted(dia for dia in dias if partes_do_dia(dia))
+
+
+def reconstruir_estado():
+    """Recria o estado dos links do zero, aplicando em ordem todos os dias da Bronze.
+
+    Serve para corrigir o estado depois de uma mudança de regra: a Bronze guarda a resposta crua
+    de cada teste. Sem nenhum dia na Bronze, encerra sem mexer no estado. Devolve os dias aplicados.
+    """
+    dias = dias_com_tentativas()
+    if not dias:
+        sys.exit("Nenhuma tentativa na Bronze: o estado dos links não foi mexido.")
+
+    con = duckdb.connect()
+    con.execute(f"CREATE OR REPLACE TABLE estado ({COLUNAS_ESTADO})")
+    for dia in dias:
+        aplicar_dia(con, dia)
+    salvar_estado(con)
+    con.close()
+    return dias
 
 
 def resumo(data):
@@ -438,7 +480,14 @@ def main():
     parser.add_argument("--data", type=date.fromisoformat, help="data da execução (AAAA-MM-DD); padrão: hoje em Brasília")
     parser.add_argument("--max-links", type=int, help="testa só uma amostra de N links (teste)")
     parser.add_argument("--tempo-maximo", type=float, help="para de testar depois de N minutos (o que faltou fica para o dia seguinte)")
+    parser.add_argument("--reconstruir", action="store_true", help="recria o estado dos links a partir de toda a Bronze e termina")
     args = parser.parse_args()
+
+    # Não testa nada: só refaz o estado com as tentativas que já estão na Bronze
+    if args.reconstruir:
+        dias = reconstruir_estado()
+        print(f"Estado recriado a partir de {len(dias)} dia(s) da Bronze ({dias[0]} a {dias[-1]}): {arquivo_estado()}")
+        return
 
     data = args.data or portal.data_de_hoje()
     por_servidor = selecionar(data, args.max_links)
