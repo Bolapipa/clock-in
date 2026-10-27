@@ -107,6 +107,12 @@ jobs:
       - name: Gold | Modelagem do status de cada base
         run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas gold_status
 
+      # O resumo roda mesmo se uma etapa falhar (mostra o que faltou) e nunca derruba o dia
+      - name: Resumo | Números do dia no painel da execução
+        if: always() && steps.baixar.outcome == 'success'
+        continue-on-error: true
+        run: python coletor/resumo_dia.py --data "$DATA" >> "$GITHUB_STEP_SUMMARY"
+
       # As duas etapas abaixo rodam mesmo se uma etapa do pipeline falhar: o que já foi ingerido
       # não se perde, e o dia seguinte continua de onde parou
       - name: Estado | Publica o estado de hoje
