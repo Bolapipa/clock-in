@@ -93,8 +93,8 @@ O prazo esperado vem da periodicidade declarada **ou**, quando não há (70% das
 | 3 | Conteúdo: hash e schema de cada arquivo | Em andamento |
 | 4 | Atualização real: prazo esperado e status de cada base | Em andamento: regras de status prontas; falta o histórico de conteúdo |
 | 5 | Modelo Gold: histórico, nota e ranking por órgão | |
-| 6 | API estática (JSON gerado pelo motor) | Protótipo feito (órgãos e totais); falta o contrato e a publicação automática |
-| 7 | Site público | Protótipo feito (página inicial e página do órgão); falta publicar |
+| 6 | API estática (JSON gerado pelo motor) | Contrato versão 1 feito (totais e órgãos); falta o ranking e a publicação automática |
+| 7 | Site público | Páginas inicial, órgão, base, metodologia e API feitas; falta publicar |
 | 8 | Alertas | |
 | 9 | Lançamento e impacto | |
 
@@ -181,6 +181,7 @@ clock-in/
 | [docs/API_DADOS_GOV.md](docs/API_DADOS_GOV.md) | Como a API do dados.gov.br funciona: a oficial (usada pelo coletor) e a do site (usada na validação) |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Guia fase por fase |
 | [docs/DECISOES.md](docs/DECISOES.md) | Registro das decisões técnicas e dos motivos |
+| [docs/API.md](docs/API.md) | Contrato da API estática: arquivos JSON, campos, valores e versões |
 
 ## Princípio: custo zero
 
