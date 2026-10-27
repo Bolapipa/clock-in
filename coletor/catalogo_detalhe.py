@@ -14,7 +14,7 @@ para não perder trabalho se for interrompido, e no fim atualiza o estado:
 dados/bronze/catalogo_detalhe/data=AAAA-MM-DD/parte-0001.parquet
 
 Uso:
-    python coletor/catalogo_detalhe.py                  # coleta diária
+    python coletor/catalogo_detalhe.py                  # ingestão diária
     python coletor/catalogo_detalhe.py --completo       # carga inicial
     python coletor/catalogo_detalhe.py --max-bases 20   # teste rápido
     python coletor/catalogo_detalhe.py --completo --data 2026-10-25  # retoma uma carga interrompida

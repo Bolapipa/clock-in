@@ -1,4 +1,4 @@
-"""Testes do motor da coleta diária (coletor/motor.py) e da data de referência (portal.data_de_hoje).
+"""Testes do motor do pipeline diário (coletor/motor.py) e da data de referência (portal.data_de_hoje).
 
 Nenhum script de verdade é executado: rodar_passo é trocado por uma
 função falsa que só anota o que foi chamado.

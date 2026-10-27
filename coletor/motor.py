@@ -1,4 +1,4 @@
-"""Motor da coleta diária: roda a coleta e a Silver em ordem, todos com a mesma data (Fase 2).
+"""Motor do pipeline diário: roda a ingestão e a Silver em ordem, todos com a mesma data (Fase 2).
 
 Passos, nesta ordem:
     lista    -> catalogo_lista.py    listagem do catálogo (cerca de 40 min)
@@ -65,7 +65,7 @@ def rodar_passo(script, data, extras=()):
 
 def main():
     nomes = [nome for nome, _, _ in PASSOS]
-    parser = argparse.ArgumentParser(description="Motor da coleta diária do Clock-in")
+    parser = argparse.ArgumentParser(description="Motor do pipeline diário do Clock-in")
     parser.add_argument("--data", type=date.fromisoformat, help="data da execução (AAAA-MM-DD); padrão: hoje em Brasília")
     parser.add_argument("--desde", choices=nomes, default=nomes[0], help="começa a partir deste passo (para retomar)")
     parser.add_argument("--tempo-maximo", type=float, help="orçamento total do motor, em minutos: o teste de links para a tempo de caber")

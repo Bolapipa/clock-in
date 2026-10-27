@@ -1,8 +1,8 @@
-name: Coleta diária dados.gov.br
+name: Pipeline diário dados.gov.br
 
-# Coleta o catálogo do dados.gov.br, testa os links dos recursos e monta a Silver.
+# Ingere o catálogo do dados.gov.br e os testes de links na Bronze e monta a Silver.
 # Cada passo é uma etapa própria, com seu log e seu tempo na aba Actions.
-# Por enquanto só roda quando disparado à mão (aba Actions > Coleta diária dados.gov.br > Run workflow).
+# Por enquanto só roda quando disparado à mão (aba Actions > Pipeline diário dados.gov.br > Run workflow).
 # Depois de conferir algumas execuções, remova o "#" das duas linhas do schedule para rodar
 # todo dia às 03:00 de Brasília (06:00 UTC).
 on:
@@ -13,7 +13,7 @@ on:
         required: false
         default: ""
       desde:
-        description: "Passo em que a coleta começa (para retomar uma execução)"
+        description: "Passo em que o pipeline começa (para retomar uma execução)"
         type: choice
         default: lista
         options: [lista, painel, detalhe, silver, links, silver_links]
@@ -26,11 +26,11 @@ permissions:
 
 # Nunca duas execuções ao mesmo tempo: as duas mexeriam no mesmo estado
 concurrency:
-  group: coleta-diaria
+  group: pipeline-diario
   cancel-in-progress: false
 
 jobs:
-  coleta:
+  pipeline:
     runs-on: ubuntu-latest
     # Limite do GitHub: 6 horas por job
     timeout-minutes: 350
@@ -49,10 +49,10 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Instala as dependências
+      - name: Preparação | Instala as dependências
         run: pip install -r requirements.txt
 
-      - name: Define a data e o início da execução
+      - name: Preparação | Define a data e o início da execução
         env:
           DATA_INFORMADA: ${{ inputs.data }}
           DESDE_INFORMADO: ${{ inputs.desde || 'lista' }}
@@ -71,37 +71,37 @@ jobs:
           echo "DESDE=$DESDE_INFORMADO" >> "$GITHUB_ENV"
           echo "INICIO=$(date +%s)" >> "$GITHUB_ENV"
 
-      - name: Baixa o estado de ontem
+      - name: Estado | Baixa o estado de ontem
         id: baixar
         run: python coletor/nuvem.py baixar
 
       # Cada etapa abaixo chama o motor para um passo só. Se o passo vem antes do "desde"
       # escolhido, o motor não faz nada, e é assim que uma execução é retomada.
-      - name: Coleta a listagem do catálogo
+      - name: Bronze | Ingestão da listagem do catálogo
         run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas lista
 
-      - name: Coleta o cronograma do painel da CGU (opcional)
+      - name: Bronze | Ingestão do cronograma do painel da CGU (opcional)
         run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas painel
 
-      - name: Coleta o detalhe das bases
+      - name: Bronze | Ingestão do detalhe das bases
         run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas detalhe
 
-      - name: Monta a Silver de bases, recursos e publicadores
+      - name: Silver | Transformação de bases, recursos e publicadores
         run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas silver
 
       # Único passo com limite de tempo: para a tempo de sobrar uma reserva para a etapa seguinte
-      - name: Testa a saúde dos links dos recursos
+      - name: Bronze | Ingestão dos testes de saúde dos links
         run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas links --tempo-maximo 330 --inicio "$INICIO"
 
-      - name: Monta a Silver dos links e da saúde das bases
+      - name: Silver | Transformação da saúde dos links e das bases
         run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas silver_links
 
-      # As duas etapas abaixo rodam mesmo se uma etapa da coleta falhar: o que já foi coletado
+      # As duas etapas abaixo rodam mesmo se uma etapa do pipeline falhar: o que já foi ingerido
       # não se perde, e o dia seguinte continua de onde parou
-      - name: Sobe o estado de hoje
+      - name: Estado | Publica o estado de hoje
         if: always() && steps.baixar.outcome == 'success'
         run: python coletor/nuvem.py subir --data "$DATA"
 
-      - name: Sobe o que o dia produziu para o histórico
+      - name: Histórico | Publica o que o dia produziu
         if: always() && steps.baixar.outcome == 'success'
         run: python coletor/nuvem.py historico --data "$DATA"
