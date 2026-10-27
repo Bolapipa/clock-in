@@ -19,7 +19,7 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 |---|---|---|
 | Desenvolvimento | Python + DuckDB, sem servidor de banco | Nada para instalar além do Python |
 | Armazenamento | Arquivos Parquet (Bronze, Silver, Gold) | Compactos, rápidos, cabem no GitHub |
-| Coleta diária | GitHub Actions agendado | Grátis e sem limite de minutos em **repositório público** |
+| Pipeline diário | GitHub Actions agendado | Grátis e sem limite de minutos em **repositório público** |
 | Histórico | Parquet por mês em arquivos de release do GitHub | Até 2 GB por arquivo, sem custo |
 | API | API estática: arquivos JSON gerados pelo motor | Sem servidor, sem custo, rápida |
 | Site | Estático na Vercel (plano Hobby, uso não comercial) | Grátis |
@@ -37,7 +37,7 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 - [x] Validação (24/10/2026): ver [VALIDACAO.md](VALIDACAO.md)
 - [x] Fase 0: Ambiente
 - [x] Fase 1: Inventário (26/10/2026)
-- [ ] Fase 2: Saúde dos links e coleta diária (primeira execução completa validada em 26/10/2026; falta ligar o agendamento)
+- [ ] Fase 2: Saúde dos links e pipeline diário (primeira execução completa validada em 26/10/2026; falta ligar o agendamento)
 - [ ] Fase 3: Conteúdo (hash e schema) (em andamento: falta o downloader)
 - [ ] Fase 4: Atualização real e status
 - [ ] Fase 5: Gold, histórico e nota por órgão
@@ -128,7 +128,7 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 ---
 
-## Fase 2: Saúde dos links e coleta diária
+## Fase 2: Saúde dos links e pipeline diário
 
 **Objetivo:** saber, todo dia, quais links funcionam e desde quando estão quebrados, com o motor rodando sozinho e de graça.
 
@@ -140,11 +140,13 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 **Etapa C, feita em 26/10/2026 (pendência 3):** `coletor/catalogo_lista.py` recusa uma listagem com menos de 95% das bases da listagem anterior (`--aceitar-queda` libera uma queda real), recusa resposta que não é JSON ou não é uma lista e não deixa um teste com `--max-paginas` sobrescrever a listagem que já existe no dia. Testes novos em `tests/test_catalogo_lista.py` (59 no total). Com isso, as 5 pendências do review estão resolvidas.
 
-**Teste de links, primeira parte, feita em 26/10/2026 (tarefas 1 a 3 e 5):** `coletor/links.py` testa os links de `silver/recurso` com `HEAD` (e `GET` com `Range` quando o servidor recusa), registra cada tentativa em `bronze/link_tentativa` e mantém `estado/links_atual`. Escolha dos links, teto de 5.000 por servidor por dia e disjuntor para servidor fora do ar na decisão 25. Testes em `tests/test_links.py` (77 no total). Amostra real de 200 links: 45 s, 77,5% responderam. **Workflow do GitHub Actions, escrito em 26/10/2026 (tarefa 6):** `.github/workflows/coleta-diaria.yml` (chamado `motor-diario.yml` até 27/10/2026; disparo manual por enquanto; o `schedule` diário está comentado) baixa o estado do release `estado-atual`, roda o `motor.py` e sobe o estado e o histórico; `coletor/nuvem.py` faz o envio e o download com o `gh`, e guarda os 3 estados mais recentes. Testes em `tests/test_nuvem.py` com um GitHub falso (93 no total). Falta, feito por você no GitHub: criar o secret `CHAVE_API_DADOS_GOV`, subir o primeiro estado a partir do seu computador e disparar o workflow à mão.
+**Teste de links, primeira parte, feita em 26/10/2026 (tarefas 1 a 3 e 5):** `coletor/links.py` testa os links de `silver/recurso` com `HEAD` (e `GET` com `Range` quando o servidor recusa), registra cada tentativa em `bronze/link_tentativa` e mantém `estado/links_atual`. Escolha dos links, teto de 5.000 por servidor por dia e disjuntor para servidor fora do ar na decisão 25. Testes em `tests/test_links.py` (77 no total). Amostra real de 200 links: 45 s, 77,5% responderam. **Workflow do GitHub Actions, escrito em 26/10/2026 (tarefa 6):** `.github/workflows/pipeline-diario.yml` (antes `motor-diario.yml`, até 27/10/2026; disparo manual por enquanto; o `schedule` diário está comentado) baixa o estado do release `estado-atual`, roda o `motor.py` e sobe o estado e o histórico; `coletor/nuvem.py` faz o envio e o download com o `gh`, e guarda os 3 estados mais recentes. Testes em `tests/test_nuvem.py` com um GitHub falso (93 no total). Falta, feito por você no GitHub: criar o secret `CHAVE_API_DADOS_GOV`, subir o primeiro estado a partir do seu computador e disparar o workflow à mão.
 
 **Teste de links, segunda parte, feita em 26/10/2026 (tarefa 5 e critério de pronto):** `coletor/silver_links.py` gera `silver/link_status` (link quebrado e desde quando) e `silver/base_saude` (bases fora do ar); `links.py` e `silver_links.py` entraram no `motor.py` depois da Silver. Testes em `tests/test_silver_links.py` (85 no total). Validado com dados reais: 3 dias seguidos de testes de uma amostra de 200 links deixaram 40 dos 247 links testados quebrados (desde 25/10) e 2 bases fora do ar. Já dá para responder "quais links estão quebrados hoje e desde quando" com uma consulta DuckDB.
 
-**Primeira execução completa no GitHub Actions, em 26/10/2026:** terminou com sucesso em 4h15 (255 minutos), dentro do limite de 6 horas. Tempo por passo: listagem 46,8 min, painel 0,1 min, detalhe 45,8 min (bases novas, alteradas e o rodízio do dia), Silver de bases e de links poucos segundos cada e teste de links 162,6 min. O estado (31,3 MB) e o histórico do dia (27,9 MB) foram enviados aos releases `estado-atual` e `historico-2026-10`. Depois dela, o workflow foi renomeado para **Coleta diária dados.gov.br** e separado em uma etapa por passo (`motor.py --apenas`, com `--inicio` para o orçamento de tempo contar do começo da execução): a aba Actions mostra o log e o tempo de cada ingestão. Testes em `tests/test_motor.py` (163 no total). O agendamento diário continua desligado até uma execução com o novo workflow dar certo.
+**Primeira execução completa no GitHub Actions, em 26/10/2026:** terminou com sucesso em 4h15 (255 minutos), dentro do limite de 6 horas. Tempo por passo: listagem 46,8 min, painel 0,1 min, detalhe 45,8 min (bases novas, alteradas e o rodízio do dia), Silver de bases e de links poucos segundos cada e teste de links 162,6 min. O estado (31,3 MB) e o histórico do dia (27,9 MB) foram enviados aos releases `estado-atual` e `historico-2026-10`. Depois dela, o workflow foi renomeado para **Pipeline diário dados.gov.br** (decisão 30) e separado em uma etapa por passo, com o nome da camada (`motor.py --apenas`, com `--inicio` para o orçamento de tempo contar do começo da execução): a aba Actions mostra o log e o tempo de cada ingestão e de cada transformação. Testes em `tests/test_motor.py` (163 no total). O agendamento diário continua desligado até uma execução com o novo workflow dar certo.
+
+**Achado dessa execução (27/10/2026):** 33% dos links (33.036 de 100.072) voltaram como `SERVIDOR_FORA`, em 82 servidores, e vários deles respondem normalmente de um computador no Brasil. A regra de falha foi corrigida pela decisão 29: timeout, falha de conexão e `SERVIDOR_FORA` não contam como falha nem como sucesso, e `links.py --reconstruir` refaz o estado a partir da Bronze. Aplicada à Bronze do dia 26, a regra nova reduz os links com falha contada de 40.769 para 6.922. Ainda a decidir: tratar o 403 (1.838 links, 1.131 no IBGE) como "bloqueado".
 
 **Antes de começar: pendências do review de 26/10/2026**
 1. **Estado do detalhe no GitHub Actions:** a coleta incremental e a Silver leem todo o histórico de `bronze/catalogo_detalhe`, mas o release `estado-atual` (decisão 16) não o guarda. Sem isso, a primeira execução na nuvem trataria as 19.596 bases como novas (9 horas). Guardar um "detalhe atual" compacto (última versão bem-sucedida de cada base) no estado e fazer o coletor e a Silver lerem dele.
@@ -159,7 +161,7 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 3. **Uma requisição por vez por servidor**, com pausa. Agrupe os links por domínio para não sobrecarregar um órgão.
 4. Concorrência entre domínios diferentes (asyncio) para a coleta caber no tempo do job.
 5. Regra de "fora do ar": erros 502, 503 e 520 podem ser temporários. Por exemplo, só considerar quebrado após 3 falhas em dias diferentes.
-6. **Coleta diária no GitHub Actions:**
+6. **Pipeline diário no GitHub Actions:**
    - torne o repositório **público** (ver princípio de custo zero). **Feito em 26/10/2026**, com licença MIT;
    - workflow com `schedule` (cron) que roda o coletor;
    - como o Actions começa sempre do zero, o estado precisa ser baixado no início e enviado no fim: estado atual no release `estado-atual` (sobrescrito todo dia) e histórico no release `historico-AAAA-MM`. Nenhum dado gerado é commitado no Git (decisão 16, detalhes em [ARQUITETURA.md](ARQUITETURA.md#onde-os-dados-ficam));
@@ -198,7 +200,7 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 **Feito em 26/10/2026 (parte 5, sem rede):** `coletor/conteudo_baixar.py` baixa os links escolhidos (um por vez em cada servidor, 50 servidores em paralelo, pausa de 1 s), corta cada arquivo em 50 MB (decisão 15, provisório), tira hash e schema, grava na Bronze, atualiza o estado e apaga o arquivo baixado. Aceita `--max-links` e `--tempo-maximo`. Testes em `tests/test_conteudo_baixar.py`. O histórico mensal (`nuvem.py`) já inclui a Bronze do conteúdo.
 
 **Falta na Fase 3:**
-1. Medir os tamanhos reais e o tempo de download numa amostra pequena, e calibrar `LIMITE_BYTES`, `MAX_POR_SERVIDOR` e `SERVIDORES_SIMULTANEOS`.
+1. Calibrar com os tamanhos e tempos reais. **Medido em 27/10/2026 na Bronze do dia 26, sem baixar nada (pelo `content_length` do teste de links):** 84% dos links tabulares com resposta 2xx informam o tamanho; mediana de 0,1 MB e p90 de 26 MB; os 7% acima de 50 MB (2.271 links) somam 94% dos bytes (1,37 TB); 11,6% dos tabulares com resposta 2xx respondem uma página HTML; no ciclo de 7 dias são cerca de 5.600 downloads e 32 GB por dia (metade em leituras parciais dos arquivos acima de 50 MB); o maior servidor tem 521 downloads por dia, então o teto `MAX_POR_SERVIDOR` de 1.000 não é atingido. Falta medir a velocidade e o tempo de download no GitHub Actions, com uma amostra pequena, para calibrar `LIMITE_BYTES` e `SERVIDORES_SIMULTANEOS`. Ideias a decidir: (a) o seletor pular os links cujo último teste não foi 2xx ou que respondem HTML; (b) para arquivos acima do limite, usar `Content-Length`, `Last-Modified` e `ETag`, que o teste de links já guarda todo dia, como sinal de mudança, sem baixar.
 2. Ligar `conteudo_baixar.py` e `silver_conteudo.py` ao `motor.py` e ao workflow. Atenção ao orçamento de tempo (decisão 28): hoje o teste de links recebe todo o tempo que sobra; ao entrar o download, é preciso repartir o orçamento entre os dois, senão o teste de links consome tudo e o download nunca roda.
 3. Data máxima do conteúdo (tarefa 5 da fase): ler colunas de data dentro do arquivo.
 

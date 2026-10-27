@@ -43,7 +43,7 @@ Não há servidor de banco de dados. O "banco" são **arquivos Parquet em pastas
 | Job agendado | Workflow do GitHub Actions com `schedule` |
 | Unity Catalog | Organização por pastas (`bronze/`, `silver/`, `gold/`) |
 
-Persistência entre execuções (decisão 16): o GitHub Actions começa do zero a cada execução, então o estado precisa ser baixado no início e enviado no fim. O workflow `.github/workflows/coleta-diaria.yml` (Coleta diária dados.gov.br) faz isso: baixa o estado, roda uma etapa para cada passo do `motor.py` (listagem, painel da CGU, detalhe, Silver, teste de links e Silver dos links, cada uma com seu log e seu tempo na aba Actions) e sobe o estado e o histórico (estes dois mesmo se uma etapa falhar no meio). Só o teste de links tem limite de tempo (decisão 28). Por enquanto só roda quando disparado à mão; o agendamento diário (`schedule`) fica comentado no arquivo até algumas execuções darem certo.
+Persistência entre execuções (decisão 16): o GitHub Actions começa do zero a cada execução, então o estado precisa ser baixado no início e enviado no fim. O workflow `.github/workflows/pipeline-diario.yml` (Pipeline diário dados.gov.br) faz isso: baixa o estado, roda uma etapa para cada passo do `motor.py` (listagem, painel da CGU, detalhe, Silver, teste de links e Silver dos links, cada uma com seu log e seu tempo na aba Actions) e sobe o estado e o histórico (estes dois mesmo se uma etapa falhar no meio). Só o teste de links tem limite de tempo (decisão 28). Por enquanto só roda quando disparado à mão; o agendamento diário (`schedule`) fica comentado no arquivo até algumas execuções darem certo.
 
 | Onde | O que guarda | Como |
 |---|---|---|
@@ -69,6 +69,18 @@ clock-in/
 
 ---
 
+## Vocabulário
+
+Os nomes das etapas e dos documentos seguem os termos da documentação oficial da arquitetura Medallion ([Azure Databricks](https://learn.microsoft.com/pt-br/azure/databricks/lakehouse/medallion) e [Microsoft Fabric](https://learn.microsoft.com/pt-br/fabric/onelake/onelake-medallion-lakehouse-architecture)):
+
+| Camada | Termo | O que acontece | Passos do projeto |
+|---|---|---|---|
+| Bronze | **Ingestão** | Os dados entram como chegam da fonte, sem limpeza | listagem do catálogo, painel da CGU, detalhe das bases, testes de links, leitura de conteúdo |
+| Silver | **Transformação** (limpeza e validação) | Padronização, validação e deduplicação dos dados da Bronze | bases, recursos e publicadores; saúde dos links; versões de conteúdo |
+| Gold | **Modelagem** e agregação | Modelo dimensional e agregados de negócio | status por base, nota por órgão |
+
+Nas etapas do workflow, o nome começa pela camada e depois vem a operação, por exemplo `Bronze | Ingestão da listagem do catálogo`. A palavra "coleta" fica só nos nomes que já existem no código (a coluna `data_coleta` e a pasta `coletor/`).
+
 ## Modelo de dados
 
 Particionamento estilo Hive por data de coleta (`data=AAAA-MM-DD/`) em todas as tabelas diárias. Rodar duas vezes no mesmo dia sobrescreve a partição do dia (idempotência). Exceção de propósito: `bronze/catalogo_detalhe` acumula partes (`parte-0001`...) dentro do dia, para a carga longa poder ser retomada sem repetir o que deu certo.
@@ -91,7 +103,7 @@ Regra: guardar exatamente o que veio, antes de qualquer transformação.
 | Tabela | Grão | Colunas principais |
 |---|---|---|
 | `estado/detalhe_atual` | uma linha por base | `id`, `ultima_alteracao`, `payload` (último detalhe que deu certo; nulo se nunca deu), `data_coleta` e `coletado_em` (do último sucesso), `falhas_seguidas` (dias seguidos com falha; zera no sucesso), `ultima_tentativa`, `ultimo_erro`. Atualizada por `coletor/estado.py` no fim de cada coleta do detalhe; pode ser recriada da Bronze com `python coletor/estado.py --reconstruir` |
-| `estado/links_atual` | uma linha por link | `link`, `servidor`, `ultima_tentativa`, `status_http` e `erro_tipo` da última tentativa, `falhas_seguidas` (dias diferentes seguidos com falha; zera no sucesso), `falha_desde` (primeira falha da série atual), `ultimo_sucesso`. Atualizada por `coletor/links.py` no fim de cada teste |
+| `estado/links_atual` | uma linha por link | `link`, `servidor`, `ultima_tentativa`, `status_http` e `erro_tipo` da última tentativa, `falhas_seguidas` (dias diferentes seguidos com falha; zera no sucesso), `falha_desde` (primeira falha da série atual), `ultimo_sucesso`. Atualizada por `coletor/links.py` no fim de cada teste; pode ser recriada da Bronze com `python coletor/links.py --reconstruir` |
 | `estado/conteudo_atual` | uma linha por link tabular | `link`, `servidor`, `ultima_tentativa`, `ultima_leitura` (último download que deu certo), `hash_conteudo`, `tamanho_bytes`, `qtd_colunas`, `schema`, `schema_hash`, `erro_schema`, `verificacao_parcial`, `schema_anterior` (estrutura antes da última mudança), `ultima_mudanca` (dia em que o hash mudou), `ultima_mudanca_schema` (dia em que a estrutura mudou), `erro_tipo` (erro da última tentativa). Download que falha não apaga o que já se sabia, e a primeira leitura de um link não conta como mudança. Atualizada por `coletor/conteudo_estado.py` |
 
 O rodízio de 7 dias da decisão 27 escolhe os links pela data da última leitura registrada em `estado/conteudo_atual`.
@@ -106,7 +118,7 @@ O coletor do detalhe decide o que buscar a partir deste estado, e a Silver lê o
 | `silver/recurso` | uma linha por link por dia | `recurso_id` (chave), `id_base`, `titulo`, `link`, `formato` (maiúsculas, como veio do portal), `formato_limpo` (sem ruído de digitação e com erros comuns corrigidos, ver decisão 26), `formato_tabular` (`true` para CSV, JSON, XLSX, XLS, XML, TXT, ODS e PARQUET), `tipo`, `data_ultima_atualizacao_arquivo`, `data_catalogacao`, `data_coleta`. Só bases presentes na listagem do dia. Gerada por `sql/silver_recurso.sql` |
 | `silver/publicador` | uma linha por base por dia | `id` (chave), `publicador`, `esfera` (`FEDERAL`, `ESTADUAL`, `MUNICIPAL`, `NAO_CLASSIFICADA`; nula quando não identificado), `origem_publicador` (`PAINEL_CGU`, `ORGANIZACAO`, `DOMINIO_LINK`, `DOMINIO_EMAIL`, `NAO_IDENTIFICADO`), `evidencia` (o valor exato que a fonte forneceu), `data_coleta`. Gerada por `sql/silver_publicador.sql` com `referencia/dominios.csv` (decisão 13). O domínio do link é o que tem mais links na base; no empate, o primeiro em ordem alfabética, para o resultado não mudar entre execuções |
 | `silver/link_status` | uma linha por link testado que ainda existe nos recursos | `link`, `servidor`, `ultima_tentativa`, `ultimo_status_http`, `ultimo_erro_tipo`, `falhas_seguidas`, `quebrado` (3 falhas seguidas em dias diferentes, decisão 14), `quebrado_desde`, `ultimo_sucesso`, `data_coleta`. Gerada por `sql/silver_link_status.sql` a partir de `estado/links_atual` |
-| `silver/base_saude` | uma linha por base por dia | `id`, `qtd_links` (links http(s) distintos), `qtd_testados`, `qtd_ok`, `qtd_em_observacao` (1 ou 2 falhas), `qtd_quebrados`, `fora_do_ar` (a base tem links e todos estão quebrados), `data_coleta`. Link ainda não testado não conta como quebrado. Gerada por `sql/silver_base_saude.sql` |
+| `silver/base_saude` | uma linha por base por dia | `id`, `qtd_links` (links http(s) distintos), `qtd_testados`, `qtd_ok`, `qtd_em_observacao` (1 ou 2 falhas), `qtd_quebrados`, `fora_do_ar` (a base tem links e todos estão quebrados), `data_coleta`. Link ainda não testado, ou só com resultado inconclusivo (decisão 29), não conta como quebrado nem como testado. Gerada por `sql/silver_base_saude.sql` |
 | `silver/versao_conteudo` | uma linha por arquivo lido no dia (Fase 3) | `link`, `data_coleta`, `hash_conteudo`, `tamanho_bytes`, `verificacao_parcial`, `qtd_colunas`, `schema` (nome, ordem e tipo), `schema_hash`, `erro_schema`, `mudou_conteudo` (hash diferente do da leitura anterior), `mudou_schema` (estrutura diferente da leitura anterior). A primeira leitura de um link nunca conta como mudança. Gerada por `sql/silver_versao_conteudo.sql` a partir de `estado/conteudo_atual`. A data máxima do conteúdo (tarefa 5 da Fase 3) ainda não existe |
 | `silver/mudanca_schema` | uma linha por mudança de estrutura detectada no dia | `link`, `data_coleta`, `tipo_mudanca` (`ADICIONADA`, `REMOVIDA`, `TIPO_ALTERADO`, `RENOMEADA_PROVAVEL`, `ORDEM_ALTERADA`), `coluna`, `coluna_depois` (só na renomeação), `tipo_antes`, `tipo_depois`. Renomeação provável: uma coluna sumiu e outra de mesmo tipo apareceu na mesma posição. Gerada por `sql/silver_mudanca_schema.sql` comparando `schema_anterior` e `schema` do estado |
 
@@ -133,11 +145,12 @@ Modelo dimensional (Star Schema).
 
 ### Link quebrado e base fora do ar (decisão 14)
 
-- Um link é **quebrado** depois de **3 falhas em dias seguidos**. Volta a OK no primeiro sucesso.
+- Um link é **quebrado** depois de **3 falhas em dias seguidos**. Volta a OK no primeiro sucesso. Conta como falha uma resposta HTTP de 400 em diante, um erro de DNS ou um erro de certificado SSL.
 - Uma base está **fora do ar** quando todos os seus links estão quebrados.
 - Teste: `HEAD`; se o servidor responder 400, 403, 405 ou 501, `GET` com `Range: bytes=0-2047` (só os cabeçalhos são lidos). Timeout de 20 s. Redireciona até 5 vezes. Vale como sucesso um status abaixo de 400.
 - A contagem é de **dias diferentes com falha, seguidos**, um teste por link por dia. Em servidores com mais de 5.000 links, cada link é testado a cada poucos dias (rodízio pelo teste mais antigo), então a série leva mais dias corridos para fechar as 3 falhas.
-- Servidor com 5 falhas de rede seguidas (timeout, DNS, SSL ou conexão) é dispensado no resto do dia: os links dele são registrados como falha `SERVIDOR_FORA`, sem esperar o timeout de cada um.
+- Servidor com 5 falhas de rede seguidas (timeout, DNS, SSL ou conexão) é dispensado no resto do dia: os links dele são registrados como `SERVIDOR_FORA`, sem esperar o timeout de cada um.
+- **Resultado inconclusivo (decisão 29):** timeout, falha de conexão e `SERVIDOR_FORA` não contam como falha nem como sucesso. O link continua como estava, sem somar nem zerar a série de falhas. Quem só teve resultado inconclusivo não entra em `estado/links_atual` e aparece como não verificado. Isso evita acusar um órgão quando o servidor só não responde à origem do teste.
 
 ### Conteúdo (decisão 15)
 
