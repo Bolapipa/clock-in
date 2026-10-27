@@ -191,7 +191,14 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 **Feito em 26/10/2026 (parte 3, sem rede):** `coletor/silver_conteudo.py` gera `silver/versao_conteudo` (arquivos lidos no dia, com `mudou_conteudo` e `mudou_schema`) e `silver/mudanca_schema` (coluna adicionada, removida, de tipo alterado, renomeada provável ou em outra ordem). Testes em `tests/test_silver_conteudo.py`.
 
-**Feito em 26/10/2026 (parte 4, sem rede):** `coletor/conteudo_selecao.py` escolhe os links do dia pela decisão 27: formato tabular, não quebrados (links ainda não testados entram), nunca tentados ou tentados há 7 dias ou mais, os nunca tentados primeiro e depois os mais antigos, no máximo `MAX_POR_SERVIDOR` (1.000, provisório) por servidor por dia. Links já tentados no dia não se repetem, o que permite retomar uma execução interrompida. Testes em `tests/test_conteudo_selecao.py`. Falta o downloader (depende da medição de tamanhos) e a data máxima do conteúdo.
+**Feito em 26/10/2026 (parte 4, sem rede):** `coletor/conteudo_selecao.py` escolhe os links do dia pela decisão 27: formato tabular, não quebrados (links ainda não testados entram), nunca tentados ou tentados há 7 dias ou mais, os nunca tentados primeiro e depois os mais antigos, no máximo `MAX_POR_SERVIDOR` (1.000, provisório) por servidor por dia. Links já tentados no dia não se repetem, o que permite retomar uma execução interrompida. Testes em `tests/test_conteudo_selecao.py`.
+
+**Feito em 26/10/2026 (parte 5, sem rede):** `coletor/conteudo_baixar.py` baixa os links escolhidos (um por vez em cada servidor, 50 servidores em paralelo, pausa de 1 s), corta cada arquivo em 50 MB (decisão 15, provisório), tira hash e schema, grava na Bronze, atualiza o estado e apaga o arquivo baixado. Aceita `--max-links` e `--tempo-maximo`. Testes em `tests/test_conteudo_baixar.py`. O histórico mensal (`nuvem.py`) já inclui a Bronze do conteúdo.
+
+**Falta na Fase 3:**
+1. Medir os tamanhos reais e o tempo de download numa amostra pequena, e calibrar `LIMITE_BYTES`, `MAX_POR_SERVIDOR` e `SERVIDORES_SIMULTANEOS`.
+2. Ligar `conteudo_baixar.py` e `silver_conteudo.py` ao `motor.py` e ao workflow. Atenção ao orçamento de tempo (decisão 28): hoje o teste de links recebe todo o tempo que sobra; ao entrar o download, é preciso repartir o orçamento entre os dois, senão o teste de links consome tudo e o download nunca roda.
+3. Data máxima do conteúdo (tarefa 5 da fase): ler colunas de data dentro do arquivo.
 
 **Entregável:** tabelas de versões de conteúdo e de mudanças de schema.
 

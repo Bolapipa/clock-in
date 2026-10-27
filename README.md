@@ -144,6 +144,7 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/links.py --max-links 200` | Teste de links com uma amostra de 200 (precisa da Silver do dia; use `silver.py` antes) |
 | `python coletor/links.py` | Testa os links dos recursos: um por vez em cada servidor, vários servidores em paralelo, no máximo 5.000 links por servidor por dia |
 | `python coletor/links.py --tempo-maximo 90` | Igual ao anterior, mas para depois de 90 minutos; os links que faltaram são os primeiros do dia seguinte |
+| `python coletor/conteudo_baixar.py --max-links 50` | Lê o conteúdo de uma amostra de 50 arquivos (hash e schema) e apaga o que baixou; precisa da Silver e do `link_status` do dia |
 | `python coletor/silver_links.py` | Gera a Silver da saúde dos links (`link_status` e `base_saude`) depois do `links.py` |
 | `python coletor/nuvem.py baixar` / `subir` / `historico` | Estado e histórico nos releases do GitHub (usados pelo workflow `motor-diario.yml`; precisam do `gh` com login) |
 | `pytest -v` | Roda os testes automáticos |
