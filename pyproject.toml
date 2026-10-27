@@ -7,5 +7,5 @@ requires-python = ">=3.12"
 [tool.pytest.ini_options]
 # Pastas onde o pytest procura os testes
 testpaths = ["tests"]
-# Permite que os testes importem os módulos de coletor/
-pythonpath = ["coletor"]
+# Permite que os testes importem os módulos de coletor/ e de publicar/
+pythonpath = ["coletor", "publicar"]

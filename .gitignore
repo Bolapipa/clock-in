@@ -18,6 +18,8 @@ package-lock.json
 # Dados brutos e grandes
 validacao/dados/
 dados/
+# API gerada a cada execução por publicar/gerar_api.py (decisão 16: nenhum dado gerado vai para o Git)
+site/api/
 *.parquet
 *.dump
 
