@@ -283,7 +283,7 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 **Contrato versão 1, feito em 27/10/2026 (decisão 37):** todo arquivo traz `versao`, `data_coleta` e `gerado_em`; o `orgaos.json` virou um objeto com a lista na chave `orgaos`; o contrato está em [API.md](API.md), e os testes de `tests/test_publicar.py` fixam o conjunto exato de chaves e os tipos de cada arquivo.
 
-**Feito em 30/10/2026:** o workflow diário gera a API com os dados do dia (etapa "Site | Gera a API com os dados do dia", em `web/public/api`). Provado com os dados reais de 29/10: 613 arquivos, 611 órgãos, 3.586 links quebrados e 505 bases fora do ar.
+**Feito em 30/10/2026:** o workflow `publicar-site.yml` gera a API com os dados do dia, tirados do release de histórico (etapa "Site | Gera a API com os dados do dia", em `web/public/api`). Ensaio em cópia limpa do repositório com os dados reais de 29/10: 613 arquivos, 611 órgãos, 3.586 links quebrados e 505 bases fora do ar.
 
 **Falta na Fase 6:** `api/bases/{slug}.json` com a linha do tempo (depende do histórico), `api/ranking.json` (depende da nota), a publicação da API junto com o site e, se valer a pena, um JSON Schema formal.
 
@@ -314,9 +314,9 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 **Novo visual e uso mais simples, feito em 27/10/2026:** a página inicial responde a pergunta do dia em uma frase e mostra a saúde dos links numa régua (respondendo bem, em observação, quebrados e não deu para testar), que também aparece em cada órgão e em cada base, com uma explicação curta de cada parte. As listas têm busca, filtro de esfera e um seletor "Ordenar por", mostram uma mensagem quando nada é encontrado e, no celular, cada linha vira um bloco com o nome de cada coluna. Os status são etiquetas com texto, sem depender só da cor. A fonte Archivo fica em `site/fontes/`, servida pelo próprio site. As orientações vieram dos guias do GOV.UK e do USWDS (etiquetas de status e tabelas responsivas).
 
-**Feito em 30/10/2026:** o workflow diário também testa e compila o site React da pasta `web/` com a API do dia e guarda o resultado como arquivo da execução (Artifacts, 14 dias). A publicação ainda não está ligada.
+**Feito em 30/10/2026:** o workflow `publicar-site.yml` testa e compila o site React da pasta `web/` com a API do dia, guarda o resultado como arquivo da execução (Artifacts, 14 dias) e o publica na Vercel com o CLI. Roda sozinho quando o pipeline diário termina e também sob demanda. A publicação depende de três secrets do repositório (`VERCEL_TOKEN`, `VERCEL_ORG_ID` e `VERCEL_PROJECT_ID`).
 
-**Falta na Fase 7:** criar o projeto na Vercel e ligar a publicação automática ao fim do workflow (precisa do projeto e de um token guardado como secret do repositório), o ranking (depende do status por conteúdo e da nota) e a identidade visual própria.
+**Falta na Fase 7:** a primeira publicação de verdade na Vercel, o ranking (depende do status por conteúdo e da nota) e a identidade visual própria.
 
 **Entregável:** site publicado e atualizado todo dia.
 

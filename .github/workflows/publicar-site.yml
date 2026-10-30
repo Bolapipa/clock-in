@@ -1,0 +1,128 @@
+name: Publica o site na Vercel
+
+# Gera a API com os dados de um dia, compila o site (pasta web/) e publica na Vercel.
+# Os dados vêm do release de histórico (historico-AAAA-MM), que o "Pipeline diário dados.gov.br"
+# publica na última etapa. Roda sozinho quando o pipeline termina e também à mão
+# (aba Actions > Publica o site na Vercel > Run workflow), por exemplo para publicar de novo um dia.
+on:
+  workflow_dispatch:
+    inputs:
+      data:
+        description: "Data dos dados (AAAA-MM-DD). Vazio = hoje em Brasília"
+        required: false
+        default: ""
+  workflow_run:
+    workflows: ["Pipeline diário dados.gov.br"]
+    types: [completed]
+
+# Só lê o repositório e os releases; o token da Vercel vem dos secrets
+permissions:
+  contents: read
+
+# Nunca duas publicações ao mesmo tempo
+concurrency:
+  group: publica-site
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Depois do pipeline, publica mesmo se ele falhou no meio (o histórico do dia costuma existir),
+    # mas não se ele foi cancelado
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion != 'cancelled'
+    env:
+      PYTHONUNBUFFERED: "1"
+      # Login do gh no download do histórico
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Preparação | Instala as dependências do Python
+        run: pip install -r requirements.txt
+
+      - name: Preparação | Define a data dos dados
+        env:
+          DATA_INFORMADA: ${{ inputs.data }}
+        run: |
+          if [ -n "$DATA_INFORMADA" ]; then
+            DATA="$DATA_INFORMADA"
+          else
+            DATA=$(python -c "import sys; sys.path.insert(0, 'coletor'); import portal; print(portal.data_de_hoje())")
+          fi
+          # Confere o formato antes de usar a data em qualquer comando
+          python -c "import sys, datetime; datetime.date.fromisoformat(sys.argv[1])" "$DATA"
+          echo "Data dos dados: $DATA"
+          echo "DATA=$DATA" >> "$GITHUB_ENV"
+
+      - name: Dados | Baixa o histórico do dia
+        run: |
+          # O histórico fica num release por mês, com um arquivo por dia
+          MES="${DATA:0:7}"
+          gh release download "historico-$MES" --pattern "dia-$DATA.tar.gz" --dir "$RUNNER_TEMP" --clobber
+          tar -xzf "$RUNNER_TEMP/dia-$DATA.tar.gz"
+          # Sem a Silver do dia não há o que publicar
+          test -d dados/silver
+
+      - name: Site | Gera a API com os dados do dia
+        run: python publicar/gerar_api.py --data "$DATA" --saida web/public/api
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Site | Testa e compila o site com a API do dia
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build
+
+      # Guarda o site pronto na execução: dá para baixar e conferir, mesmo sem publicar
+      - name: Site | Guarda o site compilado na execução
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-${{ env.DATA }}
+          path: web/dist
+          retention-days: 14
+
+      # Só publica se os três secrets da Vercel existirem; sem eles o dia termina bem, com um aviso
+      - name: Vercel | Confere se o projeto está configurado
+        id: vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -n "$VERCEL_TOKEN" ] && [ -n "$VERCEL_ORG_ID" ] && [ -n "$VERCEL_PROJECT_ID" ]; then
+            echo "configurado=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configurado=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Secrets da Vercel não configurados (VERCEL_TOKEN, VERCEL_ORG_ID e VERCEL_PROJECT_ID): o site foi compilado, mas não publicado."
+          fi
+
+      - name: Vercel | Publica o site
+        if: steps.vercel.outputs.configurado == 'true'
+        env:
+          # O CLI lê o token e os dois identificadores destas variáveis
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          # O site já está compilado: entrega a pasta pronta no formato "Build Output" da Vercel,
+          # sem a Vercel compilar de novo
+          mkdir -p .vercel/output/static
+          cp -r web/dist/. .vercel/output/static/
+          echo '{"version":3}' > .vercel/output/config.json
+          URL=$(npx --yes vercel@64.3.1 deploy --prebuilt --prod)
+          echo "Site publicado: $URL"
+          echo "### Site publicado" >> "$GITHUB_STEP_SUMMARY"
+          echo "Dados de $DATA: $URL" >> "$GITHUB_STEP_SUMMARY"
