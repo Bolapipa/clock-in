@@ -53,6 +53,15 @@ def registrar_tentativa(link, data):
     conteudo_estado.atualizar_estado(data)
 
 
+def registrar_falha(link, data, erro_tipo):
+    """Registra no estado que o download do link falhou (sem hash) em uma data."""
+    servidor = link.split("/")[2]
+    linha = (data, link, servidor, None, None, None, None, None, None, None, None, erro_tipo,
+             datetime(data.year, data.month, data.day, 12))
+    conteudo_estado.gravar_lote([linha], data)
+    conteudo_estado.atualizar_estado(data)
+
+
 def links_escolhidos(por_servidor):
     """Todos os links escolhidos, sem o agrupamento por servidor."""
     return sorted(link for itens in por_servidor.values() for link, _ in itens)
@@ -115,6 +124,60 @@ def test_nunca_lidos_vem_antes_dos_lidos_ha_mais_tempo(monkeypatch):
     escolhidos = links_escolhidos(conteudo_selecao.selecionar(HOJE))
 
     assert escolhidos == [nunca, velho]
+
+
+@pytest.mark.parametrize("erro", ["SERVIDOR_FORA", "CONEXAO", "TIMEOUT", "HTTP_502", "HTTP_503", "HTTP_520"])
+def test_falha_passageira_volta_depois_de_dois_dias_e_nao_antes(erro):
+    ontem = "https://a.gov.br/ontem.csv"
+    anteontem = "https://a.gov.br/anteontem.csv"
+    gravar_silver([(ontem, "CSV", True), (anteontem, "CSV", True)])
+    registrar_falha(ontem, HOJE - timedelta(days=1), erro)
+    registrar_falha(anteontem, HOJE - timedelta(days=2), erro)
+
+    escolhidos = links_escolhidos(conteudo_selecao.selecionar(HOJE))
+
+    # Com 2 dias já pode tentar de novo; com 1 ainda não
+    assert escolhidos == [anteontem]
+
+
+@pytest.mark.parametrize("erro", ["HTML", "HTTP_403", "HTTP_404", "HTTP_405", "HTTP_410", "ARQUIVO_INVALIDO"])
+def test_falha_que_nao_e_passageira_continua_esperando_o_ciclo_todo(erro):
+    seis_dias = "https://a.gov.br/seis.csv"
+    sete_dias = "https://a.gov.br/sete.csv"
+    gravar_silver([(seis_dias, "CSV", True), (sete_dias, "CSV", True)])
+    registrar_falha(seis_dias, HOJE - timedelta(days=6), erro)
+    registrar_falha(sete_dias, HOJE - timedelta(days=7), erro)
+
+    escolhidos = links_escolhidos(conteudo_selecao.selecionar(HOJE))
+
+    assert escolhidos == [sete_dias]
+
+
+def test_leitura_boa_antiga_com_falha_passageira_recente_tambem_volta_em_dois_dias():
+    # O arquivo já foi lido com sucesso; a última tentativa (releitura) falhou por um motivo passageiro
+    link = "https://a.gov.br/a.csv"
+    gravar_silver([(link, "CSV", True)])
+    registrar_tentativa(link, HOJE - timedelta(days=9))
+    registrar_falha(link, HOJE - timedelta(days=2), "TIMEOUT")
+
+    assert links_escolhidos(conteudo_selecao.selecionar(HOJE)) == [link]
+
+
+def test_dentro_de_cada_servidor_vao_primeiro_os_nunca_tentados_e_os_tentados_ha_mais_tempo():
+    lista = [f"https://a.gov.br/{i}.csv" for i in range(8)]
+    gravar_silver([(link, "CSV", True) for link in lista])
+    # Os links 2 a 7 foram lidos há 12 a 17 dias (o 7 há mais tempo); o 0 e o 1 nunca foram tentados
+    for i in range(2, 8):
+        registrar_tentativa(lista[i], HOJE - timedelta(days=10 + i))
+
+    escolhidos = conteudo_selecao.selecionar(HOJE)["a.gov.br"]
+
+    assert [link for link, _ in escolhidos] == [lista[0], lista[1], lista[7], lista[6], lista[5], lista[4], lista[3], lista[2]]
+
+
+def test_o_limite_padrao_por_servidor_permite_mais_de_mil_arquivos():
+    # O dadosabertos.rj.gov.br tem 13 mil arquivos: com 1.000 por dia o ciclo de 7 dias nunca fecharia
+    assert conteudo_selecao.MAX_POR_SERVIDOR >= 3000
 
 
 def test_limite_por_servidor_nao_afeta_outros_servidores(monkeypatch):
