@@ -14,12 +14,17 @@ __pycache__/
 # Node (scripts de validação)
 node_modules/
 package-lock.json
+# O site novo (React) guarda o lock no Git: a Vercel instala exatamente as mesmas versões
+!web/package-lock.json
+web/dist/
+.taste-skill/
 
 # Dados brutos e grandes
 validacao/dados/
 dados/
 # API gerada a cada execução por publicar/gerar_api.py (decisão 16: nenhum dado gerado vai para o Git)
 site/api/
+web/public/api/
 *.parquet
 *.dump
 

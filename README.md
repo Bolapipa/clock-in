@@ -152,6 +152,8 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/gold_status.py` | Gera o status de cada base (`gold/fato_status_base_diario`) a partir da Silver, da saúde dos links e do estado do conteúdo |
 | `python coletor/resumo_dia.py` | Imprime em Markdown os números do dia (catálogo, links, conteúdo, status); no workflow a saída vai para o painel da execução. Aceita `--data AAAA-MM-DD` |
 | `python publicar/gerar_api.py` | Gera a API estática (`site/api/*.json`) a partir da Silver do dia; o `site/` lê esses arquivos (veja a pasta `site/` para abrir o site no navegador) |
+| `python publicar/gerar_api.py --saida web/public/api` | Gera a API para o site novo em React (pasta `web/`) |
+| `cd web; npm install; npm run dev` | Abre o site novo (React + Vite + Tailwind) em `http://localhost:5173`; `npm test` roda os testes e `npm run build` gera o site final em `web/dist` |
 | `node --test tests/site/app.test.js` | Roda os testes das funções de busca, filtro e ordenação do site (precisa do Node 20 ou mais novo) |
 | `python coletor/nuvem.py baixar` / `subir` / `historico` | Estado e histórico nos releases do GitHub (usados pelo workflow `pipeline-diario.yml`; precisam do `gh` com login) |
 | `pytest -v` | Roda os testes automáticos |

@@ -1,0 +1,3 @@
+Archivo (arquivo archivo-latin.woff2): fonte variável de Omnibus-Type, com eixos de peso e de largura.
+Licença: SIL Open Font License 1.1 (permite uso, cópia e redistribuição com o site).
+Origem: https://github.com/Omnibus-Type/Archivo (versão distribuída pelo Google Fonts, só o subconjunto latino).
