@@ -1,0 +1,130 @@
+/* Clock-in: estilo base. O resto vem das classes do Tailwind 4 nos componentes.
+   Identidade: relógio de ponto. Tinta azul-noite, âmbar de carimbo e as quatro cores dos estados dos links. */
+
+@import "tailwindcss";
+
+/* Tema escuro pela classe .dark no <html> (next-themes) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Cores de cada tema: definidas uma vez e usadas pelo Tailwind como bg-fundo, text-tinta etc. */
+:root {
+  --fundo: #f5f6f8;
+  --superficie: #ffffff;
+  --superficie-2: #eef1f5;
+  --tinta: #0b1220;
+  --tinta-2: #4a5466;
+  --tinta-3: #8590a2;
+  --linha: #e2e6ec;
+  --linha-2: #cbd2dc;
+  --ambar: #f5a524;
+  --ambar-forte: #a86400;
+  --ambar-tinta: #1a1205;
+  --ok: #18a06b;
+  --ok-texto: #0b7a4f;
+  --obs: #e9a417;
+  --obs-texto: #915e00;
+  --queb: #e5484d;
+  --queb-texto: #bf2329;
+  --nt: #9aa4b2;
+  --pontos: rgb(11 18 32 / 0.09);
+  color-scheme: light;
+}
+
+.dark {
+  --fundo: #06080d;
+  --superficie: #0d121b;
+  --superficie-2: #131a25;
+  --tinta: #e9eef6;
+  --tinta-2: #a3aebf;
+  --tinta-3: #6d798c;
+  --linha: #1b2432;
+  --linha-2: #283346;
+  --ambar: #ffb23f;
+  --ambar-forte: #ffc466;
+  --ambar-tinta: #1a1205;
+  --ok: #34d399;
+  --ok-texto: #5ee0ad;
+  --obs: #fbbf24;
+  --obs-texto: #fcd34d;
+  --queb: #f87171;
+  --queb-texto: #fb9a9a;
+  --nt: #5f6b7d;
+  --pontos: rgb(233 238 246 / 0.07);
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-fundo: var(--fundo);
+  --color-superficie: var(--superficie);
+  --color-superficie-2: var(--superficie-2);
+  --color-tinta: var(--tinta);
+  --color-tinta-2: var(--tinta-2);
+  --color-tinta-3: var(--tinta-3);
+  --color-linha: var(--linha);
+  --color-linha-2: var(--linha-2);
+  --color-ambar: var(--ambar);
+  --color-ambar-forte: var(--ambar-forte);
+  --color-ambar-tinta: var(--ambar-tinta);
+  --color-ok: var(--ok);
+  --color-ok-texto: var(--ok-texto);
+  --color-obs: var(--obs);
+  --color-obs-texto: var(--obs-texto);
+  --color-queb: var(--queb);
+  --color-queb-texto: var(--queb-texto);
+  --color-nt: var(--nt);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "Cascadia Code", monospace;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+  body {
+    background: var(--fundo);
+    color: var(--tinta);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--ambar);
+    color: var(--ambar-tinta);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ambar-forte);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+@layer components {
+  /* Fundo de pontos, como a grade de um cartão de ponto; some nas bordas */
+  .fundo-pontos {
+    background-image: radial-gradient(var(--pontos) 1px, transparent 1.2px);
+    background-size: 22px 22px;
+    mask-image: radial-gradient(ellipse at 50% 35%, #000 35%, transparent 78%);
+  }
+  /* Hachurado: o que não deu para testar */
+  .hachurado {
+    background-image: repeating-linear-gradient(135deg, var(--nt) 0 1.5px, transparent 1.5px 6px);
+  }
+  /* Números tabulares: as colunas não pulam quando os valores mudam */
+  .numeros {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Esconde visualmente, mas mantém para leitores de tela */
+  .so-leitor {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

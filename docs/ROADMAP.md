@@ -42,7 +42,7 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 - [ ] Fase 4: Atualização real e status (parte 1 feita: prazos declarados e regras de status; falta inferir o ritmo e ter histórico de conteúdo)
 - [ ] Fase 5: Gold, histórico e nota por órgão
 - [ ] Fase 6: API estática (contrato versão 1, resumo e órgãos feitos em 27/10/2026; falta as bases, o ranking e a publicação automática)
-- [ ] Fase 7: Site público (páginas inicial, órgão, base, metodologia e API feitas em 27/10/2026; falta publicar e o ranking)
+- [ ] Fase 7: Site público (publicado na Vercel em 30/10/2026 e refeito em Next.js com identidade própria em 30/10/2026; falta o ranking)
 - [ ] Fase 8: Alertas
 - [ ] Fase 9: Lançamento e impacto
 
@@ -316,7 +316,11 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 **Feito em 30/10/2026:** o workflow `publicar-site.yml` testa e compila o site React da pasta `web/` com a API do dia, guarda o resultado como arquivo da execução (Artifacts, 14 dias) e o publica na Vercel com o CLI. Roda sozinho quando o pipeline diário termina e também sob demanda. A publicação depende de três secrets do repositório (`VERCEL_TOKEN`, `VERCEL_ORG_ID` e `VERCEL_PROJECT_ID`).
 
-**Falta na Fase 7:** a primeira publicação de verdade na Vercel, o ranking (depende do status por conteúdo e da nota) e a identidade visual própria.
+**Primeira publicação, 30/10/2026:** o workflow publicou o site com os dados de 29/10 em https://clock-in-indol.vercel.app, em 1 minuto e 14 segundos.
+
+**Site novo em Next.js, feito em 30/10/2026:** a pasta `web/` foi refeita em Next.js 16 (exportado como site estático), Tailwind 4, Motion e WebGPU, tomando como referência técnica dois sites interativos de exemplo. A identidade é a do relógio de ponto: tinta azul-noite, âmbar de carimbo e as quatro cores dos estados dos links. A página inicial tem um **mostrador em WebGPU** (um relógio feito de milhares de pontos, cada um uma amostra dos links na cor do seu estado, com um ponteiro que varre o mostrador; clicar num estado filtra os órgãos), com reserva em Canvas 2D para navegadores sem WebGPU; os **números do dia**; o **simulador "sete dias na vida de um link"**, que aplica a mesma regra do pipeline e explica cada decisão; o **mapa de órgãos** em bolhas (tamanho pelas bases, cor pela parte dos links respondendo bem) e a lista com busca, esfera e ordem. Cada um dos 611 órgãos tem uma página estática, e cada base abre num painel lateral com endereço próprio. Há busca rápida (Ctrl K), tema claro e escuro, português e inglês, e as páginas "Como medimos" e "Dados e API" (com resposta ao vivo e exemplos). As regras do simulador e do mostrador têm testes com Vitest; o shader WGSL foi validado no Dawn (o motor WebGPU do Chrome) com a placa de vídeo real, contando os pixels desenhados.
+
+**Falta na Fase 7:** o ranking (depende do status por conteúdo e da nota).
 
 **Entregável:** site publicado e atualizado todo dia.
 

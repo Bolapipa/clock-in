@@ -14,9 +14,13 @@ __pycache__/
 # Node (scripts de validação)
 node_modules/
 package-lock.json
-# O site novo (React) guarda o lock no Git: a Vercel instala exatamente as mesmas versões
+# O site (Next.js) guarda o lock no Git: o build instala exatamente as mesmas versões
 !web/package-lock.json
-web/dist/
+# Saídas do Next.js: cache do build, site pronto e arquivos gerados
+web/.next/
+web/out/
+web/next-env.d.ts
+*.tsbuildinfo
 .taste-skill/
 
 # Dados brutos e grandes

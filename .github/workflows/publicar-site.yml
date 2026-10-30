@@ -79,8 +79,11 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
 
+      # Next.js em modo estático: o site pronto sai em web/out (uma página por órgão, gerada com a API do dia)
       - name: Site | Testa e compila o site com a API do dia
         working-directory: web
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
         run: |
           npm ci --no-audit --no-fund
           npm test
@@ -91,7 +94,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: site-${{ env.DATA }}
-          path: web/dist
+          path: web/out
           retention-days: 14
 
       # Só publica se os três secrets da Vercel existirem; sem eles o dia termina bem, com um aviso
@@ -120,8 +123,20 @@ jobs:
           # O site já está compilado: entrega a pasta pronta no formato "Build Output" da Vercel,
           # sem a Vercel compilar de novo
           mkdir -p .vercel/output/static
-          cp -r web/dist/. .vercel/output/static/
-          echo '{"version":3}' > .vercel/output/config.json
+          cp -r web/out/. .vercel/output/static/
+          # Rotas: primeiro os arquivos; endereço de página sem a barra final ganha a barra (/metodologia ->
+          # /metodologia/); o que não existir mostra a página 404 do site (menos na API, que responde 404 puro)
+          cat > .vercel/output/config.json <<'JSON'
+          {
+            "version": 3,
+            "routes": [
+              { "handle": "filesystem" },
+              { "src": "^/((?:[^/]+/)*[^/.]+)$", "status": 308, "headers": { "Location": "/$1/" } },
+              { "handle": "error" },
+              { "status": 404, "src": "^(?!/api/).*$", "dest": "/404.html" }
+            ]
+          }
+          JSON
           URL=$(npx --yes vercel@64.3.1 deploy --prebuilt --prod)
           echo "Site publicado: $URL"
           echo "### Site publicado" >> "$GITHUB_STEP_SUMMARY"
