@@ -8,7 +8,10 @@ Coleta educada:
 - uma requisição por vez em cada servidor, com pausa entre elas;
 - vários servidores ao mesmo tempo, para caber no tempo do job;
 - no máximo MAX_POR_SERVIDOR links por servidor por dia: os testados há mais
-  tempo vão primeiro, e os que nunca foram testados vão antes de todos.
+  tempo vão primeiro, e os que nunca foram testados vão antes de todos;
+- no máximo LIMITE_POR_SERVIDOR_MINUTOS minutos por servidor: como cada servidor é testado
+  um link por vez, o servidor mais lento decidia o tempo do dia (decisão 39). O que não coube
+  volta primeiro no dia seguinte, e o link só vira "quebrado" na 3ª falha, mesmo com dias sem teste.
 
 Cada tentativa vai para a Bronze e o estado de cada link é mantido em um arquivo:
 dados/bronze/link_tentativa/data=AAAA-MM-DD/parte-0001.parquet
@@ -51,6 +54,10 @@ PAUSA_POR_SERVIDOR = 1.0
 
 # Quantos links de um mesmo servidor são testados por dia
 MAX_POR_SERVIDOR = 5000
+
+# Quanto tempo, no máximo, um mesmo servidor ocupa por dia, em minutos. Medido em 29/10/2026: o
+# api.bcb.gov.br levava 175 min sozinho (3.178 links, 2,3 s de resposta e 1 s de pausa cada)
+LIMITE_POR_SERVIDOR_MINUTOS = 90
 
 # Quantos servidores são testados ao mesmo tempo
 SERVIDORES_SIMULTANEOS = 100
@@ -217,7 +224,11 @@ def partes_do_dia(data):
 
 
 def selecionar(data, limite=None):
-    """Escolhe os links do dia: {servidor: [links]}, no máximo MAX_POR_SERVIDOR por servidor."""
+    """Escolhe os links do dia: {servidor: [links]}, no máximo MAX_POR_SERVIDOR por servidor.
+
+    Dentro de cada servidor, os nunca testados e os testados há mais tempo vêm primeiro: se o
+    limite de tempo do servidor cortar a fila, o que sobrou é o que foi testado mais recentemente.
+    """
     recurso = arquivo_recurso(data)
     if not recurso.exists():
         sys.exit(f"Silver de recursos de {data} não encontrada. Rode antes: python coletor/silver.py --data {data}")
@@ -262,7 +273,7 @@ def selecionar(data, limite=None):
             LEFT JOIN feitos_hoje f ON f.link = l.link
             WHERE l.servidor <> ''
         )
-        SELECT link, servidor
+        SELECT link, servidor, posicao
         FROM ranqueados
         WHERE posicao <= $maximo AND NOT feito_hoje
         ORDER BY hash(link)
@@ -271,8 +282,11 @@ def selecionar(data, limite=None):
     con.close()
 
     por_servidor = {}
-    for link, servidor in escolhidos:
-        por_servidor.setdefault(servidor, []).append(link)
+    for link, servidor, posicao in escolhidos:
+        por_servidor.setdefault(servidor, []).append((posicao, link))
+
+    # Dentro de cada servidor, volta para a ordem de prioridade (a amostra acima é embaralhada)
+    por_servidor = {servidor: [link for _, link in sorted(itens)] for servidor, itens in por_servidor.items()}
 
     # Os servidores com mais links começam primeiro: são eles que decidem o tempo total
     return dict(sorted(por_servidor.items(), key=lambda item: len(item[1]), reverse=True))
@@ -317,13 +331,16 @@ def gravar_lote(linhas, data):
     return arquivo
 
 
-async def executar(por_servidor, data, limite_segundos=None):
+async def executar(por_servidor, data, limite_segundos=None, cortados=None):
     """Testa os links: um por vez em cada servidor, vários servidores em paralelo.
 
-    Com limite_segundos, para de começar testes novos quando o tempo acaba. Os links que
-    ficaram sem teste não entram no estado e voltam primeiro no dia seguinte.
-    Devolve quantos links foram testados.
+    Com limite_segundos, para de começar testes novos quando o tempo acaba. Cada servidor também
+    para quando passa de LIMITE_POR_SERVIDOR_MINUTOS: o dicionário 'cortados' (se dado) recebe
+    {servidor: quantos links ficaram sem teste}. Os links sem teste não entram no estado e voltam
+    primeiro no dia seguinte. Devolve quantos links foram testados.
     """
+    if cortados is None:
+        cortados = {}
     total = sum(len(links) for links in por_servidor.values())
     buffer = []
     feitos = 0
@@ -337,9 +354,15 @@ async def executar(por_servidor, data, limite_segundos=None):
             nonlocal feitos
             async with semaforo:
                 falhas_de_rede = 0
-                for link in links:
+                # O relógio do servidor começa quando ele começa a ser testado
+                prazo_do_servidor = time.perf_counter() + LIMITE_POR_SERVIDOR_MINUTOS * 60
+                for indice, link in enumerate(links):
                     # O tempo acabou: este servidor para aqui (um teste em andamento termina normalmente)
                     if prazo is not None and time.perf_counter() >= prazo:
+                        return
+                    # Este servidor já usou o tempo dele: o que falta fica para o dia seguinte
+                    if time.perf_counter() >= prazo_do_servidor:
+                        cortados[servidor] = len(links) - indice
                         return
 
                     # Servidor que falhou várias vezes seguidas: não espera mais timeouts, só registra a falha
@@ -544,12 +567,20 @@ def main():
         print(f"Nenhum link a testar em {data}.")
         return
     maior = max(len(links) for links in por_servidor.values())
-    horas = maior * (PAUSA_POR_SERVIDOR + 0.3) / 3600
+    horas = min(maior * (PAUSA_POR_SERVIDOR + 0.3) / 3600, LIMITE_POR_SERVIDOR_MINUTOS / 60)
     print(f"{total} links em {len(por_servidor)} servidores; o maior tem {maior}; estimativa {horas:.1f} h", flush=True)
 
     limite = None if args.tempo_maximo is None else args.tempo_maximo * 60
-    feitos = asyncio.run(executar(por_servidor, data, limite))
-    if feitos < total:
+    cortados = {}
+    feitos = asyncio.run(executar(por_servidor, data, limite, cortados))
+
+    # Servidores que passaram do limite deles: o que faltou volta primeiro no dia seguinte
+    if cortados:
+        maiores = sorted(cortados.items(), key=lambda item: item[1], reverse=True)[:5]
+        detalhe = ", ".join(f"{servidor} ({faltaram})" for servidor, faltaram in maiores)
+        print(f"\n{len(cortados)} servidor(es) passaram do limite de {LIMITE_POR_SERVIDOR_MINUTOS:.0f} min por servidor; "
+              f"{sum(cortados.values())} links ficam para o dia seguinte. Mais links cortados: {detalhe}.")
+    if limite is not None and feitos + sum(cortados.values()) < total:
         print(f"\nTempo máximo de {args.tempo_maximo:.0f} min atingido: {feitos} de {total} links testados. "
               "Os demais ficam para o dia seguinte (os nunca testados e os testados há mais tempo vão primeiro).")
     atualizar_estado(data)

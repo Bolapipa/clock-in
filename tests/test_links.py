@@ -598,6 +598,71 @@ def test_link_sem_teste_por_falta_de_tempo_volta_no_dia_seguinte(monkeypatch):
     assert escolhidos == {"a.gov.br": ["https://a.gov.br/ficou"]}
 
 
+def test_dentro_de_cada_servidor_vao_primeiro_os_nunca_testados_e_os_testados_ha_mais_tempo():
+    lista = [f"https://a.gov.br/{i}" for i in range(8)]
+    gravar_silver(DIA_3, lista)
+    # Os links 2 a 7 foram testados em dias diferentes (o 7 há mais tempo); o 0 e o 1 nunca foram testados
+    for i in range(2, 8):
+        dia = date(2026, 10, 20 - i)
+        tentativa(lista[i], dia, 200)
+        links.atualizar_estado(dia)
+
+    escolhidos = links.selecionar(DIA_3)
+
+    # Nunca testados primeiro (em ordem alfabética), depois do mais antigo para o mais recente
+    assert escolhidos["a.gov.br"] == [lista[0], lista[1], lista[7], lista[6], lista[5], lista[4], lista[3], lista[2]]
+
+
+def test_servidor_que_passa_do_limite_para_e_os_outros_continuam(monkeypatch):
+    async def responder(requisicao):
+        # O servidor lento leva 0,1 s por link; o rápido responde na hora
+        if requisicao.url.host == "lento.gov.br":
+            await asyncio.sleep(0.1)
+        return httpx.Response(200)
+
+    # Limite de 0,25 s por servidor: o lento não termina os 5 links
+    monkeypatch.setattr(links, "LIMITE_POR_SERVIDOR_MINUTOS", 0.25 / 60)
+    gravar_silver(DIA_1, [f"https://lento.gov.br/{i}" for i in range(5)] + [f"https://rapido.gov.br/{i}" for i in range(5)])
+    monkeypatch.setattr(links, "criar_cliente", lambda: cliente_falso(responder))
+    cortados = {}
+
+    feitos = asyncio.run(links.executar(links.selecionar(DIA_1), DIA_1, cortados=cortados))
+
+    pasta = (links.pasta_tentativas() / f"data={DIA_1}" / "*.parquet").as_posix()
+    por_servidor = dict(duckdb.sql(f"SELECT servidor, COUNT(*) FROM '{pasta}' GROUP BY 1").fetchall())
+    # O rápido testou tudo e não foi cortado; o lento parou no meio e o que faltou foi contado
+    assert por_servidor["rapido.gov.br"] == 5
+    assert 1 <= por_servidor["lento.gov.br"] < 5
+    assert cortados == {"lento.gov.br": 5 - por_servidor["lento.gov.br"]}
+    assert feitos == sum(por_servidor.values())
+
+
+def test_main_avisa_dos_servidores_cortados_e_eles_voltam_primeiro_no_dia_seguinte(monkeypatch, capsys):
+    async def responder(requisicao):
+        await asyncio.sleep(0.1)
+        return httpx.Response(200)
+
+    monkeypatch.setattr(links, "LIMITE_POR_SERVIDOR_MINUTOS", 0.25 / 60)
+    lista = [f"https://lento.gov.br/{i}" for i in range(6)]
+    gravar_silver(DIA_1, lista)
+    gravar_silver(DIA_2, lista)
+    monkeypatch.setattr(links, "criar_cliente", lambda: cliente_falso(responder))
+    monkeypatch.setattr(sys, "argv", ["links.py", "--data", str(DIA_1)])
+
+    links.main()
+
+    saida = capsys.readouterr().out
+    # O aviso fala do limite por servidor e não finge que foi o tempo máximo geral
+    assert "passaram do limite de" in saida and "lento.gov.br" in saida
+    assert "Tempo máximo" not in saida
+    testados = set(ler_estado())
+    assert 0 < len(testados) < 6
+    # No dia seguinte, os que ficaram sem teste vêm antes dos que foram testados
+    escolhidos = links.selecionar(DIA_2)["lento.gov.br"]
+    sem_teste = [link for link in lista if link not in testados]
+    assert escolhidos[: len(sem_teste)] == sorted(sem_teste)
+
+
 def test_erro_de_um_link_nao_faz_desistir_do_servidor(monkeypatch):
     def responder(requisicao):
         # 404 não é falha de rede: o servidor está vivo

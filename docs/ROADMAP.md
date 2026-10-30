@@ -37,7 +37,7 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 - [x] Validação (24/10/2026): ver [VALIDACAO.md](VALIDACAO.md)
 - [x] Fase 0: Ambiente
 - [x] Fase 1: Inventário (26/10/2026)
-- [x] Fase 2: Saúde dos links e pipeline diário (execuções agendadas de 28 e 29/10/2026 completas, com as 16 etapas; o GitHub dispara cerca de 6h45 depois do horário do cron, o que não afeta a data da coleta)
+- [x] Fase 2: Saúde dos links e pipeline diário (execuções agendadas de 28 e 29/10/2026 completas, com as 16 etapas; o GitHub dispara cerca de 6h45 depois do horário do cron, o que não afeta a data da coleta; limite de 90 minutos por servidor desde 30/10/2026, decisão 39)
 - [ ] Fase 3: Conteúdo (hash e schema) (download medido no GitHub Actions em 28 e 29/10/2026; falta reler os mesmos arquivos para ver mudanças e ler a data máxima dentro dos arquivos)
 - [ ] Fase 4: Atualização real e status (parte 1 feita: prazos declarados e regras de status; falta inferir o ritmo e ter histórico de conteúdo)
 - [ ] Fase 5: Gold, histórico e nota por órgão

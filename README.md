@@ -144,7 +144,7 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/painel_cgu.py` | Baixa os 2 arquivos do painel da CGU para a Bronze (atualizados uma vez por mês) |
 | `python coletor/silver.py` | Gera a Silver (`base`, `recurso` e `publicador`) a partir da Bronze do dia |
 | `python coletor/links.py --max-links 200` | Teste de links com uma amostra de 200 (precisa da Silver do dia; use `silver.py` antes) |
-| `python coletor/links.py` | Testa os links dos recursos: um por vez em cada servidor, vários servidores em paralelo, no máximo 5.000 links por servidor por dia |
+| `python coletor/links.py` | Testa os links dos recursos: um por vez em cada servidor, vários servidores em paralelo, no máximo 5.000 links e 90 minutos por servidor por dia (o que não coube volta primeiro no dia seguinte) |
 | `python coletor/links.py --tempo-maximo 90` | Igual ao anterior, mas para depois de 90 minutos; os links que faltaram são os primeiros do dia seguinte |
 | `python coletor/links.py --reconstruir` | Recria o estado dos links a partir de toda a Bronze (use depois de mudar a regra de falha); não testa nenhum link |
 | `python coletor/conteudo_baixar.py --max-links 50` | Lê o conteúdo de uma amostra de 50 arquivos (hash e schema) e apaga o que baixou; precisa da Silver e do `link_status` do dia |
