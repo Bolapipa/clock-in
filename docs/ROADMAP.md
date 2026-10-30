@@ -310,6 +310,8 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 **Feito também em 27/10/2026 (decisão 37):** a página de cada base (status, motivo e saúde dos links), a página de metodologia ("Como medimos") e a página da API, com menu no topo. As rotas e a explicação de cada status têm testes em `tests/site/app.test.js`.
 
+**Novo visual e uso mais simples, feito em 27/10/2026:** a página inicial responde a pergunta do dia em uma frase e mostra a saúde dos links numa régua (respondendo bem, em observação, quebrados e não deu para testar), que também aparece em cada órgão e em cada base, com uma explicação curta de cada parte. As listas têm busca, filtro de esfera e um seletor "Ordenar por", mostram uma mensagem quando nada é encontrado e, no celular, cada linha vira um bloco com o nome de cada coluna. Os status são etiquetas com texto, sem depender só da cor. A fonte Archivo fica em `site/fontes/`, servida pelo próprio site. As orientações vieram dos guias do GOV.UK e do USWDS (etiquetas de status e tabelas responsivas).
+
 **Falta na Fase 7:** publicar na Vercel, o ranking (depende do status por conteúdo e da nota) e a publicação automática no workflow diário.
 
 **Entregável:** site publicado e atualizado todo dia.

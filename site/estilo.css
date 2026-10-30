@@ -23,10 +23,14 @@
   --carimbo-texto: #ffffff;
   --bom: #1b8a5a;
   --bom-texto: #11643f;
+  --bom-fundo: #d8f0e2;
   --atencao: #e6a100;
   --atencao-texto: #8a5600;
+  --atencao-fundo: #fbebc6;
   --ruim: #d23a1f;
   --ruim-texto: #b02a12;
+  --ruim-fundo: #f9dad2;
+  --neutro-fundo: #dce2eb;
   --cabecalho-fundo: #0f1b2d;
   --cabecalho-texto: #e6ecf5;
   --rodape-fundo: #0f1b2d;
@@ -48,10 +52,14 @@
     --carimbo-texto: #0d1522;
     --bom: #3fcb8a;
     --bom-texto: #5fd9a0;
+    --bom-fundo: #123a2b;
     --atencao: #f2b63a;
     --atencao-texto: #f2b63a;
+    --atencao-fundo: #43340f;
     --ruim: #ff6b4f;
     --ruim-texto: #ff8f78;
+    --ruim-fundo: #45221d;
+    --neutro-fundo: #1f2b3d;
     --cabecalho-fundo: #1e2b40;
     --rodape-fundo: #070c14;
   }
@@ -93,30 +101,30 @@ main { padding-bottom: 3rem; }
 
 /* Títulos: condensados e pesados; o texto corrido usa a largura normal */
 h1 {
-  margin: 0 0 1.25rem;
-  font-size: clamp(3.1rem, 8.5vw, 6.6rem); font-weight: 800; font-stretch: 68%;
-  line-height: 0.92; letter-spacing: -0.012em; text-wrap: balance;
+  margin: 0 0 1rem;
+  font-size: clamp(2.5rem, 5.6vw, 4.5rem); font-weight: 800; font-stretch: 68%;
+  line-height: 0.95; letter-spacing: -0.012em; text-wrap: balance;
 }
-h1.titulo-interno { font-size: clamp(2.3rem, 6vw, 4.2rem); line-height: 0.98; }
+h1.titulo-interno { font-size: clamp(2.1rem, 5vw, 3.6rem); line-height: 1; }
 h2 { margin: 3rem 0 1rem; font-size: 1.7rem; font-weight: 700; font-stretch: 80%; line-height: 1.15; }
 .lide { margin: 0 0 0.5rem; max-width: 52ch; color: var(--tinta-suave); }
 
 /* Abertura: título e frase à esquerda, ficha à direita */
-.abertura { display: grid; gap: 2rem 4rem; padding: clamp(1.5rem, 4vw, 3.25rem) 0 1.5rem; }
-.abertura-interna { padding-top: 0.75rem; }
+.abertura { display: grid; gap: 1.5rem 3rem; padding: clamp(1rem, 3vw, 2rem) 0 0.5rem; }
+.abertura-interna { padding-top: 0.5rem; }
 .resposta {
-  margin: 0 0 1.25rem; max-width: 30ch;
-  font-size: clamp(1.25rem, 2.3vw, 1.65rem); font-weight: 500; font-stretch: 90%; line-height: 1.3; text-wrap: pretty;
+  margin: 0 0 1rem; max-width: 32ch;
+  font-size: clamp(1.2rem, 2.2vw, 1.55rem); font-weight: 500; font-stretch: 90%; line-height: 1.3; text-wrap: pretty;
 }
 @media (min-width: 900px) {
-  .abertura { grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr); align-items: end; }
+  .abertura { grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); align-items: end; }
   .abertura-interna { align-items: start; }
 }
 
 /* Ficha: totais com pontilhado, como cupom de ponto */
-.ficha { background: var(--superficie); padding: 1.25rem 1.5rem 0.9rem; }
-.ficha h2 { margin: 0 0 0.5rem; font-size: 1rem; font-weight: 600; font-stretch: 100%; color: var(--tinta-suave); }
-.cartao { display: grid; grid-template-columns: auto 1fr auto; column-gap: 0.6rem; align-items: baseline; padding: 0.55rem 0; }
+.ficha { background: var(--superficie); padding: 1.1rem 1.5rem 0.8rem; border-top: 4px solid var(--carimbo); border-radius: 0 0 8px 8px; }
+.ficha h2 { margin: 0 0 0.4rem; font-size: 1rem; font-weight: 600; font-stretch: 100%; color: var(--tinta-suave); }
+.cartao { display: grid; grid-template-columns: auto 1fr auto; column-gap: 0.6rem; align-items: baseline; padding: 0.5rem 0; }
 .cartao .rotulo { grid-column: 1; grid-row: 1; }
 .cartao::after { content: ""; grid-column: 2; grid-row: 1; align-self: end; margin-bottom: 0.4em; border-bottom: 2px dotted var(--linha-forte); }
 .cartao .valor { grid-column: 3; grid-row: 1; font-size: 1.5rem; font-weight: 700; font-stretch: 85%; line-height: 1.2; font-variant-numeric: tabular-nums; }
@@ -126,9 +134,9 @@ h2 { margin: 3rem 0 1rem; font-size: 1.7rem; font-weight: 700; font-stretch: 80%
 .cartao.ruim .valor { color: var(--ruim-texto); }
 
 /* Régua: a saúde dos links numa barra só, com marcas de relógio (60 minutos, 12 horas) */
-.regua-secao { padding: 1rem 0 1.5rem; }
-.regua { display: flex; gap: 3px; height: clamp(2.6rem, 6vw, 3.6rem); }
-.parte { flex: 1 1 0; min-width: 4px; }
+.regua-secao { padding: 1rem 0 1rem; }
+.regua { display: flex; gap: 3px; height: clamp(2.2rem, 5vw, 3.1rem); }
+.parte { flex: 1 1 0; min-width: 4px; border-radius: 4px; }
 .parte.ok { background: var(--bom); }
 .parte.observacao { background: var(--atencao); }
 .parte.quebrados { background: var(--ruim); }
@@ -141,10 +149,16 @@ h2 { margin: 3rem 0 1rem; font-size: 1.7rem; font-weight: 700; font-stretch: 80%
 @media (prefers-reduced-motion: reduce) { .regua .parte { animation: none; } }
 
 .marcas { display: block; width: 100%; height: 14px; margin-top: 6px; overflow: visible; color: var(--tinta-suave); }
-.legenda { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; margin: 1rem 0 0; padding: 0; font-size: 0.95rem; color: var(--tinta-suave); }
-.legenda li { display: flex; align-items: center; gap: 0.5rem; }
+
+/* Legenda: cada parte da régua com o número e uma explicação curta */
+.legenda {
+  list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  gap: 1rem 1.75rem; margin: 1.25rem 0 0; padding: 0; font-size: 0.95rem; color: var(--tinta-suave);
+}
+.legenda li { display: flex; align-items: flex-start; gap: 0.6rem; }
 .legenda strong { color: var(--tinta); font-weight: 700; font-variant-numeric: tabular-nums; }
-.amostra { flex: none; width: 14px; height: 14px; }
+.legenda small { display: block; margin-top: 0.15rem; font-size: 0.85rem; line-height: 1.4; }
+.amostra { flex: none; width: 14px; height: 14px; margin-top: 0.3rem; border-radius: 3px; }
 .legenda .ok .amostra { background: var(--bom); }
 .legenda .observacao .amostra { background: var(--atencao); }
 .legenda .quebrados .amostra { background: var(--ruim); }
@@ -155,32 +169,36 @@ h2 { margin: 3rem 0 1rem; font-size: 1.7rem; font-weight: 700; font-stretch: 80%
 
 /* Régua pequena, dentro da tabela de órgãos */
 .mini { display: inline-flex; gap: 1px; width: 56px; height: 8px; margin-left: 0.45rem; vertical-align: middle; }
-.mini .parte { min-width: 1px; }
+.mini .parte { min-width: 1px; border-radius: 2px; }
 .mini.vazia { background-image: repeating-linear-gradient(135deg, var(--linha-forte) 0 2px, transparent 2px 5px); }
 
-.aviso { max-width: 80ch; margin: 1.75rem 0 1rem; padding: 0.15rem 0 0.15rem 1rem; border-left: 4px solid var(--carimbo); color: var(--tinta-suave); }
+.aviso { max-width: 80ch; margin: 1.5rem 0 0.5rem; padding: 0.15rem 0 0.15rem 1rem; border-left: 4px solid var(--carimbo); color: var(--tinta-suave); }
 .aviso strong { color: var(--tinta); }
 .erro { margin: 1rem 0; padding: 0.75rem 1rem; background: #fbe1dc; color: #7d1d0e; border-left: 4px solid #d23a1f; }
 @media (prefers-color-scheme: dark) { .erro { background: #3b1a18; color: #ffb4ab; } }
 
-.metodo summary { cursor: pointer; font-weight: 600; color: var(--carimbo); }
-.metodo ul { margin: 0.5rem 0 0; padding-left: 1.25rem; max-width: 70ch; color: var(--tinta-suave); }
-
-/* Filtros */
-.lista h2 { margin-top: 1.5rem; }
-.filtros { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: 0.5rem; }
-.campo { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; font-weight: 600; color: var(--tinta-suave); }
+/* Filtros: busca larga, com ícone de lupa */
+.lista h2 { margin-top: 1.75rem; }
+.filtros { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin-bottom: 0.25rem; }
+.campo { flex: 1 1 200px; display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; font-weight: 600; color: var(--tinta-suave); }
+.campo-busca { flex: 2 1 300px; }
 .campo input, .campo select {
-  font: inherit; font-size: 1rem; font-weight: 400; color: var(--tinta); background: var(--superficie);
-  border: 1.5px solid var(--linha-forte); border-radius: 4px; padding: 0 0.75rem; height: 2.75rem; width: min(340px, 100%);
+  width: 100%; height: 2.9rem; padding: 0 0.75rem;
+  font: inherit; font-size: 1rem; font-weight: 400; color: var(--tinta); background-color: var(--superficie);
+  border: 1.5px solid var(--linha-forte); border-radius: 6px;
 }
-.campo select { width: auto; min-width: min(180px, 100%); }
-.marcar { display: flex; align-items: center; gap: 0.5rem; padding-bottom: 0.65rem; }
-.marcar input { width: 1.1rem; height: 1.1rem; accent-color: var(--carimbo); }
+.campo input[type="search"] {
+  padding-left: 2.6rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238c9bb0' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: 0.8rem center; background-size: 1.15rem;
+}
+.marcar { display: flex; align-items: center; gap: 0.5rem; height: 2.9rem; }
+.marcar input { width: 1.15rem; height: 1.15rem; accent-color: var(--carimbo); }
 .contagem { margin: 0.75rem 0; font-size: 0.9rem; color: var(--tinta-suave); }
+.vazio { margin: 1rem 0; padding: 1.5rem; background: var(--superficie); border-radius: 8px; color: var(--tinta-suave); text-align: center; }
 
 /* Tabelas */
-.tabela-rolagem { overflow-x: auto; background: var(--superficie); }
+.tabela-rolagem { overflow-x: auto; background: var(--superficie); border-radius: 8px; }
 table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
 th, td { padding: 0.8rem 0.7rem; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 td { border-bottom: 1px solid var(--linha); }
@@ -189,33 +207,37 @@ th:first-child, td:first-child { padding-left: 1rem; text-align: left; white-spa
 th:last-child, td:last-child { padding-right: 1rem; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--carimbo-fundo); }
-td:first-child a { color: var(--tinta); font-weight: 600; text-decoration-color: var(--carimbo); text-decoration-thickness: 2px; }
-th button { all: unset; cursor: pointer; font-weight: 600; }
-th button:hover { text-decoration: underline; text-underline-offset: 3px; }
-th button:focus-visible { outline: 2px solid var(--cabecalho-texto); outline-offset: 4px; }
-th[aria-sort="ascending"] button::after { content: " \25B2"; font-size: 0.7em; }
-th[aria-sort="descending"] button::after { content: " \25BC"; font-size: 0.7em; }
+td.atencao { color: var(--atencao-texto); font-weight: 700; }
+td.ruim { color: var(--ruim-texto); font-weight: 700; }
 
-/* Selos de status: carimbo com contorno; tracejado quando ainda não dá para dizer */
+/* Nas listas de órgãos e bases a linha toda é clicável: o link do nome cobre a linha */
+td:first-child a { color: var(--tinta); font-weight: 600; text-decoration-color: var(--carimbo); text-decoration-thickness: 2px; }
+#tabela-orgaos td:first-child, #tabela-bases td:first-child { position: relative; }
+#tabela-orgaos td:first-child a::after, #tabela-bases td:first-child a::after { content: ""; position: absolute; inset: 0; }
+td .sub { display: block; margin-top: 0.1rem; font-size: 0.82rem; color: var(--tinta-suave); }
+.tabela-rolagem:focus-visible { outline-offset: -3px; }
+
+/* Etiquetas de status: fundo claro com texto escuro; o texto sempre diz o estado, a cor só reforça.
+   Tracejada quando ainda não dá para dizer */
 .selo {
-  display: inline-block; padding: 0.15rem 0.6rem; border: 1.5px solid currentColor; border-radius: 3px;
-  font-size: 0.8rem; font-weight: 700; font-stretch: 90%; color: var(--tinta-suave);
+  display: inline-block; padding: 0.15rem 0.65rem; border: 1.5px solid transparent; border-radius: 4px;
+  background: var(--neutro-fundo); color: var(--tinta); font-size: 0.85rem; font-weight: 600;
 }
 .selo:empty { display: none; }
-.selo.em_dia { color: var(--bom-texto); }
-.selo.atrasada, .selo.parada { color: var(--atencao-texto); }
-.selo.fora_do_ar { color: var(--ruim-texto); }
-.selo.nao_verificavel { border-style: dashed; }
-#base-selo { padding: 0.3rem 0.9rem; border-width: 2.5px; font-size: 1.15rem; }
+.selo.em_dia { background: var(--bom-fundo); color: var(--bom-texto); }
+.selo.atrasada, .selo.parada { background: var(--atencao-fundo); color: var(--atencao-texto); }
+.selo.fora_do_ar { background: var(--ruim-fundo); color: var(--ruim-texto); }
+.selo.nao_verificavel { border-style: dashed; border-color: var(--linha-forte); }
+#base-selo { padding: 0.3rem 0.9rem; font-size: 1.1rem; }
 .abertura-interna .resposta { margin-top: 1.25rem; }
 
 .botao {
   margin: 1.25rem 0 0; font: inherit; font-weight: 600; cursor: pointer;
-  color: var(--carimbo-texto); background: var(--carimbo); border: 0; border-radius: 4px; padding: 0.65rem 1.25rem;
+  color: var(--carimbo-texto); background: var(--carimbo); border: 0; border-radius: 6px; padding: 0.7rem 1.4rem;
 }
 .botao:hover { filter: brightness(1.1); }
 .botao-link {
-  display: inline-block; margin-top: 0.5rem; padding: 0.6rem 1.1rem; border: 2px solid var(--carimbo); border-radius: 4px;
+  display: inline-block; margin-top: 0.5rem; padding: 0.6rem 1.1rem; border: 2px solid var(--carimbo); border-radius: 6px;
   font-weight: 600; text-decoration: none;
 }
 .botao-link:hover { background: var(--carimbo-fundo); }
@@ -236,9 +258,20 @@ code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-siz
 .rodape a { color: var(--rodape-link); }
 .rodape p { margin: 0; max-width: 70ch; }
 
-@media (max-width: 600px) {
+/* Celular: cada linha das listas vira um bloco, com o título de cada coluna junto do valor */
+@media (max-width: 720px) {
   .menu { gap: 1rem; }
-  .campo { flex: 1 1 100%; }
-  .campo input, .campo select { min-width: 0; width: 100%; }
+  .tabela-empilhada { background: transparent; overflow: visible; }
+  .tabela-empilhada table, .tabela-empilhada tbody { display: block; }
+  .tabela-empilhada thead { display: none; }
+  .tabela-empilhada tr {
+    position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem 1rem;
+    margin-bottom: 0.75rem; padding: 1rem; background: var(--superficie); border-radius: 8px;
+  }
+  .tabela-empilhada tbody tr:hover { background: var(--carimbo-fundo); }
+  .tabela-empilhada td { display: block; padding: 0; border: 0; text-align: left; white-space: normal; }
+  .tabela-empilhada td:first-child { grid-column: 1 / -1; position: static; min-width: 0; font-size: 1.05rem; }
+  .tabela-empilhada td[data-rotulo]::before { content: attr(data-rotulo); display: block; font-size: 0.78rem; font-weight: 600; color: var(--tinta-suave); }
+  .tabela-empilhada .mini { margin-left: 0; margin-top: 0.3rem; display: flex; width: 100%; max-width: 120px; }
   .ficha { padding: 1rem 1.1rem 0.7rem; }
 }

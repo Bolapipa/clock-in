@@ -25,26 +25,24 @@ const EXPLICACOES_STATUS = {
     + "Isso não quer dizer que a base esteja desatualizada.",
 };
 
-// Colunas da tabela de órgãos: chave do JSON e título
-const COLUNAS_ORGAOS = [
-  { chave: "nome", titulo: "Órgão" },
-  { chave: "esfera", titulo: "Esfera" },
-  { chave: "qtd_bases", titulo: "Bases" },
-  { chave: "links_testados", titulo: "Links testados" },
-  { chave: "percentual_ok", titulo: "Respondendo bem" },
-  { chave: "links_em_observacao", titulo: "Em observação" },
-  { chave: "links_quebrados", titulo: "Quebrados" },
-  { chave: "bases_fora_do_ar", titulo: "Bases fora do ar" },
-];
+// Títulos das colunas das tabelas (no celular cada linha vira um bloco e o título vem junto do valor)
+const COLUNAS_ORGAOS = ["Órgão", "Bases", "Respondendo bem", "Em observação", "Quebrados"];
+const COLUNAS_BASES = ["Base", "Links", "Respondendo bem", "Em observação", "Quebrados", "Status"];
 
-const COLUNAS_BASES = [
-  { chave: "titulo", titulo: "Base" },
-  { chave: "periodicidade", titulo: "Periodicidade" },
-  { chave: "links_total", titulo: "Links" },
-  { chave: "links_ok", titulo: "Respondendo bem" },
-  { chave: "links_em_observacao", titulo: "Em observação" },
-  { chave: "links_quebrados", titulo: "Quebrados" },
-  { chave: "status", titulo: "Status" },
+// Formas de ordenar, no formato "coluna|direção"; a primeira de cada lista é a ordem inicial
+const ORDENS_ORGAOS = [
+  { valor: "qtd_bases|desc", texto: "Mais bases" },
+  { valor: "links_quebrados|desc", texto: "Mais links quebrados" },
+  { valor: "links_em_observacao|desc", texto: "Mais links em observação" },
+  { valor: "percentual_ok|asc", texto: "Menor porcentagem respondendo bem" },
+  { valor: "percentual_ok|desc", texto: "Maior porcentagem respondendo bem" },
+  { valor: "nome|asc", texto: "Nome, de A a Z" },
+];
+const ORDENS_BASES = [
+  { valor: "links_quebrados|desc", texto: "Mais links quebrados" },
+  { valor: "links_em_observacao|desc", texto: "Mais links em observação" },
+  { valor: "links_total|desc", texto: "Mais links" },
+  { valor: "titulo|asc", texto: "Título, de A a Z" },
 ];
 
 // --- Funções puras (testadas em tests/site/app.test.js) ---
@@ -134,19 +132,26 @@ function ordenar(lista, coluna, direcao = "desc") {
 // As quatro partes da régua de saúde dos links. A soma delas é sempre o total de links:
 // "sem teste conclusivo" é o que sobra (timeout, 403, 405 ou ainda não alcançado pelo teste)
 const PARTES_DA_REGUA = [
-  { chave: "ok", rotulo: "respondendo bem" },
-  { chave: "observacao", rotulo: "em observação" },
-  { chave: "quebrados", rotulo: "quebrados" },
-  { chave: "nao_testados", rotulo: "sem teste conclusivo" },
+  { chave: "ok", rotulo: "respondendo bem", descricao: "O último teste abriu o link." },
+  { chave: "observacao", rotulo: "em observação", descricao: "1 ou 2 falhas seguidas. Pode ser só uma instabilidade." },
+  { chave: "quebrados", rotulo: "quebrados", descricao: "3 ou mais falhas em dias seguidos." },
+  { chave: "nao_testados", rotulo: "não deu para testar", descricao: "Sem resposta, bloqueio contra robôs ou ainda não alcançado pelo teste." },
 ];
 
 function partesDaRegua({ total, ok, emObservacao, quebrados }) {
   const valores = { ok: ok ?? 0, observacao: emObservacao ?? 0, quebrados: quebrados ?? 0 };
   valores.nao_testados = Math.max(0, (total ?? 0) - valores.ok - valores.observacao - valores.quebrados);
   const soma = Object.values(valores).reduce((a, b) => a + b, 0);
-  return PARTES_DA_REGUA.map(({ chave, rotulo }) => ({
-    chave, rotulo, quantidade: valores[chave], percentual: soma > 0 ? (100 * valores[chave]) / soma : 0,
+  return PARTES_DA_REGUA.map(({ chave, rotulo, descricao }) => ({
+    chave, rotulo, descricao, quantidade: valores[chave], percentual: soma > 0 ? (100 * valores[chave]) / soma : 0,
   }));
+}
+
+// Lê uma ordem no formato "coluna|direção"; qualquer coisa fora disso volta para a ordem padrão da lista
+function lerOrdem(valor, padrao = "qtd_bases|desc") {
+  const [coluna, direcao] = String(valor ?? "").split("|");
+  if (!coluna || !["asc", "desc"].includes(direcao)) return lerOrdem(padrao, "qtd_bases|desc");
+  return { coluna, direcao };
 }
 
 // "nenhum está quebrado", "1 está quebrado", "4.246 estão em observação"
@@ -256,7 +261,9 @@ function renderizarRegua(idDaCaixa, partes) {
     ...partes.filter((parte) => parte.quantidade > 0).map(parteDaRegua));
   const legenda = el("ul", { classe: "legenda" }, ...partes.map((parte) => el("li", { classe: parte.chave },
     el("span", { classe: "amostra", "aria-hidden": "true" }),
-    el("span", {}, el("strong", {}, formatarNumero(parte.quantidade)), ` ${parte.rotulo} (${formatarPercentual(parte.percentual)})`))));
+    el("span", { classe: "texto-da-legenda" },
+      el("strong", {}, formatarNumero(parte.quantidade)), ` ${parte.rotulo}`,
+      el("small", {}, `${formatarPercentual(parte.percentual)} dos links. ${parte.descricao}`)))));
   $(idDaCaixa).replaceChildren(regua, marcasDeRelogio(), legenda);
 }
 
@@ -285,17 +292,27 @@ function renderizarResumo(resumo) {
   }));
 }
 
-function cabecalho(colunas, ordem, aoOrdenar) {
+function cabecalho(titulos) {
   const linha = el("tr");
-  for (const coluna of colunas) {
-    const ativa = ordem.coluna === coluna.chave;
-    const th = el("th", { scope: "col", "aria-sort": ativa ? (ordem.direcao === "asc" ? "ascending" : "descending") : "none" });
-    const botao = el("button", { type: "button" }, coluna.titulo);
-    botao.addEventListener("click", () => aoOrdenar(coluna.chave, ativa && ordem.direcao === "desc" ? "asc" : "desc"));
-    th.append(botao);
-    linha.append(th);
-  }
+  for (const titulo of titulos) linha.append(el("th", { scope: "col" }, titulo));
   return linha;
+}
+
+// Célula de dado: o "data-rotulo" é o título da coluna, usado quando a linha vira um bloco no celular.
+// O tom (atencao ou ruim) destaca os números que merecem um olhar
+function celula(rotuloDaColuna, conteudo, tom = "") {
+  return el("td", { "data-rotulo": rotuloDaColuna, ...(tom ? { classe: tom } : {}) }, conteudo);
+}
+
+// Primeira célula da linha: o nome (que é o link) e uma linha de apoio embaixo
+function celulaDoNome(texto, endereco, apoio) {
+  return el("td", {}, el("a", { href: endereco }, texto), el("span", { classe: "sub" }, apoio));
+}
+
+// Mostra ou esconde o aviso de "nada encontrado" no lugar da tabela
+function mostrarVazio(idDoAviso, idDaTabela, vazio) {
+  $(idDoAviso).hidden = !vazio;
+  $(idDaTabela).closest(".tabela-rolagem").hidden = vazio;
 }
 
 function renderizarOrgaos() {
@@ -303,27 +320,23 @@ function renderizarOrgaos() {
   const ordenados = ordenar(filtrados, estado.ordem.coluna, estado.ordem.direcao);
   const visiveis = ordenados.slice(0, estado.paginaOrgaos * ORGAOS_POR_PAGINA);
 
-  $("tabela-orgaos").tHead.replaceChildren(cabecalho(COLUNAS_ORGAOS, estado.ordem, (coluna, direcao) => {
-    estado.ordem = { coluna, direcao };
-    estado.paginaOrgaos = 1;
-    renderizarOrgaos();
-  }));
+  $("tabela-orgaos").tHead.replaceChildren(cabecalho(COLUNAS_ORGAOS));
 
   $("tabela-orgaos").tBodies[0].replaceChildren(...visiveis.map((orgao) => {
     const linha = el("tr");
+    const percentual = celula("Respondendo bem", formatarPercentual(orgao.percentual_ok));
+    if (orgao.percentual_ok == null) percentual.title = "Poucos links testados para calcular a porcentagem";
+    percentual.append(reguaMini(orgao));
     linha.append(
-      el("td", {}, el("a", { href: `#orgao=${orgao.slug}` }, orgao.nome)),
-      el("td", {}, rotulo(ROTULOS_ESFERA, orgao.esfera)),
-      el("td", {}, formatarNumero(orgao.qtd_bases)),
-      el("td", {}, formatarNumero(orgao.links_testados)),
-      el("td", { title: orgao.percentual_ok == null ? "Poucos links testados para calcular a porcentagem" : "" },
-        formatarPercentual(orgao.percentual_ok), reguaMini(orgao)),
-      el("td", {}, formatarNumero(orgao.links_em_observacao)),
-      el("td", {}, formatarNumero(orgao.links_quebrados)),
-      el("td", {}, formatarNumero(orgao.bases_fora_do_ar)));
+      celulaDoNome(orgao.nome, `#orgao=${orgao.slug}`, rotulo(ROTULOS_ESFERA, orgao.esfera)),
+      celula("Bases", formatarNumero(orgao.qtd_bases)),
+      percentual,
+      celula("Em observação", formatarNumero(orgao.links_em_observacao), orgao.links_em_observacao > 0 ? "atencao" : ""),
+      celula("Quebrados", formatarNumero(orgao.links_quebrados), orgao.links_quebrados > 0 ? "ruim" : ""));
     return linha;
   }));
 
+  mostrarVazio("vazio-orgaos", "tabela-orgaos", filtrados.length === 0);
   $("contagem-orgaos").textContent = `${formatarNumero(filtrados.length)} de ${formatarNumero(estado.orgaos.length)} órgãos`;
   $("mais-orgaos").hidden = visiveis.length >= ordenados.length;
 }
@@ -334,26 +347,23 @@ function renderizarBases() {
   const ordenadas = ordenar(filtradas, estado.ordemBases.coluna, estado.ordemBases.direcao);
   const visiveis = ordenadas.slice(0, estado.paginaBases * BASES_POR_PAGINA);
 
-  $("tabela-bases").tHead.replaceChildren(cabecalho(COLUNAS_BASES, estado.ordemBases, (coluna, direcao) => {
-    estado.ordemBases = { coluna, direcao };
-    estado.paginaBases = 1;
-    renderizarBases();
-  }));
+  $("tabela-bases").tHead.replaceChildren(cabecalho(COLUNAS_BASES));
 
   $("tabela-bases").tBodies[0].replaceChildren(...visiveis.map((base) => {
     const selo = el("span", { classe: `selo ${base.status.toLowerCase()}`, title: base.motivo ?? "" }, rotulo(ROTULOS_STATUS, base.status));
     const linha = el("tr");
     linha.append(
-      el("td", {}, el("a", { href: linkDaBase(orgao.slug, base.slug) }, base.titulo || base.slug)),
-      el("td", {}, rotulo(ROTULOS_PERIODICIDADE, base.periodicidade)),
-      el("td", {}, formatarNumero(base.links_total)),
-      el("td", {}, formatarNumero(base.links_ok)),
-      el("td", {}, formatarNumero(base.links_em_observacao)),
-      el("td", {}, formatarNumero(base.links_quebrados)),
-      el("td", {}, selo));
+      celulaDoNome(base.titulo || base.slug, linkDaBase(orgao.slug, base.slug),
+        `Periodicidade ${rotulo(ROTULOS_PERIODICIDADE, base.periodicidade).toLowerCase()}`),
+      celula("Links", formatarNumero(base.links_total)),
+      celula("Respondendo bem", formatarNumero(base.links_ok)),
+      celula("Em observação", formatarNumero(base.links_em_observacao), base.links_em_observacao > 0 ? "atencao" : ""),
+      celula("Quebrados", formatarNumero(base.links_quebrados), base.links_quebrados > 0 ? "ruim" : ""),
+      celula("Status", selo));
     return linha;
   }));
 
+  mostrarVazio("vazio-bases", "tabela-bases", filtradas.length === 0);
   $("contagem-bases").textContent = `${formatarNumero(filtradas.length)} de ${formatarNumero(orgao.bases.length)} bases`;
   $("mais-bases").hidden = visiveis.length >= ordenadas.length;
 }
@@ -368,8 +378,9 @@ async function carregarOrgao(slug) {
     return null;
   }
   // Ao trocar de órgão, a tabela de bases volta ao começo
-  estado.ordemBases = { coluna: "links_quebrados", direcao: "desc" };
+  estado.ordemBases = lerOrdem(ORDENS_BASES[0].valor);
   estado.paginaBases = 1;
+  $("ordem-bases").value = ORDENS_BASES[0].valor;
   $("busca-base").value = "";
   $("so-problemas").checked = false;
   return estado.orgao;
@@ -462,6 +473,18 @@ async function iniciar() {
   const esferas = [...new Set(estado.orgaos.map((orgao) => orgao.esfera))].sort();
   $("filtro-esfera").append(...esferas.map((esfera) => el("option", { value: esfera }, rotulo(ROTULOS_ESFERA, esfera))));
 
+  $("ordem-orgaos").append(...ORDENS_ORGAOS.map((ordem) => el("option", { value: ordem.valor }, ordem.texto)));
+  $("ordem-bases").append(...ORDENS_BASES.map((ordem) => el("option", { value: ordem.valor }, ordem.texto)));
+  $("ordem-orgaos").addEventListener("input", () => {
+    estado.ordem = lerOrdem($("ordem-orgaos").value);
+    estado.paginaOrgaos = 1;
+    renderizarOrgaos();
+  });
+  $("ordem-bases").addEventListener("input", () => {
+    estado.ordemBases = lerOrdem($("ordem-bases").value, ORDENS_BASES[0].valor);
+    estado.paginaBases = 1;
+    renderizarBases();
+  });
   for (const id of ["busca-orgao", "filtro-esfera"]) {
     $(id).addEventListener("input", () => { estado.paginaOrgaos = 1; renderizarOrgaos(); });
   }
@@ -484,6 +507,7 @@ if (typeof document !== "undefined") {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     normalizar, formatarNumero, formatarPercentual, rotulo, lerRota, linkDaBase, explicarStatus, primeiraMaiuscula,
-    filtrarOrgaos, filtrarBases, temProblema, ordenar, partesDaRegua, fraseDaResposta, ROTULOS_PERIODICIDADE, EXPLICACOES_STATUS,
+    filtrarOrgaos, filtrarBases, temProblema, ordenar, partesDaRegua, fraseDaResposta, lerOrdem,
+    ORDENS_ORGAOS, ORDENS_BASES, ROTULOS_PERIODICIDADE, EXPLICACOES_STATUS,
   };
 }

@@ -6,7 +6,8 @@ const assert = require("node:assert/strict");
 
 const {
   normalizar, formatarNumero, formatarPercentual, rotulo, lerRota, linkDaBase, explicarStatus, primeiraMaiuscula, filtrarOrgaos,
-  filtrarBases, temProblema, ordenar, partesDaRegua, fraseDaResposta, ROTULOS_PERIODICIDADE, EXPLICACOES_STATUS,
+  filtrarBases, temProblema, ordenar, partesDaRegua, fraseDaResposta, lerOrdem, ORDENS_ORGAOS, ORDENS_BASES,
+  ROTULOS_PERIODICIDADE, EXPLICACOES_STATUS,
 } = require("../../site/app.js");
 
 const ORGAOS = [
@@ -154,6 +155,34 @@ test("fraseDaResposta dá a porcentagem e conta os problemas no singular e no pl
     "99,9% dos links testados respondem bem. Nenhum está em observação e 1 está quebrado.");
   assert.equal(fraseDaResposta({ percentual_ok: 80, em_observacao: 1, quebrados: 12 }),
     "80,0% dos links testados respondem bem. 1 está em observação e 12 estão quebrados.");
+});
+
+test("partesDaRegua explica cada parte em linguagem simples", () => {
+  const partes = partesDaRegua({ total: 10, ok: 5, emObservacao: 2, quebrados: 1 });
+
+  assert.deepEqual(partes.map((p) => p.rotulo), ["respondendo bem", "em observação", "quebrados", "não deu para testar"]);
+  for (const parte of partes) assert.ok(parte.descricao.length > 15, parte.chave);
+  // A regra de falha aparece na descrição: 3 falhas seguidas é quebrado
+  assert.match(partes[2].descricao, /3 ou mais falhas/);
+});
+
+test("lerOrdem entende 'coluna|direção' e volta para a ordem padrão com texto inválido", () => {
+  assert.deepEqual(lerOrdem("percentual_ok|asc"), { coluna: "percentual_ok", direcao: "asc" });
+  assert.deepEqual(lerOrdem("nome|desc"), { coluna: "nome", direcao: "desc" });
+  assert.deepEqual(lerOrdem("qualquer coisa"), { coluna: "qtd_bases", direcao: "desc" });
+  assert.deepEqual(lerOrdem("nome|lado"), { coluna: "qtd_bases", direcao: "desc" });
+  assert.deepEqual(lerOrdem(null), { coluna: "qtd_bases", direcao: "desc" });
+  assert.deepEqual(lerOrdem("", "links_quebrados|desc"), { coluna: "links_quebrados", direcao: "desc" });
+});
+
+test("todas as formas de ordenar oferecidas na tela são válidas e começam pela ordem inicial", () => {
+  for (const ordem of [...ORDENS_ORGAOS, ...ORDENS_BASES]) {
+    const lida = lerOrdem(ordem.valor, "x|y");
+    assert.equal(`${lida.coluna}|${lida.direcao}`, ordem.valor);
+    assert.ok(ordem.texto.length > 5);
+  }
+  assert.equal(ORDENS_ORGAOS[0].valor, "qtd_bases|desc");
+  assert.equal(ORDENS_BASES[0].valor, "links_quebrados|desc");
 });
 
 test("fraseDaResposta não inventa porcentagem quando não há links testados o bastante", () => {

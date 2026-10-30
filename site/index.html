@@ -50,29 +50,16 @@
       <section class="regua-secao" aria-label="Saúde dos links">
         <div id="regua-brasil" class="regua-bloco"></div>
         <p class="aviso">
-          <strong>Protótipo.</strong> O status pelo conteúdo dos arquivos (em dia, atrasada, parada) começa
-          quando houver histórico de leituras. Por enquanto o site mostra a saúde dos links.
-          Os números vêm de poucos dias de testes e podem mudar bastante nas próximas semanas, conforme o histórico cresce.
-          Órgãos com menos de 30 links testados ficam sem porcentagem.
+          <strong>Protótipo.</strong> O status pelo conteúdo dos arquivos (em dia, atrasada, parada) começa quando houver
+          histórico de leituras. Os números vêm de poucos dias de testes e podem mudar bastante. Órgãos com menos de
+          30 links testados ficam sem porcentagem. <a href="#metodologia">Como medimos</a>
         </p>
-        <details class="metodo">
-          <summary>Como medimos</summary>
-          <ul>
-            <li>Cada link recebe um teste por dia, de forma educada: uma requisição por vez em cada servidor.</li>
-            <li>Um link só é considerado <strong>quebrado</strong> depois de 3 falhas em dias diferentes seguidos.
-                Com 1 ou 2 falhas ele fica <strong>em observação</strong>.</li>
-            <li>Timeout, falha de conexão e erros 403 e 405 (proteção contra robôs) <strong>não contam como falha</strong>:
-                o órgão não pode ser acusado por algo que o teste não consegue provar.</li>
-            <li>Os links que não conseguimos verificar ficam de fora da conta e aparecem na cobertura.</li>
-          </ul>
-          <p><a href="#metodologia">Ler a metodologia completa</a></p>
-        </details>
       </section>
 
       <section class="lista" aria-labelledby="titulo-orgaos">
-        <h2 id="titulo-orgaos">Órgãos publicadores</h2>
+        <h2 id="titulo-orgaos">Procure um órgão</h2>
         <div class="filtros">
-          <label class="campo">
+          <label class="campo campo-busca">
             <span>Buscar órgão</span>
             <input id="busca-orgao" type="search" placeholder="Ex.: IBGE, Fortaleza, Saúde" autocomplete="off">
           </label>
@@ -80,14 +67,20 @@
             <span>Esfera</span>
             <select id="filtro-esfera"><option value="">Todas</option></select>
           </label>
+          <label class="campo">
+            <span>Ordenar por</span>
+            <select id="ordem-orgaos"></select>
+          </label>
         </div>
         <p id="contagem-orgaos" class="contagem" aria-live="polite"></p>
-        <div class="tabela-rolagem">
+        <div class="tabela-rolagem tabela-empilhada" role="region" aria-label="Tabela de órgãos publicadores" tabindex="0">
           <table id="tabela-orgaos">
+            <caption class="oculto">Órgãos publicadores e o resultado dos testes de links</caption>
             <thead></thead>
             <tbody></tbody>
           </table>
         </div>
+        <p id="vazio-orgaos" class="vazio" hidden>Nenhum órgão encontrado. Tente outra parte do nome ou escolha "Todas" na esfera.</p>
         <button id="mais-orgaos" class="botao" type="button" hidden>Mostrar mais órgãos</button>
       </section>
     </div>
@@ -107,11 +100,16 @@
       <section class="regua-secao" aria-label="Saúde dos links do órgão">
         <div id="regua-orgao" class="regua-bloco"></div>
       </section>
-      <section class="lista" aria-label="Bases do órgão">
+      <section class="lista" aria-labelledby="titulo-bases">
+        <h2 id="titulo-bases">Bases deste órgão</h2>
         <div class="filtros">
-          <label class="campo">
+          <label class="campo campo-busca">
             <span>Buscar base</span>
             <input id="busca-base" type="search" placeholder="Parte do título da base" autocomplete="off">
+          </label>
+          <label class="campo">
+            <span>Ordenar por</span>
+            <select id="ordem-bases"></select>
           </label>
           <label class="marcar">
             <input id="so-problemas" type="checkbox">
@@ -119,12 +117,14 @@
           </label>
         </div>
         <p id="contagem-bases" class="contagem" aria-live="polite"></p>
-        <div class="tabela-rolagem">
+        <div class="tabela-rolagem tabela-empilhada" role="region" aria-label="Tabela de bases do órgão" tabindex="0">
           <table id="tabela-bases">
+            <caption class="oculto">Bases do órgão e o resultado dos testes de links</caption>
             <thead></thead>
             <tbody></tbody>
           </table>
         </div>
+        <p id="vazio-bases" class="vazio" hidden>Nenhuma base encontrada. Tente outra parte do título ou desmarque "Só bases com problema".</p>
         <button id="mais-bases" class="botao" type="button" hidden>Mostrar mais bases</button>
       </section>
     </div>
