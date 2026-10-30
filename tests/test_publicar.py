@@ -27,7 +27,7 @@ def pastas_temporarias(tmp_path, monkeypatch):
     monkeypatch.setattr(portal, "RAIZ", tmp_path)
     monkeypatch.setattr(silver, "PASTA_SILVER", tmp_path / "dados" / "silver")
     monkeypatch.setattr(gold_status, "PASTA_GOLD", tmp_path / "dados" / "gold")
-    monkeypatch.setattr(gerar_api, "PASTA_SAIDA", tmp_path / "site" / "api")
+    monkeypatch.setattr(gerar_api, "PASTA_SAIDA", tmp_path / "web" / "public" / "api")
 
 
 def gravar(arquivo, colunas, linhas):
@@ -383,3 +383,13 @@ def test_main_aceita_outra_pasta_de_saida(monkeypatch, tmp_path):
 
     assert (destino / "resumo.json").exists()
     assert not (gerar_api.PASTA_SAIDA / "resumo.json").exists()
+
+
+def test_a_pasta_padrao_da_api_e_a_que_o_site_le():
+    # O Next.js serve o conteúdo de web/public como raiz do site: web/public/api vira /api.
+    # Lê o padrão num processo novo, porque a fixture deste arquivo troca a pasta por uma temporária
+    codigo = "import sys; sys.path.insert(0, r'" + str(Path(gerar_api.__file__).parent) + "'); import gerar_api; print(gerar_api.PASTA_SAIDA.as_posix())"
+    resultado = subprocess.run([sys.executable, "-c", codigo], capture_output=True, text=True)
+
+    assert resultado.returncode == 0, resultado.stderr
+    assert resultado.stdout.strip().endswith("/web/public/api")

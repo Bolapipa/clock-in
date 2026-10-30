@@ -14,6 +14,7 @@ const RAIO_INTERNO = 0.58;
 const PONTOS_WEBGPU = 9000;
 const PONTOS_CANVAS = 2600;
 const SEGUNDOS_POR_VOLTA = 9;
+const PRAZO_DO_WEBGPU_MS = 2500;
 const VARIAVEIS_DE_COR = ["--ok", "--obs", "--queb", "--nt"];
 
 // Lê as cores do tema atual nas variáveis CSS e converte para números entre 0 e 1
@@ -87,7 +88,16 @@ export function Mostrador({ partes, percentual, data, selecionado, aoSelecionar 
     };
 
     (async () => {
-      let pronto: Renderizador | null = await criarRenderizadorWebGPU(canvasGpu, posicoes(distribuirPontos(partes, PONTOS_WEBGPU), RAIO_INTERNO), RAIO_INTERNO);
+      // O WebGPU tem prazo: um driver ruim pode travar a inicialização em vez de falhar. Passado o prazo,
+      // o Canvas 2D assume, e um renderizador WebGPU que ficar pronto tarde demais é descartado
+      let expirou = false;
+      const tentativa = criarRenderizadorWebGPU(canvasGpu, posicoes(distribuirPontos(partes, PONTOS_WEBGPU), RAIO_INTERNO), RAIO_INTERNO);
+      tentativa.then((tardio) => { if (expirou) tardio?.destruir(); });
+      let pronto: Renderizador | null = await Promise.race([
+        tentativa,
+        new Promise<null>((resolve) => window.setTimeout(() => { expirou = true; resolve(null); }, PRAZO_DO_WEBGPU_MS)),
+      ]);
+      if (pronto) expirou = false;
       if (!pronto) {
         // Sem WebGPU: desenha com Canvas 2D no canvas de reserva, com menos pontos
         pronto = criarRenderizadorCanvas(canvas2d, posicoes(distribuirPontos(partes, PONTOS_CANVAS), RAIO_INTERNO), RAIO_INTERNO);

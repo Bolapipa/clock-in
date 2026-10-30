@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 
 import { PaginaDoOrgao } from "@/components/orgao/PaginaDoOrgao";
-import { formatarNumero, formatarPercentual } from "@/lib/dados";
+import { formatarNumero, formatarPercentual, nomeLegivel } from "@/lib/dados";
 import { lerListaDeOrgaos, lerResumo } from "@/lib/servidor";
 
 // Sem a API no build, gera uma página só, que avisa que não há dados
@@ -23,8 +23,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const orgao = await acharOrgao((await params).slug);
   if (!orgao) return { title: "Órgão" };
   return {
-    title: orgao.nome,
-    description: `${orgao.nome}: ${formatarNumero(orgao.qtd_bases)} bases no dados.gov.br, ${formatarPercentual(orgao.percentual_ok)} dos links respondendo bem e ${formatarNumero(orgao.links_quebrados)} links quebrados.`,
+    title: nomeLegivel(orgao.nome),
+    description: `${nomeLegivel(orgao.nome)}: ${formatarNumero(orgao.qtd_bases)} bases no dados.gov.br, ${formatarPercentual(orgao.percentual_ok)} dos links respondendo bem e ${formatarNumero(orgao.links_quebrados)} links quebrados.`,
   };
 }
 

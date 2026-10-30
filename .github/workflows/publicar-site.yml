@@ -124,12 +124,14 @@ jobs:
           # sem a Vercel compilar de novo
           mkdir -p .vercel/output/static
           cp -r web/out/. .vercel/output/static/
-          # Rotas: primeiro os arquivos; endereço de página sem a barra final ganha a barra (/metodologia ->
-          # /metodologia/); o que não existir mostra a página 404 do site (menos na API, que responde 404 puro)
+          # Rotas: a imagem de compartilhamento (arquivo sem extensão) declara o tipo PNG; depois os arquivos;
+          # endereço de página sem a barra final ganha a barra (/metodologia -> /metodologia/); o que não
+          # existir mostra a página 404 do site (menos na API, que responde 404 puro)
           cat > .vercel/output/config.json <<'JSON'
           {
             "version": 3,
             "routes": [
+              { "src": "^/opengraph-image$", "headers": { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600" }, "continue": true },
               { "handle": "filesystem" },
               { "src": "^/((?:[^/]+/)*[^/.]+)$", "status": 308, "headers": { "Location": "/$1/" } },
               { "handle": "error" },

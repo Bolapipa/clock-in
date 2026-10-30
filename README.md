@@ -151,10 +151,8 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/silver_links.py` | Gera a Silver da saúde dos links (`link_status` e `base_saude`) depois do `links.py` |
 | `python coletor/gold_status.py` | Gera o status de cada base (`gold/fato_status_base_diario`) a partir da Silver, da saúde dos links e do estado do conteúdo |
 | `python coletor/resumo_dia.py` | Imprime em Markdown os números do dia (catálogo, links, conteúdo, status); no workflow a saída vai para o painel da execução. Aceita `--data AAAA-MM-DD` |
-| `python publicar/gerar_api.py` | Gera a API estática (`site/api/*.json`) a partir da Silver do dia; o `site/` lê esses arquivos (veja a pasta `site/` para abrir o site no navegador) |
-| `python publicar/gerar_api.py --saida web/public/api` | Gera a API para o site novo em React (pasta `web/`) |
-| `cd web; npm install; npm run dev` | Abre o site (Next.js, Tailwind 4, WebGPU) em `http://localhost:3000`; `npm test` roda os testes e `npm run build` gera o site estático final em `web/out`, com uma página por órgão |
-| `node --test tests/site/app.test.js` | Roda os testes das funções de busca, filtro e ordenação do site (precisa do Node 20 ou mais novo) |
+| `python publicar/gerar_api.py` | Gera a API estática (`web/public/api/*.json`) a partir da Silver do dia; o site em `web/` lê esses arquivos |
+| `cd web; npm install; npm run dev` | Abre o site (Next.js, Tailwind 4, WebGPU) em `http://localhost:3000`; precisa da API gerada acima. `npm test` roda os testes das regras do site e `npm run build` gera o site estático final em `web/out`, com uma página por órgão (precisa do Node 22) |
 | `python coletor/nuvem.py baixar` / `subir` / `historico` | Estado e histórico nos releases do GitHub (usados pelo workflow `pipeline-diario.yml`; precisam do `gh` com login) |
 | `pytest -v` | Roda os testes automáticos |
 
@@ -166,7 +164,7 @@ clock-in/
 ├── sql/           # transformações da Silver (um arquivo por tabela)
 ├── referencia/    # tabelas de referência mantidas à mão
 ├── publicar/      # gera os JSON da API estática
-├── site/          # site estático (lê os JSON de site/api)
+├── web/           # site em Next.js (lê os JSON de web/public/api)
 ├── tests/         # testes automáticos (pytest), sem chamar nenhuma API
 ├── docs/          # ideia, pesquisa, validação, arquitetura, decisões e roadmap
 ├── validacao/     # pesquisa feita antes do projeto (não é código do produto)

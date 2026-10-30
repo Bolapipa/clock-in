@@ -8,7 +8,7 @@ import { useMemo, useState } from "react";
 import { useLingua } from "@/components/Provedores";
 import { CabecalhoDeSecao, CampoDeBusca, Escolha, Miolo, Regua } from "@/components/ui";
 import {
-  ORDENS_ORGAOS, filtrarOrgaos, filtrarPorEstado, formatarNumero, formatarPercentual, lerOrdem, linkDoOrgao, ordenar,
+  ORDENS_ORGAOS, filtrarOrgaos, filtrarPorEstado, formatarNumero, formatarPercentual, lerOrdem, linkDoOrgao, nomeLegivel, ordenar,
   partesDaRegua, type ChaveDaParte, type OrgaoResumo,
 } from "@/lib/dados";
 import { cn } from "@/lib/util";
@@ -78,7 +78,7 @@ export function ListaDeOrgaos({ orgaos, estado, limparEstado }: { orgaos: OrgaoR
                     <tr key={orgao.slug} className="group relative border-b border-linha last:border-0 hover:bg-superficie-2/60">
                       <td className="px-5 py-3.5">
                         <Link href={linkDoOrgao(orgao.slug)} className="font-medium text-tinta after:absolute after:inset-0 group-hover:underline group-hover:decoration-ambar group-hover:underline-offset-4">
-                          {orgao.nome}
+                          {nomeLegivel(orgao.nome)}
                         </Link>
                         <div className="mt-0.5 text-xs text-tinta-3">{t.esferas[orgao.esfera] ?? orgao.esfera}</div>
                       </td>
@@ -103,7 +103,7 @@ export function ListaDeOrgaos({ orgaos, estado, limparEstado }: { orgaos: OrgaoR
             <ul className="mt-4 grid gap-3 md:hidden">
               {visiveis.map((orgao) => (
                 <li key={orgao.slug} className="relative rounded-2xl border border-linha bg-superficie p-4">
-                  <Link href={linkDoOrgao(orgao.slug)} className="font-medium text-tinta after:absolute after:inset-0">{orgao.nome}</Link>
+                  <Link href={linkDoOrgao(orgao.slug)} className="font-medium text-tinta after:absolute after:inset-0">{nomeLegivel(orgao.nome)}</Link>
                   <div className="mt-0.5 text-xs text-tinta-3">{t.esferas[orgao.esfera] ?? orgao.esfera} · {formatarNumero(orgao.qtd_bases)} {t.mapa.bases}</div>
                   <div className="mt-3"><Regua altura="h-2" rotulo={orgao.nome} partes={partesDaRegua({ total: orgao.links_total, ok: orgao.links_ok, emObservacao: orgao.links_em_observacao, quebrados: orgao.links_quebrados })} /></div>
                   <dl className="numeros mt-3 grid grid-cols-3 gap-2 font-mono text-xs">

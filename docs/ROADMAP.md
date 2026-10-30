@@ -63,7 +63,7 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
    ├── sql/            # transformações (bronze -> silver -> gold)
    ├── dados/          # Parquet gerado localmente (fora do Git)
    ├── publicar/       # gera os JSON da API estática (Fase 6)
-   ├── site/           # Fase 7
+   ├── web/            # Fase 7 (site em Next.js)
    ├── tests/          # pytest
    ├── docs/
    └── validacao/      # pesquisa já feita (não é código do produto)
@@ -319,6 +319,8 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 **Primeira publicação, 30/10/2026:** o workflow publicou o site com os dados de 29/10 em https://clock-in-indol.vercel.app, em 1 minuto e 14 segundos.
 
 **Site novo em Next.js, feito em 30/10/2026:** a pasta `web/` foi refeita em Next.js 16 (exportado como site estático), Tailwind 4, Motion e WebGPU, tomando como referência técnica dois sites interativos de exemplo. A identidade é a do relógio de ponto: tinta azul-noite, âmbar de carimbo e as quatro cores dos estados dos links. A página inicial tem um **mostrador em WebGPU** (um relógio feito de milhares de pontos, cada um uma amostra dos links na cor do seu estado, com um ponteiro que varre o mostrador; clicar num estado filtra os órgãos), com reserva em Canvas 2D para navegadores sem WebGPU; os **números do dia**; o **simulador "sete dias na vida de um link"**, que aplica a mesma regra do pipeline e explica cada decisão; o **mapa de órgãos** em bolhas (tamanho pelas bases, cor pela parte dos links respondendo bem) e a lista com busca, esfera e ordem. Cada um dos 611 órgãos tem uma página estática, e cada base abre num painel lateral com endereço próprio. Há busca rápida (Ctrl K), tema claro e escuro, português e inglês, e as páginas "Como medimos" e "Dados e API" (com resposta ao vivo e exemplos). As regras do simulador e do mostrador têm testes com Vitest; o shader WGSL foi validado no Dawn (o motor WebGPU do Chrome) com a placa de vídeo real, contando os pixels desenhados.
+
+**Limpeza e acabamento, 30/10/2026:** o protótipo antigo em JavaScript puro (`site/` e `tests/site/`) foi removido, e a API passou a ser gerada por padrão em `web/public/api`. Os nomes de órgãos que chegam do portal em formato de endereço (85 de 611, como `agencia-nacional-de-aguas-e-saneamento-basico`) aparecem bem escritos, com acentos e a sigla entre parênteses; os 256 que são domínios (`api.pgi.gov.br`) ficam como vieram. O site ganhou a imagem de compartilhamento (o cartão com a porcentagem do dia, gerado a cada publicação), e o mostrador passou a ter um prazo de 2,5 segundos para o WebGPU: se a inicialização travar, o Canvas 2D assume.
 
 **Falta na Fase 7:** o ranking (depende do status por conteúdo e da nota).
 

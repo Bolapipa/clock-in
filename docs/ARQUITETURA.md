@@ -60,7 +60,7 @@ clock-in/
 ├── sql/            # transformações (bronze -> silver -> gold)
 ├── referencia/     # tabelas de referência mantidas à mão (ex.: dominios.csv)
 ├── publicar/       # gera os JSON da API estática e o RSS
-├── site/           # site estático
+├── web/            # site em Next.js (exporta arquivos estáticos)
 ├── tests/          # pytest
 ├── docs/
 ├── validacao/      # pesquisa já feita (não é código do produto)
@@ -210,7 +210,7 @@ O contrato de cada arquivo é documentado em JSON Schema e validado por testes (
 
 ### Protótipo atual (decisão 35)
 
-Enquanto o status por conteúdo não tem histórico, a API traz só o que a Silver já sabe. `publicar/gerar_api.py` a gera em `site/api/`, que não vai para o Git:
+Enquanto o status por conteúdo não tem histórico, a API traz só o que a Silver já sabe. `publicar/gerar_api.py` a gera em `web/public/api/`, que não vai para o Git:
 
 | Arquivo | Conteúdo |
 |---|---|

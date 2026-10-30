@@ -128,6 +128,45 @@ export function explicarStatus(status: string): string {
   return EXPLICACOES_STATUS[status] ?? "";
 }
 
+// --- Nomes de órgãos legíveis ---
+
+// Alguns órgãos chegam do portal em formato de endereço: "agencia-nacional-de-aguas-e-saneamento-basico".
+// A função devolve o nome bem escrito. Só mexe em nomes nesse formato; qualquer outro volta igual.
+const PALAVRAS_PEQUENAS = new Set(["de", "da", "do", "das", "dos", "e", "em", "a", "o"]);
+const SIGLAS = new Set([
+  "aeb", "anvisa", "ba", "bcb", "br", "cvs", "ebserh", "ebserhhc", "fbn", "funag", "funai", "gov", "gsiste", "hu", "hub", "hujbufcg",
+  "ibge", "icmbio", "ifap", "ifbaiano", "ifce", "ifg", "ifmt", "ii", "inep", "inpe", "mcom", "pt", "rn", "segovpr", "segrt", "sudeco",
+  "susep", "tse", "ufc", "ufcspa", "ufersa", "ufmg", "ufrr", "ufscar", "uftm", "unb", "www",
+]);
+const ACENTOS: Record<string, string> = {
+  agencia: "Agência", aguas: "Águas", amapa: "Amapá", anisio: "Anísio", aquaviarios: "Aquaviários", arido: "Árido", basico: "Básico",
+  biocombustiveis: "Biocombustíveis", brasilia: "Brasília", ceara: "Ceará", ciencia: "Ciência", ciencias: "Ciências", cientifica: "Científica",
+  cientifico: "Científico", clinicas: "Clínicas", colegio: "Colégio", comissao: "Comissão", computacao: "Computação", educacao: "Educação",
+  eletrica: "Elétrica", estatistica: "Estatística", exercito: "Exército", fundacao: "Fundação", gas: "Gás", gestao: "Gestão", goias: "Goiás",
+  indio: "Índio", informacao: "Informação", inovacao: "Inovação", integracao: "Integração", itajuba: "Itajubá", justica: "Justiça",
+  laboratorio: "Laboratório", ministerio: "Ministério", mobiliarios: "Mobiliários", orcamento: "Orçamento", paraiba: "Paraíba",
+  pecuaria: "Pecuária", petroleo: "Petróleo", policia: "Polícia", publica: "Pública", publicos: "Públicos", rodoviaria: "Rodoviária",
+  sanitaria: "Sanitária", saude: "Saúde", seguranca: "Segurança", servicos: "Serviços", superintendencia: "Superintendência",
+  tecnologica: "Tecnológica", tecnologico: "Tecnológico", telecomunicacoes: "Telecomunicações", triangulo: "Triângulo",
+  universitario: "Universitário", vicosa: "Viçosa", educacionais: "Educacionais",
+};
+
+export function nomeLegivel(nome: string): string {
+  // Só nomes no formato de slug: minúsculas, números e hifens (com hífen no fim, às vezes); "https-..." é endereço de site e fica como veio
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)+-?$/.test(nome) || nome.startsWith("https-")) return nome;
+  const palavras = nome.replace(/-$/, "").split("-");
+  const texto = palavras.map((palavra, indice) => {
+    if (SIGLAS.has(palavra)) return palavra.toUpperCase();
+    if (indice > 0 && PALAVRAS_PEQUENAS.has(palavra)) return palavra;
+    return ACENTOS[palavra] ?? palavra.charAt(0).toUpperCase() + palavra.slice(1);
+  });
+  // A sigla no fim ("...do-ceara-ufc") vai entre parênteses, se houver um nome antes dela
+  let fim = texto.length;
+  while (fim > 0 && SIGLAS.has(palavras[fim - 1])) fim -= 1;
+  if (fim > 0 && fim < texto.length) return `${texto.slice(0, fim).join(" ")} (${texto.slice(fim).join(" ")})`;
+  return texto.join(" ");
+}
+
 // --- Endereços das páginas ---
 
 // Página de um órgão (cada órgão vira uma página estática no build)

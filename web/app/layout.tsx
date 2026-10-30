@@ -13,6 +13,8 @@ import { lerResumo } from "@/lib/servidor";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  // Endereço público do site: sem ele, as imagens de compartilhamento saem com endereço relativo
+  metadataBase: new URL("https://clock-in-indol.vercel.app"),
   title: { default: "Clock-in · Os dados abertos do Brasil ainda batem o ponto?", template: "%s · Clock-in" },
   description: "Monitor diário dos dados abertos do governo: testa os links de todas as bases do dados.gov.br e mostra, órgão por órgão, o que ainda responde e o que quebrou.",
   applicationName: "Clock-in",

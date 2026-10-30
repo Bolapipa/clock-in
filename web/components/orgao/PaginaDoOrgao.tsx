@@ -12,7 +12,7 @@ import { useLingua } from "@/components/Provedores";
 import { COR_DO_ESTADO, CampoDeBusca, Escolha, Kicker, Miolo, Regua, Status } from "@/components/ui";
 import { usarOrgao } from "@/lib/cliente";
 import {
-  ORDENS_BASES, filtrarBases, formatarNumero, formatarPercentual, lerOrdem, ordenar, partesDaRegua, slugValido,
+  ORDENS_BASES, filtrarBases, formatarNumero, formatarPercentual, lerOrdem, nomeLegivel, ordenar, partesDaRegua, slugValido,
   type Base, type OrgaoResumo,
 } from "@/lib/dados";
 import { dataNaLingua } from "@/lib/i18n";
@@ -47,11 +47,11 @@ export function PaginaDoOrgao({ orgao, dataColeta }: { orgao: OrgaoResumo | null
             <ChevronRight className="size-3.5" aria-hidden="true" />
             <Link href="/#orgaos" className="hover:text-tinta">{t.orgao.orgaos}</Link>
             <ChevronRight className="size-3.5" aria-hidden="true" />
-            <span aria-current="page" className="truncate text-tinta-2">{orgao.nome}</span>
+            <span aria-current="page" className="truncate text-tinta-2">{nomeLegivel(orgao.nome)}</span>
           </nav>
           <div className="mt-8">
             <Kicker>{t.orgao.resumo(esfera, orgao.qtd_bases)}{dataColeta ? ` · ${t.hero.coleta(dataNaLingua(dataColeta, lingua))}` : ""}</Kicker>
-            <h1 className="mt-4 max-w-4xl text-balance text-[clamp(2rem,4.6vw,3.6rem)] font-semibold leading-[1.02] tracking-[-0.04em] text-tinta">{orgao.nome}</h1>
+            <h1 className="mt-4 max-w-4xl text-balance text-[clamp(2rem,4.6vw,3.6rem)] font-semibold leading-[1.02] tracking-[-0.04em] text-tinta">{nomeLegivel(orgao.nome)}</h1>
           </div>
 
           <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

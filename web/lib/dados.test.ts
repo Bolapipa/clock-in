@@ -5,7 +5,7 @@ import { describe, expect, test } from "vitest";
 import {
   EXPLICACOES_STATUS, ORDENS_BASES, ORDENS_ORGAOS, ROTULOS_PERIODICIDADE, explicarStatus, filtrarBases, filtrarOrgaos,
   formatarData, formatarNumero, formatarPercentual, fraseDaResposta, lerOrdem, linkDaBase, linkDoOrgao, normalizar, ordenar,
-  filtrarPorEstado, partesDaRegua, primeiraMaiuscula, rotulo, slugValido, temProblema, type OrgaoResumo,
+  filtrarPorEstado, nomeLegivel, partesDaRegua, primeiraMaiuscula, rotulo, slugValido, temProblema, type OrgaoResumo,
 } from "./dados";
 
 const ORGAOS = [
@@ -65,6 +65,33 @@ describe("formatação", () => {
     expect(explicarStatus("STATUS_NOVO")).toBe("");
     // Não verificável nunca é descrito como desatualizado
     expect(EXPLICACOES_STATUS.NAO_VERIFICAVEL).toMatch(/não quer dizer que a base esteja desatualizada/);
+  });
+});
+
+describe("nomes de órgãos legíveis", () => {
+  test("nome em formato de slug ganha maiúsculas, acentos e a sigla entre parênteses", () => {
+    expect(nomeLegivel("agencia-nacional-de-aguas-e-saneamento-basico")).toBe("Agência Nacional de Águas e Saneamento Básico");
+    expect(nomeLegivel("universidade-federal-do-ceara-ufc")).toBe("Universidade Federal do Ceará (UFC)");
+    expect(nomeLegivel("instituto-brasileiro-de-geografia-e-estatistica-ibge-")).toBe("Instituto Brasileiro de Geografia e Estatística (IBGE)");
+    expect(nomeLegivel("ministerio-da-gestao-e-da-inovacao-em-servicos-publicos")).toBe("Ministério da Gestão e da Inovação em Serviços Públicos");
+    expect(nomeLegivel("universidade-federal-rural-do-semi-arido-ufersa-rn")).toBe("Universidade Federal Rural do Semi Árido (UFERSA RN)");
+  });
+
+  test("só siglas ficam em maiúsculas, sem parênteses", () => {
+    expect(nomeLegivel("hu-ufscar")).toBe("HU UFSCAR");
+  });
+
+  test("nomes que já vêm bem escritos, domínios e endereços de site não mudam", () => {
+    for (const nome of ["IBGE - Fundação Instituto Brasileiro de Geografia e Estatística", "api.pgi.gov.br", "www.gov.br/inep", "VERIFICAR",
+      "Prefeitura de Fortaleza", "https-www-gov-br-mcom-pt-br", "ibge", ""]) {
+      expect(nomeLegivel(nome), nome).toBe(nome);
+    }
+  });
+
+  test("aplicar duas vezes dá o mesmo resultado", () => {
+    const uma = nomeLegivel("agencia-nacional-de-telecomunicacoes");
+    expect(uma).toBe("Agência Nacional de Telecomunicações");
+    expect(nomeLegivel(uma)).toBe(uma);
   });
 });
 

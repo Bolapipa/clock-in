@@ -10,7 +10,7 @@ import { useMemo, useState } from "react";
 import { useLingua } from "@/components/Provedores";
 import { CabecalhoDeSecao, Miolo, Pilulas } from "@/components/ui";
 import { FAIXAS, faixaDoPercentual, type Faixa } from "@/lib/cores";
-import { formatarNumero, formatarPercentual, linkDoOrgao, type OrgaoResumo } from "@/lib/dados";
+import { formatarNumero, formatarPercentual, linkDoOrgao, nomeLegivel, type OrgaoResumo } from "@/lib/dados";
 
 const LADO = 1000;
 
@@ -98,7 +98,7 @@ export function MapaDeOrgaos({ orgaos }: { orgaos: OrgaoResumo[] }) {
             {info && (
               <div className="pointer-events-none absolute z-10 w-64 -translate-x-1/2 -translate-y-[calc(100%+10px)] rounded-xl border border-linha bg-superficie/95 p-3 shadow-xl backdrop-blur"
                 style={{ left: `${(info.x / LADO) * 100}%`, top: `${((info.y - info.r) / LADO) * 100}%` }}>
-                <div className="text-sm font-semibold leading-snug text-tinta">{info.orgao.nome}</div>
+                <div className="text-sm font-semibold leading-snug text-tinta">{nomeLegivel(info.orgao.nome)}</div>
                 <dl className="numeros mt-2 grid grid-cols-3 gap-2 font-mono text-xs">
                   <div><dt className="text-tinta-3">{t.mapa.bases}</dt><dd className="text-tinta">{formatarNumero(info.orgao.qtd_bases)}</dd></div>
                   <div><dt className="text-tinta-3">{t.mapa.respondendo}</dt><dd className="text-tinta">{formatarPercentual(info.orgao.percentual_ok)}</dd></div>

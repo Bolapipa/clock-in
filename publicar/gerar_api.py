@@ -1,7 +1,7 @@
 """Gera a API estática do Clock-in (Fase 6): arquivos JSON lidos pelo site.
 
 Lê a Silver do dia (bases, órgão publicador e saúde dos links) e, se existir, o status
-das bases (Gold). Grava, por padrão em site/api/:
+das bases (Gold). Grava, por padrão em web/public/api/ (o Next.js a leva para o site):
     resumo.json           totais do Brasil
     orgaos.json           um resumo por órgão publicador (a lista fica na chave "orgaos")
     orgaos/<slug>.json    o órgão e a lista das bases dele
@@ -35,7 +35,7 @@ import portal
 import silver
 
 # Pasta de saída padrão e arquivo SQL que lista as bases
-PASTA_SAIDA = portal.RAIZ / "site" / "api"
+PASTA_SAIDA = portal.RAIZ / "web" / "public" / "api"
 ARQUIVO_SQL = "api_base.sql"
 
 # Versão do contrato da API (docs/API.md). Sobe quando uma chave é removida, renomeada ou muda de
@@ -194,7 +194,7 @@ def gerar(con, data, saida):
 def main():
     parser = argparse.ArgumentParser(description="Gera a API estática (JSON) do Clock-in")
     parser.add_argument("--data", type=date.fromisoformat, help="data da Silver a usar (AAAA-MM-DD); padrão: hoje em Brasília")
-    parser.add_argument("--saida", type=Path, default=PASTA_SAIDA, help="pasta onde gravar os JSON (padrão: site/api)")
+    parser.add_argument("--saida", type=Path, default=PASTA_SAIDA, help="pasta onde gravar os JSON (padrão: web/public/api)")
     args = parser.parse_args()
     data = args.data or portal.data_de_hoje()
 
