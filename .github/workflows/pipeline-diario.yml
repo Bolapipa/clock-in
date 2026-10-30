@@ -1,7 +1,7 @@
 name: Pipeline diário dados.gov.br
 
-# Ingere o catálogo do dados.gov.br e os testes de links na Bronze e monta a Silver.
-# Cada passo é uma etapa própria, com seu log e seu tempo na aba Actions.
+# Ingere o catálogo do dados.gov.br e os testes de links na Bronze, monta a Silver e a Gold,
+# gera a API e compila o site. Cada passo é uma etapa própria, com seu log e seu tempo na aba Actions.
 # Roda todo dia às 03:17 de Brasília (06:17 UTC) e também pode ser disparado à mão
 # (aba Actions > Pipeline diário dados.gov.br > Run workflow). O minuto 17 evita o horário
 # cheio, em que o GitHub atrasa mais as execuções agendadas.
@@ -106,6 +106,42 @@ jobs:
 
       - name: Gold | Modelagem do status de cada base
         run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas gold_status
+
+      # As etapas do site geram a API com os dados do dia e compilam o site (pasta web/). O resultado fica
+      # como arquivo da execução (Artifacts); a publicação na Vercel entra depois, quando houver o projeto
+      # e o token. Rodam mesmo se uma etapa anterior falhar e nunca derrubam o dia: se uma falhar,
+      # as seguintes são puladas e o GitHub mostra o aviso
+      - name: Site | Gera a API com os dados do dia
+        id: api
+        if: always() && steps.baixar.outcome == 'success'
+        continue-on-error: true
+        run: python publicar/gerar_api.py --data "$DATA" --saida web/public/api
+
+      - uses: actions/setup-node@v4
+        if: always() && steps.api.outcome == 'success'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Site | Testa e compila o site com a API do dia
+        id: site
+        if: always() && steps.api.outcome == 'success'
+        continue-on-error: true
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build
+
+      - name: Site | Guarda o site compilado na execução
+        if: always() && steps.site.outcome == 'success'
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-${{ env.DATA }}
+          path: web/dist
+          retention-days: 14
 
       # O resumo roda mesmo se uma etapa falhar (mostra o que faltou) e nunca derruba o dia
       - name: Resumo | Números do dia no painel da execução
