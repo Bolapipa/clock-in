@@ -11,14 +11,14 @@ import { cn } from "@/lib/util";
 const URL_CONTRATO = "https://github.com/Bolapipa/clock-in/blob/main/docs/API.md";
 
 const EXEMPLOS = {
-  JavaScript: `const resposta = await fetch("https://clock-in-indol.vercel.app/api/resumo.json");
+  JavaScript: `const resposta = await fetch("https://clock-in-monitor.vercel.app/api/resumo.json");
 const resumo = await resposta.json();
 console.log(resumo.links.percentual_ok, "% dos links respondendo bem");`,
   Python: `import httpx
 
-resumo = httpx.get("https://clock-in-indol.vercel.app/api/resumo.json").json()
+resumo = httpx.get("https://clock-in-monitor.vercel.app/api/resumo.json").json()
 print(resumo["links"]["percentual_ok"], "% dos links respondendo bem")`,
-  curl: `curl -s https://clock-in-indol.vercel.app/api/orgaos.json | jq '.orgaos[0]'`,
+  curl: `curl -s https://clock-in-monitor.vercel.app/api/orgaos.json | jq '.orgaos[0]'`,
 };
 type Linguagem = keyof typeof EXEMPLOS;
 
