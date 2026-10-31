@@ -322,6 +322,8 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 **Limpeza e acabamento, 30/10/2026:** o protótipo antigo em JavaScript puro (`site/` e `tests/site/`) foi removido, e a API passou a ser gerada por padrão em `web/public/api`. Os nomes de órgãos que chegam do portal em formato de endereço (85 de 611, como `agencia-nacional-de-aguas-e-saneamento-basico`) aparecem bem escritos, com acentos e a sigla entre parênteses; os 256 que são domínios (`api.pgi.gov.br`) ficam como vieram. O site ganhou a imagem de compartilhamento (o cartão com a porcentagem do dia, gerado a cada publicação), e o mostrador passou a ter um prazo de 2,5 segundos para o WebGPU: se a inicialização travar, o Canvas 2D assume.
 
+**Limite da Vercel, descoberto em 30/10/2026:** a quarta publicação do dia falhou com "Too many requests - try again in 24 hours (more than 5000, code: api-upload-free)": o plano gratuito recusa mais de 5.000 arquivos enviados por dia, e o site tem 3.715 (uma página por órgão, os arquivos de dados do Next e a API). Solução: o workflow envia o site como um arquivo compactado só (`--archive=tgz`). O site no ar não foi afetado pela falha, porque a Vercel mantém a publicação anterior.
+
 **Falta na Fase 7:** o ranking (depende do status por conteúdo e da nota).
 
 **Entregável:** site publicado e atualizado todo dia.
