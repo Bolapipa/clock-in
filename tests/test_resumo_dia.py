@@ -97,6 +97,7 @@ def test_catalogo():
     texto = resumo_dia.gerar_resumo(HOJE)
 
     assert "# Resumo do dia 2026-10-27" in texto
+    assert "| Portal do dados.gov.br | respondeu com dados |" in texto
     assert "| Bases na listagem | 150 |" in texto
     assert "| Detalhes coletados | 3 de 4 (alterada: 2, nova: 1, rodizio: 1) |" in texto
     assert "| Detalhes com falha | 1 |" in texto
@@ -166,6 +167,9 @@ def test_dia_sem_nada_avisa_cada_secao_e_nao_quebra():
 
     assert "**Atenção:** sem dados em: Catálogo, Links, Conteúdo, Status, Estado." in texto
     assert "Sem listagem neste dia" in texto
+    # O aviso aponta o portal como causa possível; a linha de "respondeu" não aparece
+    assert "o portal do dados.gov.br não respondeu com dados" in texto
+    assert "respondeu com dados |" not in texto
     assert "Sem teste de links neste dia" in texto
     assert "Nenhum arquivo foi baixado neste dia" in texto
     assert "O status das bases não foi gerado neste dia" in texto

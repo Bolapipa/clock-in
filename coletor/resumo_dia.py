@@ -59,10 +59,13 @@ def secao_catalogo(con, data):
     """Bases na listagem e detalhes coletados."""
     saida = ["## Catálogo", ""]
     if not abrir(con, "lista", "bronze/catalogo_lista", data):
-        return saida + ["Sem listagem neste dia: o passo da listagem não rodou.", ""], False
+        # Sem listagem, ou o portal não respondeu com dados (fora do ar ou lista vazia), ou o passo não rodou
+        return saida + ["Sem listagem neste dia: o portal do dados.gov.br não respondeu com dados "
+                        "(fora do ar ou lista vazia) ou o passo da listagem não rodou.", ""], False
 
     bases = con.execute("SELECT COALESCE(SUM(qtd_registros), 0) FROM lista").fetchall()[0][0]
-    linhas = [("Bases na listagem", milhar(bases))]
+    # Registra no painel de cada dia que o portal respondeu, para saber depois em quais dias ele ficou fora
+    linhas = [("Portal do dados.gov.br", "respondeu com dados"), ("Bases na listagem", milhar(bases))]
     if abrir(con, "detalhe", "bronze/catalogo_detalhe", data):
         total, ok = con.execute("SELECT COUNT(*), COUNT(*) FILTER (WHERE status_http = 200) FROM detalhe").fetchall()[0]
         motivos = con.execute("SELECT motivo, COUNT(*) FROM detalhe GROUP BY 1 ORDER BY 2 DESC, 1").fetchall()
