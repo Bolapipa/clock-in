@@ -38,6 +38,7 @@ export function Rodape({ dataColeta }: { dataColeta: string | null }) {
         <Coluna titulo={t.rodape.dados}>
           <li><a className={estiloLink} href="https://dados.gov.br" target="_blank" rel="noopener">dados.gov.br</a></li>
           <li>{t.rodape.fonte}</li>
+          <li><a className={estiloLink} href="/rss/geral.xml">{t.rodape.rss}</a></li>
         </Coluna>
         <Coluna titulo={t.rodape.stack}>
           <li>Python · DuckDB · Parquet</li>

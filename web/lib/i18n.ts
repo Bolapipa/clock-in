@@ -195,6 +195,12 @@ const pt = {
     respondendoSub: (ok: number) => `${formatarNumero(ok)} links`,
     foraDoAr: "Bases fora do ar",
     foraDoArSub: "todos os links quebrados",
+    nota: "Nota pelo conteúdo",
+    notaSub: (verificaveis: number, bases: number, cobertura: number | null) =>
+      `${formatarNumero(verificaveis)} de ${formatarNumero(bases)} bases verificáveis · cobertura de ${formatarPercentual(cobertura)}`,
+    semNota: "Ainda sem nota: nenhuma base deste órgão tem arquivo lido o bastante para ser avaliada pelo conteúdo.",
+    comoNota: "Como a nota é calculada",
+    rss: "Assinar por RSS",
     regua: "Saúde dos links do órgão",
     bases: "Bases do órgão",
     buscar: "Buscar base",
@@ -251,6 +257,7 @@ const pt = {
     atualizado: (data: string) => `Dados de ${data}`,
     licenca: "Código aberto (licença MIT)",
     portfolio: "Portfólio",
+    rss: "Feed RSS: o que mudou",
   },
 };
 
@@ -424,6 +431,12 @@ const en: Dicionario = {
     respondendoSub: (ok) => `${formatarNumero(ok)} links`,
     foraDoAr: "Datasets offline",
     foraDoArSub: "every link broken",
+    nota: "Content score",
+    notaSub: (verificaveis, bases, cobertura) =>
+      `${formatarNumero(verificaveis)} of ${formatarNumero(bases)} datasets verifiable · ${formatarPercentual(cobertura)} coverage`,
+    semNota: "No score yet: none of this agency's datasets has enough files read to be assessed by content.",
+    comoNota: "How the score is calculated",
+    rss: "Subscribe via RSS",
     regua: "Link health for this agency",
     bases: "Datasets",
     buscar: "Search dataset",
@@ -480,6 +493,7 @@ const en: Dicionario = {
     atualizado: (data) => `Data from ${data}`,
     licenca: "Open source (MIT license)",
     portfolio: "Portfolio",
+    rss: "RSS feed: what changed",
   },
 };
 

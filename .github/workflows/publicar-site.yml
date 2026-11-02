@@ -88,6 +88,11 @@ jobs:
         if: steps.dia.outputs.ha_dados == 'true'
         run: python publicar/gerar_api.py --data "$DATA" --saida web/public/api
 
+      # Os feeds leem os eventos dos últimos 30 dias, que vêm junto no histórico do dia
+      - name: Site | Gera os feeds RSS com os eventos recentes
+        if: steps.dia.outputs.ha_dados == 'true'
+        run: python publicar/gerar_rss.py --data "$DATA" --saida web/public/rss
+
       - uses: actions/setup-node@v4
         if: steps.dia.outputs.ha_dados == 'true'
         with:

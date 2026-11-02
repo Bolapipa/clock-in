@@ -39,11 +39,11 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 - [x] Fase 1: Inventário (26/10/2026)
 - [x] Fase 2: Saúde dos links e pipeline diário (execuções agendadas de 28 e 29/10/2026 completas, com as 16 etapas; o GitHub dispara cerca de 6h45 depois do horário do cron, o que não afeta a data da coleta; limite de 90 minutos por servidor desde 30/10/2026, decisão 39)
 - [ ] Fase 3: Conteúdo (hash e schema) (download medido no GitHub Actions em 28 e 29/10/2026; a primeira releitura, que mostra as mudanças, acontece em 04/11/2026; falha passageira volta em 2 dias e o teto subiu para 3.000 por servidor, decisão 40; falta ler a data máxima dentro dos arquivos)
-- [ ] Fase 4: Atualização real e status (parte 1 feita: prazos declarados e regras de status; falta inferir o ritmo e ter histórico de conteúdo)
-- [ ] Fase 5: Gold, histórico e nota por órgão
-- [ ] Fase 6: API estática (contrato versão 1, resumo e órgãos feitos em 27/10/2026; falta as bases, o ranking e a publicação automática)
+- [ ] Fase 4: Atualização real e status (prazos declarados e regras de status feitos; ritmo inferido implementado em 01/11/2026, decisão 42, e só produz resultado depois de 3 mudanças de conteúdo por base; falta ter histórico de conteúdo e calibrar)
+- [ ] Fase 5: Gold, histórico e nota por órgão (nota, cobertura e ranking calculados na API em 01/11/2026, decisão 43; ainda sem nota nenhuma, porque todas as bases são não verificáveis; faltam a tabela Gold da nota, a linha do tempo por base e a evolução diária)
+- [ ] Fase 6: API estática (contrato versão 1, resumo, órgãos e ranking feitos; a publicação automática já roda; falta `api/bases/{slug}.json`)
 - [ ] Fase 7: Site público (publicado na Vercel em 30/10/2026 e refeito em Next.js com identidade própria em 30/10/2026; falta o ranking)
-- [ ] Fase 8: Alertas
+- [ ] Fase 8: Alertas (RSS geral, por órgão e por base implementado em 01/11/2026, decisão 44; falta webhook e a decisão sobre e-mail)
 - [ ] Fase 9: Lançamento e impacto
 
 Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3 (volume de download) e 7 (design do site) tendem a levar mais.
@@ -234,8 +234,10 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 **Feito em 27/10/2026 (parte 1, ainda sem histórico de conteúdo):** `referencia/periodicidade.csv` guarda o prazo de cada periodicidade, e `sql/gold_status_base.sql` com `coletor/gold_status.py` geram `gold/fato_status_base_diario`: uma linha por base por dia, com status, motivo em uma frase e divergência com o selo do portal (decisão 32). O estado do conteúdo ganhou `primeira_leitura`, que mede há quanto tempo um arquivo é observado. Testes em `tests/test_gold_status.py`, com casos inventados, inclusive o exemplo "atrasada porque é mensal e não muda há 73 dias". Na Silver real de 26/10/2026 o status roda nas 19.613 bases, 5.128 delas com prazo declarado, e todas ficam não verificáveis porque ainda não há conteúdo lido.
 
+**Ritmo inferido, feito em 01/11/2026 (decisão 42):** `coletor/conteudo_estado.py` guarda as 12 últimas datas de mudança de cada link (`historico_mudancas`, com migração do estado antigo) e `sql/gold_status_base.sql` calcula, para as bases `NAO_DECLARADA`, o prazo como a mediana dos intervalos vezes 1,5 (mínimo de 3 dias), a partir de 3 intervalos. `origem_prazo` passa a valer `INFERIDO` e o motivo diz "é de ritmo inferido (muda a cada cerca de N dias)". Testes em `tests/test_gold_status.py` e `tests/test_conteudo_estado.py`. Só começa a valer quando as bases tiverem 4 mudanças de conteúdo vistas, o que depende da releitura semanal (primeira releitura em 04/11/2026).
+
 **Falta na Fase 4:**
-1. Inferir o ritmo das bases sem periodicidade (68,6% do catálogo): precisa de uns 30 dias de histórico de mudanças.
+1. Calibrar a folga e o mínimo de intervalos do ritmo inferido com uns 30 dias de histórico real.
 2. Decidir como usar os metadados dos arquivos grandes (decisão 33) na última mudança real.
 3. Conferir a divergência com o portal quando houver conteúdo lido, para ver se vale uma medida de qualidade do selo.
 
@@ -257,6 +259,10 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 3. Visão geral do Brasil: totais por status e evolução diária.
 4. Linha do tempo por base: mudanças de conteúdo, de schema e de status.
 5. Importe o censo de [validacao/resultados](../validacao/resultados) como ponto de partida histórico, se fizer sentido.
+
+**Nota por órgão, feita em 01/11/2026 (decisão 43):** `publicar/gerar_api.py` calcula a nota, a cobertura e `entra_ranking` de cada órgão e grava `api/ranking.json`; a página do órgão mostra a nota (ou explica que ainda não há) e a metodologia traz a fórmula. Testes em `tests/test_publicar.py`. Hoje nenhum órgão tem nota, porque ainda não há conteúdo lido o bastante.
+
+**Falta na Fase 5:** a tabela `gold/fato_nota_orgao_diario` e a evolução diária da nota, a linha do tempo por base (os eventos da Fase 8 são o começo) e a página do ranking no site, que só vale a pena quando houver órgãos com nota.
 
 **Entregável:** tabelas Gold em Parquet, fórmula da nota documentada.
 
@@ -287,7 +293,7 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 **Feito em 30/10/2026:** o workflow `publicar-site.yml` gera a API com os dados do dia, tirados do release de histórico (etapa "Site | Gera a API com os dados do dia", em `web/public/api`). Ensaio em cópia limpa do repositório com os dados reais de 29/10: 613 arquivos, 611 órgãos, 3.586 links quebrados e 505 bases fora do ar.
 
-**Falta na Fase 6:** `api/bases/{slug}.json` com a linha do tempo (depende do histórico), `api/ranking.json` (depende da nota), a publicação da API junto com o site e, se valer a pena, um JSON Schema formal.
+**Falta na Fase 6:** `api/bases/{slug}.json` com a linha do tempo (depende do histórico) e, se valer a pena, um JSON Schema formal. O `api/ranking.json` e a publicação da API junto com o site já estão feitos.
 
 **Entregável:** geração dos JSON no workflow diário, contrato documentado, testes.
 
@@ -346,6 +352,10 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 3. **E-mail** por último, só se houver um serviço com cota gratuita que atenda; cuidado com a LGPD (guardar só o necessário).
 4. Gatilhos: mudou de status, mudou de schema, link quebrou, voltou a funcionar.
 5. Evitar alerta duplicado e falso positivo (usar a regra de 3 falhas).
+
+**RSS, feito em 01/11/2026 (decisão 44):** `coletor/gold_eventos.py` gera `gold/fato_evento_base` (status, conteúdo, estrutura e link quebrado) e mantém `estado/status_base` e `estado/evento_recente`; `publicar/gerar_rss.py` grava os feeds em `web/public/rss/`, e o workflow de publicação os leva ao site. O rodapé e a página de cada órgão têm o link. Testes em `tests/test_gold_eventos.py` e `tests/test_rss.py`. Ainda não gera aviso de link que voltou a funcionar (o estado dos links não guarda isso). Não há evento de conteúdo ou de estrutura antes da primeira releitura, em 04/11/2026.
+
+**Falta na Fase 8:** o evento `LINK_VOLTOU`, o webhook (Slack, Teams, Discord) e a decisão sobre e-mail.
 
 **Entregável:** RSS funcionando; webhook e e-mail conforme a decisão.
 

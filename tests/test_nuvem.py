@@ -163,7 +163,29 @@ def test_historico_vai_para_o_release_do_mes_so_com_o_dia(github):
     ]
 
 
+def test_historico_leva_junto_os_eventos_recentes_para_os_feeds(github):
+    gravar(f"silver/link_status/data={DIA}/link_status.parquet", b"status")
+    gravar("estado/evento_recente.parquet", b"eventos")
+
+    nuvem.historico(DIA)
+
+    pacote = portal.RAIZ / "dia.tar.gz"
+    pacote.write_bytes(github.releases["historico-2026-10"]["dia-2026-10-26.tar.gz"])
+    with tarfile.open(pacote) as tar:
+        nomes = sorted(tar.getnames())
+    assert nomes == ["dados/estado/evento_recente.parquet", f"dados/silver/link_status/data={DIA}/link_status.parquet"]
+
+
 def test_historico_sem_nada_produzido_nao_envia(github):
+    nuvem.historico(DIA)
+
+    assert github.releases == {}
+
+
+def test_eventos_recentes_sozinhos_nao_contam_como_producao_do_dia(github):
+    # O arquivo vem do estado de ontem: sem Silver, Gold ou Bronze de hoje, nada foi produzido
+    gravar("estado/evento_recente.parquet", b"eventos")
+
     nuvem.historico(DIA)
 
     assert github.releases == {}

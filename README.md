@@ -150,7 +150,9 @@ Todos os scripts aceitam `--data AAAA-MM-DD`. Sem ela, usam a data de hoje em Br
 | `python coletor/conteudo_baixar.py --max-links 50` | Lê o conteúdo de uma amostra de 50 arquivos (hash e schema) e apaga o que baixou; precisa da Silver e do `link_status` do dia |
 | `python coletor/silver_links.py` | Gera a Silver da saúde dos links (`link_status` e `base_saude`) depois do `links.py` |
 | `python coletor/gold_status.py` | Gera o status de cada base (`gold/fato_status_base_diario`) a partir da Silver, da saúde dos links e do estado do conteúdo |
+| `python coletor/gold_eventos.py` | Gera os eventos do dia de cada base (`gold/fato_evento_base`: status, conteúdo, estrutura e links que quebraram) e atualiza os estados que os feeds RSS leem |
 | `python coletor/resumo_dia.py` | Imprime em Markdown os números do dia (catálogo, links, conteúdo, status); no workflow a saída vai para o painel da execução. Aceita `--data AAAA-MM-DD` |
+| `python publicar/gerar_rss.py` | Gera os feeds RSS (`web/public/rss/`): um geral, um por órgão e um por base que teve evento recente |
 | `python publicar/gerar_api.py` | Gera a API estática (`web/public/api/*.json`) a partir da Silver do dia; o site em `web/` lê esses arquivos |
 | `cd web; npm install; npm run dev` | Abre o site (Next.js, Tailwind 4, WebGPU) em `http://localhost:3000`; precisa da API gerada acima. `npm test` roda os testes das regras do site e `npm run build` gera o site estático final em `web/out`, com uma página por órgão (precisa do Node 22) |
 | `python coletor/nuvem.py baixar` / `subir` / `historico` | Estado e histórico nos releases do GitHub (usados pelo workflow `pipeline-diario.yml`; precisam do `gh` com login) |

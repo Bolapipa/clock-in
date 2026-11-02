@@ -29,6 +29,7 @@ dados/
 # API gerada a cada execução por publicar/gerar_api.py (decisão 16: nenhum dado gerado vai para o Git)
 site/api/
 web/public/api/
+web/public/rss/
 # Ligação local com o projeto da Vercel (ids da conta); a publicação usa secrets
 .vercel/
 *.parquet

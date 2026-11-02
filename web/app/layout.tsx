@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   title: { default: "Clock-in · Os dados abertos do Brasil ainda batem o ponto?", template: "%s · Clock-in" },
   description: "Monitor diário dos dados abertos do governo: testa os links de todas as bases do dados.gov.br e mostra, órgão por órgão, o que ainda responde e o que quebrou.",
   applicationName: "Clock-in",
+  // Os leitores de RSS e os navegadores descobrem o feed geral por aqui
+  alternates: { types: { "application/rss+xml": "/rss/geral.xml" } },
   openGraph: {
     title: "Clock-in · Os dados abertos do Brasil ainda batem o ponto?",
     description: "Monitor diário dos links das bases do dados.gov.br, órgão por órgão.",

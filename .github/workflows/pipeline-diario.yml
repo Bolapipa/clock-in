@@ -17,7 +17,7 @@ on:
         description: "Passo em que o pipeline começa (para retomar uma execução)"
         type: choice
         default: lista
-        options: [lista, painel, detalhe, silver, links, silver_links, conteudo, silver_conteudo, gold_status]
+        options: [lista, painel, detalhe, silver, links, silver_links, conteudo, silver_conteudo, gold_status, gold_eventos]
   schedule:
     - cron: "17 6 * * *"
 
@@ -107,6 +107,10 @@ jobs:
 
       - name: Gold | Modelagem do status de cada base
         run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas gold_status
+
+      # Compara o dia com o estado de ontem e guarda o que mudou; os feeds RSS do site leem daqui
+      - name: Gold | Eventos do dia de cada base
+        run: python coletor/motor.py --data "$DATA" --desde "$DESDE" --apenas gold_eventos
 
       # O resumo roda mesmo se uma etapa falhar (mostra o que faltou) e nunca derruba o dia
       - name: Resumo | Números do dia no painel da execução

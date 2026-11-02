@@ -64,7 +64,19 @@ export function PaginaDoOrgao({ orgao, dataColeta }: { orgao: OrgaoResumo | null
               tom={orgao.bases_fora_do_ar ? "text-queb-texto" : undefined} />
           </div>
 
-          <div className="mt-8 rounded-2xl border border-linha bg-superficie p-5">
+          {/* Nota pelo conteúdo (decisão 17): sem base verificável não há nota, e a página diz isso */}
+          <p className="mt-6 text-sm text-tinta-2">
+            {orgao.nota != null ? (
+              <>
+                <span className="font-medium text-tinta">{t.orgao.nota}: <span className="numeros">{formatarNumero(orgao.nota)}</span></span>
+                {" · "}{t.orgao.notaSub(orgao.bases_verificaveis ?? 0, orgao.qtd_bases, orgao.cobertura ?? null)}
+              </>
+            ) : t.orgao.semNota}
+            {" "}<Link href="/metodologia/#nota" className="text-tinta underline decoration-ambar underline-offset-4">{t.orgao.comoNota}</Link>
+            {" · "}<a href={`/rss/orgaos/${orgao.slug}.xml`} className="text-tinta underline decoration-ambar underline-offset-4">{t.orgao.rss}</a>
+          </p>
+
+          <div className="mt-6 rounded-2xl border border-linha bg-superficie p-5">
             <p className="mb-3 text-sm font-medium text-tinta">{t.orgao.regua}</p>
             <Regua partes={partes} rotulo={t.orgao.regua} altura="h-4" />
             <ul className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">

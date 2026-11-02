@@ -11,6 +11,8 @@ Esta é a **versão 1** do contrato. Ela ainda é um protótipo: traz a saúde d
 | `api/resumo.json` | Totais do Brasil |
 | `api/orgaos.json` | Um resumo por órgão publicador, dos que têm mais bases para os que têm menos |
 | `api/orgaos/{slug}.json` | Um órgão e as bases dele, com as que têm problema primeiro |
+| `api/ranking.json` | Os órgãos que entram no ranking, da maior nota para a menor |
+| `rss/geral.xml`, `rss/orgaos/{slug}.xml`, `rss/bases/{slug}.xml` | Feeds RSS 2.0 do que mudou (veja "Feeds RSS"); ficam fora de `api/` porque não são JSON |
 
 O `slug` de um órgão é o nome dele sem acentos, em minúsculas e com hífens (por exemplo, `ibge-fundacao-instituto-brasileiro-de-geografia-e-estatistica`). Ele aparece no `orgaos.json`.
 
@@ -65,6 +67,23 @@ Além do cabeçalho, traz a chave `orgaos`, uma lista de objetos com as chaves a
 | `percentual_ok` | número ou `null` | `null` quando o órgão tem **menos de 30 links testados**: com poucos links, 1 ou 2 falhas distorcem a porcentagem |
 | `cobertura_links` | número ou `null` | `links_testados` sobre `links_total`, em % |
 | `status` | objeto | Quantidade de bases do órgão por status |
+| `nota` | número ou `null` | `100 × (em dia + 0,5 × atrasadas) ÷ bases_verificaveis`, com 1 casa decimal. `null` quando o órgão não tem nenhuma base verificável |
+| `cobertura` | número ou `null` | `100 × bases_verificaveis ÷ qtd_bases`, em %. Mostra quanto do órgão a nota realmente avalia |
+| `bases_verificaveis` | inteiro | Bases com status diferente de `NAO_VERIFICAVEL` |
+| `entra_ranking` | booleano | `true` quando o órgão tem 10 ou mais bases e ao menos uma base verificável |
+
+A nota é uma medida pelo **conteúdo** das bases, diferente de `percentual_ok`, que mede só se os links respondem. Enquanto o histórico de leituras cresce, a maioria dos órgãos fica sem nota. A fórmula completa está na página de metodologia do site.
+
+## `ranking.json`
+
+Além do cabeçalho, traz `minimo_bases` (hoje, `10`) e a lista `orgaos`, da maior nota para a menor (empate: maior cobertura, depois o nome). Só entram órgãos com `entra_ranking = true`; enquanto nenhum entra, a lista fica vazia.
+
+| Chave | Tipo | Significado |
+|---|---|---|
+| `posicao` | inteiro | Posição no ranking, a partir de 1 |
+| `nome`, `slug`, `esfera` | texto | Como em `orgaos.json` |
+| `nota`, `cobertura` | número | Como em `orgaos.json` |
+| `qtd_bases`, `bases_verificaveis` | inteiro | Como em `orgaos.json` |
 
 ## `orgaos/{slug}.json`
 
@@ -81,6 +100,18 @@ Traz o cabeçalho, as chaves do órgão acima e a lista `bases`, com um objeto p
 | `fora_do_ar` | booleano | Tem links e todos estão quebrados |
 | `status` | texto | Veja abaixo |
 | `motivo` | texto ou `null` | O motivo do status em uma frase, quando o status já foi calculado |
+
+## Feeds RSS
+
+Todo dia o que mudou nas bases sai também como RSS, sem cadastro. Cada item é um acontecimento dos últimos 30 dias, com o título "tipo: nome da base", o endereço da base no site e uma frase em `description`.
+
+| Feed | O que traz |
+|---|---|
+| `/rss/geral.xml` | Tudo, dos mais novos para os mais antigos (até 200 itens) |
+| `/rss/orgaos/{slug}.xml` | As bases de um órgão (até 100 itens). Existe para todo órgão, mesmo sem evento |
+| `/rss/bases/{slug}.xml` | Uma base. Só existe para bases com evento nos últimos 30 dias |
+
+Tipos de evento: **Mudou de status** (em dia, atrasada, parada ou fora do ar; quem era não verificável não conta), **Conteúdo mudou**, **Estrutura mudou** (colunas) e **Link quebrou** (no dia em que o link completa a terceira falha seguida). O `guid` de um item não muda, então o leitor não repete avisos. Os feeds seguem o mesmo `slug` da API.
 
 ## Valores possíveis
 

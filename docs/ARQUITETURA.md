@@ -104,7 +104,9 @@ Regra: guardar exatamente o que veio, antes de qualquer transformação.
 |---|---|---|
 | `estado/detalhe_atual` | uma linha por base | `id`, `ultima_alteracao`, `payload` (último detalhe que deu certo; nulo se nunca deu), `data_coleta` e `coletado_em` (do último sucesso), `falhas_seguidas` (dias seguidos com falha; zera no sucesso), `ultima_tentativa`, `ultimo_erro`. Atualizada por `coletor/estado.py` no fim de cada coleta do detalhe; pode ser recriada da Bronze com `python coletor/estado.py --reconstruir` |
 | `estado/links_atual` | uma linha por link | `link`, `servidor`, `ultima_tentativa`, `status_http` e `erro_tipo` da última tentativa, `falhas_seguidas` (dias diferentes seguidos com falha; zera no sucesso), `falha_desde` (primeira falha da série atual), `ultimo_sucesso`, `content_length`, `last_modified` e `etag` (metadados da última resposta boa) e `ultima_mudanca_metadados` (dia em que algum deles mudou, decisão 33). Atualizada por `coletor/links.py` no fim de cada teste; pode ser recriada da Bronze com `python coletor/links.py --reconstruir` |
-| `estado/conteudo_atual` | uma linha por link tabular | `link`, `servidor`, `ultima_tentativa`, `ultima_leitura` (último download que deu certo), `primeira_leitura` (primeiro download que deu certo; nunca muda), `hash_conteudo`, `tamanho_bytes`, `qtd_colunas`, `schema`, `schema_hash`, `erro_schema`, `verificacao_parcial`, `schema_anterior` (estrutura antes da última mudança), `ultima_mudanca` (dia em que o hash mudou), `ultima_mudanca_schema` (dia em que a estrutura mudou), `erro_tipo` (erro da última tentativa). Download que falha não apaga o que já se sabia, e a primeira leitura de um link não conta como mudança. Atualizada por `coletor/conteudo_estado.py` |
+| `estado/conteudo_atual` | uma linha por link tabular | `link`, `servidor`, `ultima_tentativa`, `ultima_leitura` (último download que deu certo), `primeira_leitura` (primeiro download que deu certo; nunca muda), `hash_conteudo`, `tamanho_bytes`, `qtd_colunas`, `schema`, `schema_hash`, `erro_schema`, `verificacao_parcial`, `schema_anterior` (estrutura antes da última mudança), `ultima_mudanca` (dia em que o hash mudou), `ultima_mudanca_schema` (dia em que a estrutura mudou), `erro_tipo` (erro da última tentativa), `historico_mudancas` (as 12 últimas datas em que o hash mudou, da mais antiga para a mais recente; base do ritmo inferido, decisão 42). Download que falha não apaga o que já se sabia, e a primeira leitura de um link não conta como mudança. Atualizada por `coletor/conteudo_estado.py` |
+| `estado/status_base` | uma linha por base por dia (o último dia anterior e o de hoje) | `data`, `id`, `status`. É com ele que `coletor/gold_eventos.py` descobre que o status mudou desde ontem (decisão 44) |
+| `estado/evento_recente` | uma linha por evento dos últimos 30 dias | `data`, `id_base`, `slug`, `tipo_evento`, `detalhe`. Os feeds RSS leem daqui; vai junto no pacote do histórico do dia, mas nunca sozinho |
 
 O rodízio de 7 dias da decisão 27 escolhe os links pela data da última leitura registrada em `estado/conteudo_atual`. Quando a última tentativa falhou por um motivo passageiro (servidor fora do ar, conexão, timeout ou erro 5xx), o arquivo volta em 2 dias em vez de 7 (decisão 40).
 
@@ -133,9 +135,9 @@ Modelo dimensional (Star Schema).
 | `gold/dim_base` | dimensão | uma linha por base | `slug`, `titulo`, `orgao_id`, `periodicidade`, `url_portal` |
 | `gold/dim_orgao` | dimensão | uma linha por publicador real | `orgao_id`, `nome`, `sigla`, `esfera` |
 | `gold/dim_data` | dimensão | uma linha por dia | `data`, `ano`, `mes`, `dia_semana` |
-| `gold/fato_status_base_diario` | fato | uma linha por base por dia | `data_coleta`, `id`, `slug`, `status`, `motivo` (frase explicável), `prazo_esperado_dias`, `origem_prazo` (`DECLARADO` ou `INFERIDO`), `ultima_mudanca_real`, `dias_sem_mudanca`, `links_total`, `janela_observacao_dias`, `links_quebrados`, `schema_mudou`, `status_portal`, `diverge_do_portal`. Gerada por `coletor/gold_status.py` a partir da Silver e do estado do conteúdo (decisão 32); por enquanto o prazo só vem da periodicidade declarada |
+| `gold/fato_status_base_diario` | fato | uma linha por base por dia | `data_coleta`, `id`, `slug`, `status`, `motivo` (frase explicável), `prazo_esperado_dias`, `origem_prazo` (`DECLARADO` ou `INFERIDO`), `ultima_mudanca_real`, `dias_sem_mudanca`, `links_total`, `janela_observacao_dias`, `links_quebrados`, `schema_mudou`, `status_portal`, `diverge_do_portal`. Gerada por `coletor/gold_status.py` a partir da Silver e do estado do conteúdo (decisão 32); o prazo vem da periodicidade declarada ou, sem ela, do ritmo inferido (decisões 32 e 42) |
 | `gold/fato_nota_orgao_diario` | fato | uma linha por órgão por dia | `data`, `orgao_id`, `bases_total`, `bases_verificaveis`, `em_dia`, `atrasada`, `parada`, `fora_do_ar`, `nao_verificavel`, `nota`, `cobertura`, `entra_ranking` |
-| `gold/fato_evento_base` | fato | uma linha por acontecimento | `data`, `slug`, `tipo_evento` (`STATUS_MUDOU`, `CONTEUDO_MUDOU`, `SCHEMA_MUDOU`, `LINK_QUEBROU`, `LINK_VOLTOU`), `detalhe` |
+| `gold/fato_evento_base` | fato | uma linha por acontecimento, por base e por tipo | `data`, `id_base`, `slug`, `tipo_evento` (`STATUS_MUDOU`, `CONTEUDO_MUDOU`, `SCHEMA_MUDOU`, `LINK_QUEBROU`), `detalhe`. Gerada por `coletor/gold_eventos.py` com `sql/gold_evento_base.sql` (decisão 44). `LINK_VOLTOU` ainda não existe: o estado dos links zera as falhas no sucesso e não guarda que o link estava quebrado |
 
 `fato_evento_base` alimenta a linha do tempo de cada base no site e os alertas.
 
@@ -168,7 +170,7 @@ Modelo dimensional (Star Schema).
 
 Prazo esperado:
 - **Periodicidade declarada:** prazo com folga. Valores iniciais a calibrar, em `referencia/periodicidade.csv`: diária 3 dias, semanal 10, quinzenal 20, mensal 40, trimestral 100, quadrimestral 135, semestral 200, anual 400.
-- **Sem periodicidade:** ritmo inferido pela mediana dos intervalos entre mudanças de hash. Sem histórico suficiente, a base fica "não verificável".
+- **Sem periodicidade (`NAO_DECLARADA`):** ritmo inferido pela mediana dos intervalos entre mudanças de hash, vezes uma folga de 1,5, arredondado para cima e nunca menor que 3 dias (decisão 42). Precisa de pelo menos 3 intervalos (4 mudanças vistas), juntando os arquivos tabulares da base; sem isso, a base fica "não verificável". "Sob demanda" e "outras" não são inferidas. O motivo do status diz de onde veio o prazo ("é de ritmo inferido (muda a cada cerca de 10 dias)") e `origem_prazo` vale `INFERIDO`.
 
 Última mudança real: a data em que o hash mudou ou a data máxima dentro do conteúdo, a que for mais confiável. `Last-Modified` é só pista.
 
@@ -189,9 +191,11 @@ nota      = 100 x (em_dia + 0,5 x atrasada) / bases_verificaveis
 cobertura = 100 x bases_verificaveis / bases_total
 ```
 
+- `bases_verificaveis` são as bases com status diferente de "não verificável" (parada e fora do ar entram, com peso zero).
 - "Não verificável" fica fora da nota e aparece na cobertura, lado a lado.
-- Só entram no ranking órgãos com pelo menos 10 bases.
+- Só entram no ranking órgãos com pelo menos 10 bases e ao menos uma base verificável. Sem nenhuma base verificável, a nota é nula.
 - A fórmula é publicada na página de metodologia do site.
+- Hoje a nota é calculada ao gerar a API (`publicar/gerar_api.py`, decisão 43) e sai em `orgaos.json`, `orgaos/{slug}.json` e `ranking.json`; a tabela Gold `fato_nota_orgao_diario` fica para quando houver histórico de nota.
 
 ---
 
@@ -215,17 +219,18 @@ Enquanto o status por conteúdo não tem histórico, a API traz só o que a Silv
 | Arquivo | Conteúdo |
 |---|---|
 | `api/resumo.json` | Totais do Brasil: bases, recursos, órgãos, links (testados, respondendo bem, em observação, quebrados, porcentagem e cobertura), bases fora do ar, status, esferas e periodicidades |
-| `api/orgaos.json` | O cabeçalho e, na chave `orgaos`, um resumo por órgão publicador, dos que têm mais bases para os que têm menos, sem a lista de bases |
+| `api/orgaos.json` | O cabeçalho e, na chave `orgaos`, um resumo por órgão publicador, dos que têm mais bases para os que têm menos, sem a lista de bases, com a nota e a cobertura de cada um |
+| `api/ranking.json` | Os órgãos com pelo menos 10 bases e uma base verificável, da maior nota para a menor (empate: mais cobertura, depois o nome) |
 | `api/orgaos/{slug}.json` | O órgão e as bases dele (título, periodicidade, links, status e motivo), com as que têm problema primeiro |
 
-O `slug` do órgão é o nome sem acentos, em minúsculas e com hífens. A porcentagem de links respondendo bem só existe para órgãos com 30 ou mais links testados. Todo arquivo traz `versao`, `data_coleta` e `gerado_em`, e o contrato versão 1 (chaves, tipos e valores possíveis) está em [API.md](API.md), com testes que fixam o conjunto de chaves (decisão 37). O `api/bases/{slug}.json` e o `ranking.json` ficam para a Fase 6. O site em `site/` (`index.html`, `estilo.css` e `app.js`) lê esses arquivos e tem a página inicial, a de cada órgão, a de cada base, a metodologia e a da API.
+O `slug` do órgão é o nome sem acentos, em minúsculas e com hífens. A porcentagem de links respondendo bem só existe para órgãos com 30 ou mais links testados. Todo arquivo traz `versao`, `data_coleta` e `gerado_em`, e o contrato versão 1 (chaves, tipos e valores possíveis) está em [API.md](API.md), com testes que fixam o conjunto de chaves (decisão 37). O `api/bases/{slug}.json` fica para a Fase 6. O site em `site/` (`index.html`, `estilo.css` e `app.js`) lê esses arquivos e tem a página inicial, a de cada órgão, a de cada base, a metodologia e a da API.
 
 ## Alertas
 
 | Canal | Como | Custo |
 |---|---|---|
-| RSS/Atom | Arquivos estáticos por base e por órgão, gerados no workflow | Zero |
+| RSS | Arquivos estáticos em `/rss/`: `geral.xml`, `orgaos/{slug}.xml` (todos os órgãos) e `bases/{slug}.xml` (só bases com evento nos últimos 30 dias), gerados no workflow de publicação por `publicar/gerar_rss.py` | Zero |
 | Webhook | Slack, Teams ou Discord; cadastro por arquivo de configuração no repositório, via pull request | Zero |
 | E-mail | Fora do escopo por enquanto (decisão 18) | - |
 
-Gatilhos: registros de `fato_evento_base`. A regra das 3 falhas evita alerta falso de link quebrado.
+Gatilhos: registros de `fato_evento_base`. A regra das 3 falhas evita alerta falso de link quebrado: o evento só sai no dia em que a terceira falha fecha. Quem era não verificável não gera aviso de mudança de status. O identificador de cada item (`guid`) é fixo para o mesmo acontecimento, então o leitor de RSS não repete a notícia.

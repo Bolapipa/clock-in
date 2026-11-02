@@ -169,7 +169,12 @@ def arquivos_do_dia(data):
         dados.glob(f"bronze/catalogo_detalhe/data={data}/*.parquet"),
         dados.glob(f"bronze/catalogo_lista/data={data}/*.parquet"),
     ]
-    return sorted(arquivo for padrao in padroes for arquivo in padrao)
+    arquivos = [arquivo for padrao in padroes for arquivo in padrao]
+    # Os eventos dos últimos 30 dias vão junto, porque os feeds RSS leem deles (decisão 44). Nunca sozinhos:
+    # o arquivo persiste de um dia para o outro e faria um dia sem produção parecer ter produzido algo
+    if arquivos:
+        arquivos += dados.glob("estado/evento_recente.parquet")
+    return sorted(arquivos)
 
 
 def historico(data):
