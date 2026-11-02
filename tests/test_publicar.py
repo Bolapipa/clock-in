@@ -242,6 +242,83 @@ def test_status_e_motivo_vem_do_gold_quando_existe():
     assert bases["b"]["status"] == "NAO_VERIFICAVEL"
 
 
+# --- Nota por órgão e ranking (decisão 17) ---
+
+def montar_orgao_com_status(nome, prefixo, status):
+    """Um órgão com uma base por item de 'status'; o status NAO_VERIFICAVEL fica sem linha no Gold."""
+    bases = [base(f"{prefixo}{i}", nome) for i in range(len(status))]
+    linhas = [(b["id"], s, "motivo") for b, s in zip(bases, status) if s != "NAO_VERIFICAVEL"]
+    return bases, linhas
+
+
+def montar_ranking_de_teste():
+    """A: nota 62,5 (8 verificáveis); B: nota 100; C: 9 bases, fora do ranking; D: nenhuma base verificável."""
+    a, linhas_a = montar_orgao_com_status("Órgão A", "a", ["EM_DIA"] * 4 + ["ATRASADA"] * 2 + ["PARADA", "FORA_DO_AR"] + ["NAO_VERIFICAVEL"] * 2)
+    b, linhas_b = montar_orgao_com_status("Órgão B", "b", ["EM_DIA"] * 10)
+    c, linhas_c = montar_orgao_com_status("Órgão C", "c", ["EM_DIA"] * 9)
+    d, linhas_d = montar_orgao_com_status("Órgão D", "d", ["NAO_VERIFICAVEL"] * 10)
+    montar(*a, *b, *c, *d)
+    gravar_status(*linhas_a, *linhas_b, *linhas_c, *linhas_d)
+
+
+def orgao_por_nome(pasta, nome):
+    return next(orgao for orgao in lista_de_orgaos(pasta) if orgao["nome"] == nome)
+
+
+def test_nota_em_dia_vale_um_atrasada_vale_metade_e_nao_verificavel_fica_fora():
+    montar_ranking_de_teste()
+
+    pasta, _ = gerar()
+
+    a = orgao_por_nome(pasta, "Órgão A")
+    # 100 x (4 + 0,5 x 2) / 8 bases verificáveis; as 2 não verificáveis só entram na cobertura (8 de 10)
+    assert (a["nota"], a["bases_verificaveis"], a["cobertura"]) == (62.5, 8, 80.0)
+    assert orgao_por_nome(pasta, "Órgão B")["nota"] == 100.0
+
+
+def test_orgao_sem_base_verificavel_fica_sem_nota_e_fora_do_ranking():
+    montar_ranking_de_teste()
+
+    pasta, _ = gerar()
+
+    d = orgao_por_nome(pasta, "Órgão D")
+    assert (d["nota"], d["bases_verificaveis"], d["cobertura"], d["entra_ranking"]) == (None, 0, 0.0, False)
+
+
+def test_ranking_so_tem_orgaos_com_10_bases_ordenados_pela_nota():
+    montar_ranking_de_teste()
+
+    pasta, _ = gerar()
+
+    ranking = ler(pasta, "ranking.json")
+    assert CABECALHO <= set(ranking) and ranking["minimo_bases"] == 10
+    # C tem nota 100, mas só 9 bases; D não tem nota
+    assert [(o["posicao"], o["nome"], o["nota"]) for o in ranking["orgaos"]] == [(1, "Órgão B", 100.0), (2, "Órgão A", 62.5)]
+    assert set(ranking["orgaos"][0]) == {"posicao", "nome", "slug", "esfera", "nota", "cobertura", "qtd_bases", "bases_verificaveis"}
+
+
+def test_ranking_desempata_pela_cobertura_e_depois_pelo_nome():
+    # Os três têm nota 100; X tem cobertura 100, Y e Z têm 90 (uma base não verificável)
+    x, linhas_x = montar_orgao_com_status("X", "x", ["EM_DIA"] * 10)
+    y, linhas_y = montar_orgao_com_status("Y", "y", ["EM_DIA"] * 9 + ["NAO_VERIFICAVEL"])
+    z, linhas_z = montar_orgao_com_status("Z", "z", ["EM_DIA"] * 9 + ["NAO_VERIFICAVEL"])
+    montar(*z, *y, *x)
+    gravar_status(*linhas_z, *linhas_y, *linhas_x)
+
+    pasta, _ = gerar()
+
+    assert [o["nome"] for o in ler(pasta, "ranking.json")["orgaos"]] == ["X", "Y", "Z"]
+
+
+def test_sem_gold_nao_ha_nota_nem_ranking():
+    montar(*[base(f"a{i}", "Órgão A") for i in range(10)])
+
+    pasta, _ = gerar()
+
+    assert orgao_por_nome(pasta, "Órgão A")["nota"] is None
+    assert ler(pasta, "ranking.json")["orgaos"] == []
+
+
 # --- Contrato da API, versão 1 (docs/API.md) ---
 # As chaves abaixo são o contrato: tirar, renomear ou mudar o significado de uma exige subir a versão
 
@@ -249,7 +326,8 @@ CABECALHO = {"versao", "data_coleta", "gerado_em"}
 CHAVES_DO_RESUMO = CABECALHO | {"bases", "recursos", "orgaos", "links", "bases_fora_do_ar", "bases_sem_link", "status", "esferas", "periodicidades"}
 CHAVES_DOS_LINKS = {"total", "testados", "ok", "em_observacao", "quebrados", "percentual_ok", "cobertura"}
 CHAVES_DO_ORGAO = {"nome", "slug", "esfera", "qtd_bases", "links_total", "links_testados", "links_ok", "links_em_observacao",
-                   "links_quebrados", "bases_fora_do_ar", "percentual_ok", "cobertura_links", "status"}
+                   "links_quebrados", "bases_fora_do_ar", "percentual_ok", "cobertura_links", "status",
+                   "nota", "cobertura", "bases_verificaveis", "entra_ranking"}
 CHAVES_DA_BASE = {"id", "slug", "titulo", "periodicidade", "publicador", "esfera", "links_total", "links_testados", "links_ok",
                   "links_em_observacao", "links_quebrados", "fora_do_ar", "status", "motivo"}
 

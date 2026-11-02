@@ -35,6 +35,7 @@ const CONTEUDO = {
       cobertura: "Cobertura e porcentagens",
       status: "Status de cada base",
       prazos: "Prazo esperado por periodicidade",
+      nota: "Nota por órgão",
       limites: "Limites",
     },
     faz: (
@@ -57,7 +58,17 @@ const CONTEUDO = {
       </>
     ),
     status: "O status pelo conteúdo depende de arquivos lidos ao longo de semanas (hash e estrutura). Enquanto o histórico cresce, a maioria das bases aparece como não verificável.",
-    prazos: "O prazo é a periodicidade declarada pelo órgão, com folga. Uma base é parada depois de 3 vezes o prazo sem mudança. Quase 7 em cada 10 bases não declaram periodicidade; para elas, o ritmo será inferido pelo histórico.",
+    prazos: "O prazo é a periodicidade declarada pelo órgão, com folga. Uma base é parada depois de 3 vezes o prazo sem mudança. Quase 7 em cada 10 bases não declaram periodicidade; para elas, o ritmo é inferido pelo histórico: a mediana dos intervalos entre as mudanças de conteúdo, com 50% de folga e no mínimo 3 dias, a partir de 3 intervalos observados. Antes disso, a base é não verificável. Sob demanda e outras periodicidades declaradas não são inferidas.",
+    nota: (
+      <>
+        <p>A <strong>nota</strong> de um órgão mede quantas das bases que conseguimos verificar estão em dia:</p>
+        <p className="rounded-2xl border border-linha bg-superficie p-5 font-mono text-sm text-tinta">
+          nota = 100 × (em dia + 0,5 × atrasadas) ÷ bases verificáveis<br />
+          cobertura = 100 × bases verificáveis ÷ bases do órgão
+        </p>
+        <p>Base parada ou fora do ar conta como zero. Base <strong>não verificável</strong> fica fora da nota e aparece na cobertura, ao lado dela: esconder dados não vira vantagem. Só entram no ranking os órgãos com pelo menos 10 bases, e um órgão sem nenhuma base verificável fica sem nota.</p>
+      </>
+    ),
     periodicidade: "Periodicidade",
     prazo: "Prazo",
     dias: (n: number) => `${n} dias`,
@@ -80,6 +91,7 @@ const CONTEUDO = {
       cobertura: "Coverage and percentages",
       status: "Dataset status",
       prazos: "Expected interval by frequency",
+      nota: "Agency score",
       limites: "Limitations",
     },
     faz: (
@@ -100,7 +112,17 @@ const CONTEUDO = {
       <p><strong>Coverage</strong> is the share of links we could test conclusively. The share of links responding is only shown for agencies with <strong>30 or more tested links</strong>: with few links, one or two failures distort the result.</p>
     ),
     status: "Content-based status depends on files read over weeks (hash and structure). While the history grows, most datasets appear as not verifiable.",
-    prazos: "The interval is the frequency declared by the agency, with some slack. A dataset is stalled after 3 times the interval without changes. Almost 7 in 10 datasets declare no frequency; for them, the pace will be inferred from history.",
+    prazos: "The interval is the frequency declared by the agency, with some slack. A dataset is stalled after 3 times the interval without changes. Almost 7 in 10 datasets declare no frequency; for them, the pace is inferred from history: the median of the intervals between content changes, with 50% slack and at least 3 days, once 3 intervals have been observed. Before that, the dataset is not verifiable. On-demand and other declared frequencies are not inferred.",
+    nota: (
+      <>
+        <p>An agency <strong>score</strong> measures how many of the datasets we can verify are up to date:</p>
+        <p className="rounded-2xl border border-linha bg-superficie p-5 font-mono text-sm text-tinta">
+          score = 100 × (up to date + 0.5 × late) ÷ verifiable datasets<br />
+          coverage = 100 × verifiable datasets ÷ agency datasets
+        </p>
+        <p>Stalled or offline datasets count as zero. <strong>Not verifiable</strong> datasets stay out of the score and show up in the coverage, next to it: hiding data is no advantage. Only agencies with at least 10 datasets enter the ranking, and an agency with no verifiable dataset has no score.</p>
+      </>
+    ),
     periodicidade: "Frequency",
     prazo: "Interval",
     dias: (n: number) => `${n} days`,
@@ -187,6 +209,7 @@ export function Metodologia() {
               </table>
             </div>
           </Secao>
+          <Secao id="nota" titulo={c.secoes.nota}>{c.nota}</Secao>
           <Secao id="limites" titulo={c.secoes.limites}>{c.limites}</Secao>
         </div>
       </div>

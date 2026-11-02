@@ -3,9 +3,11 @@
 --   silver_base        -> periodicidade declarada e como o portal vê a base
 --   silver_base_saude  -> links testados e quebrados de cada base
 --   silver_recurso     -> links de cada base e se o formato é tabular
---   conteudo_atual     -> estado do conteúdo de cada arquivo (estado/conteudo_atual)
+--   conteudo_atual     -> estado do conteúdo de cada arquivo (estado/conteudo_atual), com o histórico de mudanças
 --   ref_periodicidade  -> prazo esperado de cada periodicidade (referencia/periodicidade.csv)
--- Variáveis: data_coleta (o dia) e multiplo_parada (quantas vezes o prazo faz a base ficar "parada").
+-- Variáveis: data_coleta (o dia), multiplo_parada (quantas vezes o prazo faz a base ficar "parada") e,
+-- para o ritmo inferido das bases sem periodicidade: minimo_intervalos (intervalos entre mudanças para inferir),
+-- folga_ritmo (multiplica a mediana) e prazo_minimo_inferido (menor prazo inferido, em dias).
 
 -- O que se sabe do conteúdo de cada base, juntando os arquivos tabulares dela que já foram lidos
 WITH conteudo_da_base AS (
@@ -24,14 +26,45 @@ WITH conteudo_da_base AS (
     GROUP BY r.id_base
 ),
 
+-- Intervalos, em dias, entre as mudanças de conteúdo de cada arquivo tabular (decisão 42).
+-- Cada arquivo guarda as datas das suas últimas mudanças em historico_mudancas
+intervalos AS (
+    SELECT id_base, intervalo
+    FROM (
+        SELECT
+            r.id_base,
+            d - lag(d) OVER (PARTITION BY r.id_base, c.link ORDER BY d) AS intervalo
+        FROM (SELECT DISTINCT id_base, link FROM silver_recurso WHERE formato_tabular) r
+        JOIN (SELECT link, unnest(historico_mudancas) AS d FROM conteudo_atual) c ON c.link = r.link
+    )
+    WHERE intervalo IS NOT NULL
+),
+
+-- Ritmo de cada base: a mediana dos intervalos entre mudanças, juntando os arquivos dela
+ritmo_da_base AS (
+    SELECT id_base, COUNT(*) AS qtd_intervalos, median(intervalo) AS mediana_dias
+    FROM intervalos
+    GROUP BY id_base
+),
+
 -- Tudo o que a regra de status precisa, uma linha por base
 medidas AS (
     SELECT
         b.id,
         b.slug,
         b.periodicidade,
-        p.rotulo,
-        p.prazo_dias,
+        -- Prazo esperado: o da periodicidade declarada; sem periodicidade declarada, o ritmo inferido com folga
+        -- (só com intervalos suficientes; senão fica sem prazo e a base não é verificável)
+        CASE
+            WHEN p.prazo_dias IS NOT NULL THEN p.prazo_dias
+            WHEN b.periodicidade = 'NAO_DECLARADA' AND rb.qtd_intervalos >= getvariable('minimo_intervalos')
+                THEN greatest(getvariable('prazo_minimo_inferido'), CAST(ceil(rb.mediana_dias * getvariable('folga_ritmo')) AS INTEGER))
+        END AS prazo_dias,
+        CASE
+            WHEN p.prazo_dias IS NOT NULL THEN 'DECLARADO'
+            WHEN b.periodicidade = 'NAO_DECLARADA' AND rb.qtd_intervalos >= getvariable('minimo_intervalos') THEN 'INFERIDO'
+        END AS origem_prazo,
+        COALESCE(p.rotulo, format('de ritmo inferido (muda a cada cerca de {} dias)', CAST(round(rb.mediana_dias) AS INTEGER))) AS rotulo,
         b.status_portal,
         COALESCE(s.qtd_links, 0) AS links_total,
         COALESCE(s.qtd_quebrados, 0) AS links_quebrados,
@@ -48,6 +81,7 @@ medidas AS (
     FROM silver_base b
     LEFT JOIN silver_base_saude s ON s.id = b.id
     LEFT JOIN conteudo_da_base c ON c.id_base = b.id
+    LEFT JOIN ritmo_da_base rb ON rb.id_base = b.id
     LEFT JOIN ref_periodicidade p ON p.periodicidade = b.periodicidade
 ),
 
@@ -96,7 +130,7 @@ SELECT
     END AS motivo,
     periodicidade,
     prazo_dias AS prazo_esperado_dias,
-    CASE WHEN prazo_dias IS NOT NULL THEN 'DECLARADO' END AS origem_prazo,
+    origem_prazo,
     ultima_mudanca_real,
     dias_sem_mudanca,
     janela_dias AS janela_observacao_dias,

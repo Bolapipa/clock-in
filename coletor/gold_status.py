@@ -1,7 +1,7 @@
 """Gera o status de cada base (Fase 4).
 
 Roda depois de silver.py, silver_links.py e, quando houver, dos downloads de conteúdo.
-Aplica as regras de status (prazo esperado pela periodicidade declarada) e grava,
+Aplica as regras de status (prazo esperado pela periodicidade declarada ou, sem ela, pelo ritmo inferido) e grava,
 uma partição por data:
 dados/gold/fato_status_base_diario/data=AAAA-MM-DD/fato_status_base_diario.parquet
 
@@ -36,6 +36,13 @@ ARQUIVO_PRAZOS = silver.PASTA_REFERENCIA / "periodicidade.csv"
 # Quantas vezes o prazo sem mudança faz a base ser "parada" (regras de status da ARQUITETURA)
 MULTIPLO_PARADA = 3
 
+# Ritmo inferido das bases sem periodicidade declarada (decisão 42): precisa de pelo menos este número de
+# intervalos entre mudanças de conteúdo (3 intervalos = 4 mudanças vistas), o prazo é a mediana dos intervalos
+# vezes a folga, e nunca menor que o prazo mínimo (em dias)
+MINIMO_INTERVALOS_PARA_INFERIR = 3
+FOLGA_DO_RITMO_INFERIDO = 1.5
+PRAZO_MINIMO_INFERIDO_DIAS = 3
+
 
 def criar_views_entrada(con, data):
     """Cria as views e variáveis usadas por sql/gold_status_base.sql."""
@@ -49,7 +56,9 @@ def criar_views_entrada(con, data):
     # Estado do conteúdo: sem nenhuma leitura ainda, vale uma tabela vazia (todas as bases ficam sem conteúdo)
     arquivo_estado = conteudo_estado.arquivo_estado()
     if arquivo_estado.exists():
-        con.execute(f"CREATE OR REPLACE VIEW conteudo_atual AS SELECT * FROM read_parquet('{arquivo_estado.as_posix()}')")
+        con.execute(f"CREATE OR REPLACE TABLE conteudo_atual AS SELECT * FROM read_parquet('{arquivo_estado.as_posix()}')")
+        # Estado gravado antes do histórico de mudanças: ganha a coluna, vazia
+        conteudo_estado.garantir_colunas(con, "conteudo_atual")
     else:
         con.execute(f"CREATE OR REPLACE TABLE conteudo_atual ({conteudo_estado.COLUNAS_ESTADO})")
 
@@ -63,6 +72,9 @@ def criar_views_entrada(con, data):
     # Variáveis lidas pelo SQL
     con.execute(f"SET VARIABLE data_coleta = DATE '{data}'")
     con.execute(f"SET VARIABLE multiplo_parada = {MULTIPLO_PARADA}")
+    con.execute(f"SET VARIABLE minimo_intervalos = {MINIMO_INTERVALOS_PARA_INFERIR}")
+    con.execute(f"SET VARIABLE folga_ritmo = {FOLGA_DO_RITMO_INFERIDO}")
+    con.execute(f"SET VARIABLE prazo_minimo_inferido = {PRAZO_MINIMO_INFERIDO_DIAS}")
 
 
 def gerar_tabela(con, data):

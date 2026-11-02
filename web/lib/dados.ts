@@ -40,6 +40,11 @@ export interface OrgaoResumo {
   bases_fora_do_ar: number;
   percentual_ok: number | null;
   cobertura_links: number | null;
+  // Nota por órgão (decisão 17): chaves acrescentadas depois da primeira publicação, então podem faltar
+  nota?: number | null;
+  cobertura?: number | null;
+  bases_verificaveis?: number;
+  entra_ranking?: boolean;
 }
 
 export interface Base {

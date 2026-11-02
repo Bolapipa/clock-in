@@ -10,7 +10,8 @@ dados/estado/conteudo_atual.parquet  (uma linha por link)
     hash_conteudo, tamanho_bytes, qtd_colunas, schema, schema_hash, erro_schema,
     verificacao_parcial, schema_anterior (schema antes da última mudança de estrutura),
     ultima_mudanca (dia em que o hash mudou), ultima_mudanca_schema (dia em que a estrutura mudou),
-    erro_tipo (erro da última tentativa; nulo se deu certo)
+    erro_tipo (erro da última tentativa; nulo se deu certo),
+    historico_mudancas (datas das últimas mudanças de conteúdo, da mais antiga para a mais recente)
 
 Regras:
 - Um download que falha não apaga o que já se sabia: só registra o erro e a data da tentativa.
@@ -42,8 +43,12 @@ COLUNAS_ESTADO = """
     schema_anterior       VARCHAR,
     ultima_mudanca        DATE,
     ultima_mudanca_schema DATE,
-    erro_tipo             VARCHAR
+    erro_tipo             VARCHAR,
+    historico_mudancas    DATE[]
 """
+
+# Quantas datas de mudança de conteúdo o estado guarda por link (as mais recentes): base do ritmo inferido (decisão 42)
+MAX_MUDANCAS_GUARDADAS = 12
 
 # Colunas da Bronze, na ordem em que são gravadas
 COLUNAS_BRONZE = """
@@ -100,11 +105,19 @@ def gravar_lote(linhas, data):
     return arquivo
 
 
+def garantir_colunas(con, tabela):
+    """Um estado gravado antes do histórico de mudanças ganha a coluna nova, vazia."""
+    colunas = {coluna[0] for coluna in con.execute(f"DESCRIBE {tabela}").fetchall()}
+    if "historico_mudancas" not in colunas:
+        con.execute(f"ALTER TABLE {tabela} ADD COLUMN historico_mudancas DATE[]")
+
+
 def carregar_estado(con):
     """Cria a tabela 'estado' na conexão: do arquivo, ou vazia na primeira vez."""
     arquivo = arquivo_estado()
     if arquivo.exists():
         con.execute(f"CREATE OR REPLACE TABLE estado AS SELECT * FROM read_parquet('{arquivo.as_posix()}')")
+        garantir_colunas(con, "estado")
     else:
         con.execute(f"CREATE OR REPLACE TABLE estado ({COLUNAS_ESTADO})")
 
@@ -163,7 +176,8 @@ def aplicar_dia(con, data):
                 e.verificacao_parcial     AS e_verificacao_parcial,
                 e.schema_anterior         AS e_schema_anterior,
                 e.ultima_mudanca          AS e_ultima_mudanca,
-                e.ultima_mudanca_schema   AS e_ultima_mudanca_schema
+                e.ultima_mudanca_schema   AS e_ultima_mudanca_schema,
+                e.historico_mudancas      AS e_historico_mudancas
             FROM hoje h
             LEFT JOIN estado e ON e.link = h.link
         )
@@ -190,9 +204,14 @@ def aplicar_dia(con, data):
             CASE WHEN mudou_schema THEN e_schema ELSE e_schema_anterior END,
             CASE WHEN mudou_conteudo THEN CAST($data AS DATE) ELSE e_ultima_mudanca END,
             CASE WHEN mudou_schema THEN CAST($data AS DATE) ELSE e_ultima_mudanca_schema END,
-            erro_tipo
+            erro_tipo,
+            -- Só uma mudança de conteúdo acrescenta uma data; a lista guarda as mais recentes
+            CASE
+                WHEN mudou_conteudo THEN list_slice(list_append(COALESCE(e_historico_mudancas, []::DATE[]), CAST($data AS DATE)), -$maximo, -1)
+                ELSE e_historico_mudancas
+            END
         FROM novos
-    """, {"data": data})
+    """, {"data": data, "maximo": MAX_MUDANCAS_GUARDADAS})
 
 
 def salvar_estado(con):

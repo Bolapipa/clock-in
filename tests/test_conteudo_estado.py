@@ -204,3 +204,59 @@ def test_gravar_lote_nao_sobrescreve_partes_do_dia():
     partes = conteudo_estado.partes_do_dia(DIA_1)
 
     assert [parte.name for parte in partes] == ["parte-0001.parquet", "parte-0002.parquet"]
+
+# --- Histórico de mudanças (base do ritmo inferido, decisão 42) ---
+
+def test_historico_guarda_so_as_datas_em_que_o_conteudo_mudou():
+    registrar(DIA_1, leitura(DIA_1, "h1"))
+    # Primeira leitura não é mudança; mesma leitura de novo também não
+    assert estado_do_link()["historico_mudancas"] is None
+    registrar(DIA_2, leitura(DIA_2, "h1"))
+    assert estado_do_link()["historico_mudancas"] is None
+
+    registrar(DIA_3, leitura(DIA_3, "h2"))
+
+    assert estado_do_link()["historico_mudancas"] == [DIA_3]
+
+
+def test_historico_acumula_as_mudancas_em_ordem():
+    registrar(DIA_1, leitura(DIA_1, "h1"))
+    registrar(DIA_2, leitura(DIA_2, "h2"))
+    registrar(DIA_3, leitura(DIA_3, "h3"))
+
+    assert estado_do_link()["historico_mudancas"] == [DIA_2, DIA_3]
+
+
+def test_falha_nao_acrescenta_data_ao_historico():
+    registrar(DIA_1, leitura(DIA_1, "h1"))
+    registrar(DIA_2, falha(DIA_2))
+
+    assert estado_do_link()["historico_mudancas"] is None
+
+
+def test_historico_guarda_so_as_mais_recentes():
+    primeiro = date(2026, 1, 1)
+    registrar(primeiro, leitura(primeiro, "h0"))
+    dias = [date(2026, 1, 2 + i) for i in range(conteudo_estado.MAX_MUDANCAS_GUARDADAS + 3)]
+    for numero, dia in enumerate(dias, start=1):
+        registrar(dia, leitura(dia, f"h{numero}"))
+
+    historico = estado_do_link()["historico_mudancas"]
+
+    assert len(historico) == conteudo_estado.MAX_MUDANCAS_GUARDADAS
+    assert historico == dias[-conteudo_estado.MAX_MUDANCAS_GUARDADAS:]
+
+
+def test_estado_antigo_sem_a_coluna_ganha_o_historico_vazio():
+    registrar(DIA_1, leitura(DIA_1, "h1"))
+    # Regrava o estado como era antes: sem a coluna
+    arquivo = conteudo_estado.arquivo_estado()
+    con = duckdb.connect()
+    con.execute(f"COPY (SELECT * EXCLUDE (historico_mudancas) FROM read_parquet('{arquivo.as_posix()}')) TO '{arquivo.as_posix()}.novo' (FORMAT parquet)")
+    con.close()
+    arquivo.unlink()
+    arquivo.with_name("conteudo_atual.parquet.novo").rename(arquivo)
+
+    registrar(DIA_2, leitura(DIA_2, "h2"))
+
+    assert estado_do_link()["historico_mudancas"] == [DIA_2]

@@ -44,9 +44,18 @@ def gravar(arquivo, colunas, linhas):
     con.close()
 
 
-def arquivo(primeira=None, mudanca=None, schema=None, tabular=True):
-    """Um arquivo de uma base: datas da primeira leitura, da última mudança e da última mudança de schema."""
-    return {"primeira": primeira, "mudanca": mudanca, "schema": schema, "tabular": tabular}
+def arquivo(primeira=None, mudanca=None, schema=None, tabular=True, mudancas=None):
+    """Um arquivo de uma base: datas da primeira leitura, da última mudança e da última mudança de schema.
+
+    mudancas é a lista de quantos dias atrás o conteúdo mudou (histórico para o ritmo inferido); a última mudança
+    e a primeira leitura saem dela, se não forem informadas.
+    """
+    historico = None
+    if mudancas:
+        historico = sorted(dias_atras(dias) for dias in mudancas)
+        mudanca = mudanca or historico[-1]
+        primeira = primeira or dias_atras(max(mudancas) + 30)
+    return {"primeira": primeira, "mudanca": mudanca, "schema": schema, "tabular": tabular, "historico": historico}
 
 
 def base(id_base, periodicidade="MENSAL", arquivos=(), status_portal=None, links=None, quebrados=0, fora_do_ar=False):
@@ -70,7 +79,7 @@ def montar(*bases, com_estado=True):
         for numero, a in enumerate(b["arquivos"], start=1):
             link = f"https://dados.gov.br/{b['id']}/{numero}.csv"
             recursos.append((b["id"], link, a["tabular"]))
-            estados.append((link, HOJE, a["primeira"], a["mudanca"], a["schema"]))
+            estados.append((link, HOJE, a["primeira"], a["mudanca"], a["schema"], a["historico"]))
     gravar(destino("recurso"), "id_base VARCHAR, link VARCHAR, formato_tabular BOOLEAN", recursos)
 
     if com_estado:
@@ -79,8 +88,9 @@ def montar(*bases, com_estado=True):
         con = duckdb.connect()
         con.execute(f"CREATE TABLE conteudo_atual ({conteudo_estado.COLUNAS_ESTADO})")
         for linha in estados:
-            con.execute("""INSERT INTO conteudo_atual (link, ultima_leitura, primeira_leitura, ultima_mudanca, ultima_mudanca_schema)
-                           VALUES (?, ?, ?, ?, ?)""", linha)
+            con.execute("""INSERT INTO conteudo_atual (link, ultima_leitura, primeira_leitura, ultima_mudanca, ultima_mudanca_schema,
+                                                       historico_mudancas)
+                           VALUES (?, ?, ?, ?, ?, ?)""", linha)
         con.execute(f"COPY conteudo_atual TO '{arq_estado.as_posix()}' (FORMAT parquet)")
         con.close()
 
@@ -223,6 +233,105 @@ def test_sem_periodicidade_comparavel_nao_e_verificavel(periodicidade):
     assert linha["prazo_esperado_dias"] is None
     assert linha["origem_prazo"] is None
     assert linha["motivo"] == "sem periodicidade declarada e ainda sem histórico para inferir o ritmo"
+
+
+# --- Ritmo inferido: base sem periodicidade declarada (decisão 42) ---
+
+def base_sem_periodicidade(mudancas):
+    """Uma base sem periodicidade declarada, com um arquivo que mudou nos dias (atrás) informados."""
+    return base("a", periodicidade="NAO_DECLARADA", arquivos=[arquivo(mudancas=mudancas)])
+
+
+def test_ritmo_inferido_em_dia_explica_o_motivo():
+    # Mudou a cada 10 dias, a última há 10: prazo = 10 x 1,5 = 15 dias
+    montar(base_sem_periodicidade([50, 40, 30, 20, 10]))
+
+    linha = gerar_status()["a"]
+
+    assert linha["status"] == "EM_DIA"
+    assert (linha["prazo_esperado_dias"], linha["origem_prazo"]) == (15, "INFERIDO")
+    assert linha["motivo"] == "em dia porque é de ritmo inferido (muda a cada cerca de 10 dias) e mudou há 10 dias (prazo de 15 dias)"
+
+
+@pytest.mark.parametrize("ultima, esperado", [
+    (15, "EM_DIA"),      # exatamente no prazo de 15 dias
+    (16, "ATRASADA"),
+    (45, "ATRASADA"),    # exatamente 3x o prazo
+    (46, "PARADA"),
+])
+def test_ritmo_inferido_usa_os_mesmos_limites_da_periodicidade_declarada(ultima, esperado):
+    # Intervalos de 10 dias; a última mudança foi há 'ultima' dias
+    montar(base_sem_periodicidade([ultima + 30, ultima + 20, ultima + 10, ultima]))
+
+    assert gerar_status()["a"]["status"] == esperado
+
+
+def test_ritmo_inferido_precisa_de_tres_intervalos():
+    # 3 mudanças = 2 intervalos: ainda pouco histórico
+    montar(base_sem_periodicidade([30, 20, 10]))
+
+    linha = gerar_status()["a"]
+
+    assert linha["status"] == "NAO_VERIFICAVEL"
+    assert (linha["prazo_esperado_dias"], linha["origem_prazo"]) == (None, None)
+    assert linha["motivo"] == "sem periodicidade declarada e ainda sem histórico para inferir o ritmo"
+
+
+def test_ritmo_inferido_usa_a_mediana_e_nao_se_deixa_levar_por_um_intervalo_fora_da_curva():
+    # Intervalos de 5, 5, 5 e 100 dias: a mediana é 5, o prazo é ceil(5 x 1,5) = 8
+    montar(base_sem_periodicidade([115, 15, 10, 5, 0]))
+
+    linha = gerar_status()["a"]
+
+    assert linha["prazo_esperado_dias"] == 8
+    assert linha["status"] == "EM_DIA"
+
+
+def test_ritmo_inferido_nunca_fica_abaixo_do_prazo_minimo():
+    # Mudou todo dia: 1 x 1,5 daria 2 dias, mas o prazo mínimo é 3
+    montar(base_sem_periodicidade([4, 3, 2, 1, 0]))
+
+    assert gerar_status()["a"]["prazo_esperado_dias"] == 3
+
+
+def test_periodicidade_declarada_vale_mais_que_o_ritmo_inferido():
+    # Declara mensal, mas muda a cada 10 dias: vale o prazo mensal
+    montar(base("a", periodicidade="MENSAL", arquivos=[arquivo(mudancas=[50, 40, 30, 20, 10])]))
+
+    linha = gerar_status()["a"]
+
+    assert (linha["prazo_esperado_dias"], linha["origem_prazo"]) == (40, "DECLARADO")
+
+
+@pytest.mark.parametrize("periodicidade", ["SOB_DEMANDA", "OUTRAS"])
+def test_ritmo_so_e_inferido_quando_a_periodicidade_nao_foi_declarada(periodicidade):
+    # "Sob demanda" e "outras" são declarações: o ritmo do histórico não as substitui
+    montar(base("a", periodicidade=periodicidade, arquivos=[arquivo(mudancas=[50, 40, 30, 20, 10])]))
+
+    assert gerar_status()["a"]["status"] == "NAO_VERIFICAVEL"
+
+
+def test_ritmo_junta_os_intervalos_dos_arquivos_da_base():
+    # Dois arquivos, cada um com 2 intervalos de 10 dias: juntos têm 4 intervalos, o bastante para inferir
+    montar(base("a", periodicidade="NAO_DECLARADA", arquivos=[arquivo(mudancas=[30, 20, 10]), arquivo(mudancas=[25, 15, 5])]))
+
+    linha = gerar_status()["a"]
+
+    assert linha["origem_prazo"] == "INFERIDO"
+    assert linha["prazo_esperado_dias"] == 15
+
+
+def test_estado_gravado_antes_do_historico_de_mudancas_continua_funcionando():
+    montar(base("a", arquivos=[arquivo(primeira=dias_atras(200), mudanca=dias_atras(12))]))
+    # Regrava o estado como era antes: sem a coluna historico_mudancas
+    caminho = conteudo_estado.arquivo_estado().as_posix()
+    con = duckdb.connect()
+    con.execute(f"COPY (SELECT * EXCLUDE (historico_mudancas) FROM read_parquet('{caminho}')) TO '{caminho}.novo' (FORMAT parquet)")
+    con.close()
+    conteudo_estado.arquivo_estado().unlink()
+    (conteudo_estado.arquivo_estado().parent / "conteudo_atual.parquet.novo").rename(conteudo_estado.arquivo_estado())
+
+    assert gerar_status()["a"]["status"] == "EM_DIA"
 
 
 def test_base_sem_detalhe_ainda_nao_e_verificavel():

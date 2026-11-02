@@ -5,6 +5,7 @@ das bases (Gold). Grava, por padrão em web/public/api/ (o Next.js a leva para o
     resumo.json           totais do Brasil
     orgaos.json           um resumo por órgão publicador (a lista fica na chave "orgaos")
     orgaos/<slug>.json    o órgão e a lista das bases dele
+    ranking.json          os órgãos ordenados pela nota (decisão 17)
 
 Todo arquivo traz "versao", "data_coleta" e "gerado_em". O contrato de cada um está em docs/API.md.
 Os arquivos são gerados a cada execução e não vão para o Git (decisão 16).
@@ -45,6 +46,37 @@ VERSAO_DA_API = 1
 # Um órgão com menos links testados que isto fica sem porcentagem: com poucos links, 1 ou 2 falhas
 # fariam o órgão parecer muito pior (ou melhor) do que ele é
 MINIMO_TESTADOS_PARA_PERCENTUAL = 30
+
+# Só entram no ranking os órgãos com pelo menos esta quantidade de bases (decisão 17)
+MINIMO_BASES_NO_RANKING = 10
+
+# Peso de uma base atrasada na nota: em dia vale 1, atrasada vale metade, parada e fora do ar valem zero
+PESO_ATRASADA = 0.5
+
+
+def calcular_nota(status, qtd_bases):
+    """Nota e cobertura de um órgão a partir da quantidade de bases por status (decisão 17).
+
+    nota      = 100 x (em_dia + 0,5 x atrasada) / bases_verificaveis
+    cobertura = 100 x bases_verificaveis / bases_total
+    "Não verificável" fica fora da nota e aparece na cobertura. Sem nenhuma base verificável, a nota é nula.
+    """
+    verificaveis = qtd_bases - status.get("NAO_VERIFICAVEL", 0)
+    pontos = status.get("EM_DIA", 0) + PESO_ATRASADA * status.get("ATRASADA", 0)
+    return {
+        "nota": round(100 * pontos / verificaveis, 1) if verificaveis else None,
+        "cobertura": percentual(verificaveis, qtd_bases),
+        "bases_verificaveis": verificaveis,
+        "entra_ranking": qtd_bases >= MINIMO_BASES_NO_RANKING and verificaveis > 0,
+    }
+
+
+def montar_ranking(orgaos):
+    """Os órgãos que entram no ranking, da maior nota para a menor (empate: mais cobertura, depois o nome)."""
+    elegiveis = [orgao for orgao in orgaos.values() if orgao["entra_ranking"]]
+    elegiveis.sort(key=lambda orgao: (-orgao["nota"], -orgao["cobertura"], orgao["nome"]))
+    chaves = ("nome", "slug", "esfera", "nota", "cobertura", "qtd_bases", "bases_verificaveis")
+    return [{"posicao": posicao, **{chave: orgao[chave] for chave in chaves}} for posicao, orgao in enumerate(elegiveis, start=1)]
 
 
 def criar_slug(nome):
@@ -103,6 +135,7 @@ def agrupar_por_orgao(bases):
 
     for orgao in orgaos.values():
         lista = orgao["bases"]
+        por_status = Counter(base["status"] for base in lista)
         total = sum(base["links_total"] for base in lista)
         testados = sum(base["links_testados"] for base in lista)
         ok = sum(base["links_ok"] for base in lista)
@@ -116,7 +149,8 @@ def agrupar_por_orgao(bases):
             "bases_fora_do_ar": sum(base["fora_do_ar"] for base in lista),
             "percentual_ok": percentual(ok, testados) if testados >= MINIMO_TESTADOS_PARA_PERCENTUAL else None,
             "cobertura_links": percentual(testados, total),
-            "status": dict(sorted(Counter(base["status"] for base in lista).items())),
+            "status": dict(sorted(por_status.items())),
+            **calcular_nota(por_status, len(lista)),
         })
     return orgaos
 
@@ -185,6 +219,9 @@ def gerar(con, data, saida):
     for orgao, resumo_do_orgao in zip(ordenados, sem_as_bases):
         bases_do_orgao = sorted(orgao["bases"], key=lambda base: (-base["links_quebrados"], -base["links_em_observacao"], base["titulo"] or ""))
         gravar_json(saida / "orgaos" / f"{orgao['slug']}.json", {**cabecalho, **resumo_do_orgao, "bases": bases_do_orgao})
+
+    # Ranking: só os órgãos com bases suficientes e ao menos uma base verificável, da maior nota para a menor
+    gravar_json(saida / "ranking.json", {**cabecalho, "minimo_bases": MINIMO_BASES_NO_RANKING, "orgaos": montar_ranking(orgaos)})
 
     resumo = {**cabecalho, **montar_resumo(bases, orgaos, recursos)}
     gravar_json(saida / "resumo.json", resumo)
