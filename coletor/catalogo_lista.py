@@ -145,6 +145,11 @@ def main():
             # Lista vazia: passou da última página
             registros = ler_registros(resposta, pagina)
             if not registros:
+                # Vazia já na página 1 não é o fim do catálogo: o portal está sem responder com dados
+                if pagina == 1:
+                    sys.exit("O portal devolveu a página 1 vazia (HTTP 200, lista sem nenhuma base). "
+                             "Isso indica instabilidade do dados.gov.br, não o fim do catálogo. "
+                             "Nada foi gravado; rode de novo mais tarde.")
                 chegou_ao_fim = True
                 break
 

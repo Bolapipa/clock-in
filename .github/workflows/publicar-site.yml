@@ -62,18 +62,34 @@ jobs:
           echo "DATA=$DATA" >> "$GITHUB_ENV"
 
       - name: Dados | Baixa o histórico do dia
+        id: dia
+        env:
+          EVENTO: ${{ github.event_name }}
         run: |
           # O histórico fica num release por mês, com um arquivo por dia
           MES="${DATA:0:7}"
-          gh release download "historico-$MES" --pattern "dia-$DATA.tar.gz" --dir "$RUNNER_TEMP" --clobber
+          if ! gh release download "historico-$MES" --pattern "dia-$DATA.tar.gz" --dir "$RUNNER_TEMP" --clobber; then
+            # Depois do pipeline: se ele não produziu o dia (por exemplo, o portal estava fora do ar), o site
+            # continua com os dados anteriores e esta execução termina bem, com um aviso.
+            # À mão, pedir um dia que não existe é erro.
+            if [ "$EVENTO" = "workflow_run" ]; then
+              echo "::notice::Sem histórico de $DATA: o pipeline não produziu o dia. O site segue com os dados anteriores."
+              echo "ha_dados=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            exit 1
+          fi
           tar -xzf "$RUNNER_TEMP/dia-$DATA.tar.gz"
           # Sem a Silver do dia não há o que publicar
           test -d dados/silver
+          echo "ha_dados=true" >> "$GITHUB_OUTPUT"
 
       - name: Site | Gera a API com os dados do dia
+        if: steps.dia.outputs.ha_dados == 'true'
         run: python publicar/gerar_api.py --data "$DATA" --saida web/public/api
 
       - uses: actions/setup-node@v4
+        if: steps.dia.outputs.ha_dados == 'true'
         with:
           node-version: "22"
           cache: npm
@@ -81,6 +97,7 @@ jobs:
 
       # Next.js em modo estático: o site pronto sai em web/out (uma página por órgão, gerada com a API do dia)
       - name: Site | Testa e compila o site com a API do dia
+        if: steps.dia.outputs.ha_dados == 'true'
         working-directory: web
         env:
           NEXT_TELEMETRY_DISABLED: "1"
@@ -91,6 +108,7 @@ jobs:
 
       # Guarda o site pronto na execução: dá para baixar e conferir, mesmo sem publicar
       - name: Site | Guarda o site compilado na execução
+        if: steps.dia.outputs.ha_dados == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: site-${{ env.DATA }}
@@ -100,6 +118,7 @@ jobs:
       # Só publica se os três secrets da Vercel existirem; sem eles o dia termina bem, com um aviso
       - name: Vercel | Confere se o projeto está configurado
         id: vercel
+        if: steps.dia.outputs.ha_dados == 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -113,7 +132,7 @@ jobs:
           fi
 
       - name: Vercel | Publica o site
-        if: steps.vercel.outputs.configurado == 'true'
+        if: steps.dia.outputs.ha_dados == 'true' && steps.vercel.outputs.configurado == 'true'
         env:
           # O CLI lê o token e os dois identificadores destas variáveis
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

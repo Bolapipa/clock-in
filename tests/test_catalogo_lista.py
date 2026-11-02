@@ -186,6 +186,16 @@ def test_aceitar_queda_grava_mesmo_assim(tmp_path, monkeypatch):
     assert total_gravado(HOJE) == 10
 
 
+def test_pagina_1_vazia_e_instabilidade_do_portal_e_nao_grava(tmp_path, monkeypatch):
+    # Portal responde 200 com lista vazia desde a primeira página
+    portal_falso(monkeypatch, tmp_path, [])
+
+    with pytest.raises(SystemExit, match="página 1 vazia"):
+        catalogo_lista.main()
+
+    assert not catalogo_lista.arquivo_da_listagem(HOJE).exists()
+
+
 def test_teste_parcial_nao_sobrescreve_listagem_do_dia(tmp_path, monkeypatch):
     portal_falso(monkeypatch, tmp_path, [5, 5], ["--max-paginas", "1"])
     gravar_listagem(HOJE, 100)
