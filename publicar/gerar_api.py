@@ -50,6 +50,10 @@ MINIMO_TESTADOS_PARA_PERCENTUAL = 30
 # Só entram no ranking os órgãos com pelo menos esta quantidade de bases (decisão 17)
 MINIMO_BASES_NO_RANKING = 10
 
+# E pelo menos esta quantidade de bases verificáveis: com 1 ou 2 bases lidas, a nota 100 seria sorte de amostra
+# e passaria na frente de órgãos grandes e bem medidos (decisão 45)
+MINIMO_VERIFICAVEIS_NO_RANKING = 5
+
 # Peso de uma base atrasada na nota: em dia vale 1, atrasada vale metade, parada e fora do ar valem zero
 PESO_ATRASADA = 0.5
 
@@ -67,7 +71,7 @@ def calcular_nota(status, qtd_bases):
         "nota": round(100 * pontos / verificaveis, 1) if verificaveis else None,
         "cobertura": percentual(verificaveis, qtd_bases),
         "bases_verificaveis": verificaveis,
-        "entra_ranking": qtd_bases >= MINIMO_BASES_NO_RANKING and verificaveis > 0,
+        "entra_ranking": qtd_bases >= MINIMO_BASES_NO_RANKING and verificaveis >= MINIMO_VERIFICAVEIS_NO_RANKING,
     }
 
 
@@ -221,7 +225,8 @@ def gerar(con, data, saida):
         gravar_json(saida / "orgaos" / f"{orgao['slug']}.json", {**cabecalho, **resumo_do_orgao, "bases": bases_do_orgao})
 
     # Ranking: só os órgãos com bases suficientes e ao menos uma base verificável, da maior nota para a menor
-    gravar_json(saida / "ranking.json", {**cabecalho, "minimo_bases": MINIMO_BASES_NO_RANKING, "orgaos": montar_ranking(orgaos)})
+    gravar_json(saida / "ranking.json", {**cabecalho, "minimo_bases": MINIMO_BASES_NO_RANKING,
+                                       "minimo_verificaveis": MINIMO_VERIFICAVEIS_NO_RANKING, "orgaos": montar_ranking(orgaos)})
 
     resumo = {**cabecalho, **montar_resumo(bases, orgaos, recursos)}
     gravar_json(saida / "resumo.json", resumo)

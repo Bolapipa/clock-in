@@ -193,7 +193,7 @@ cobertura = 100 x bases_verificaveis / bases_total
 
 - `bases_verificaveis` são as bases com status diferente de "não verificável" (parada e fora do ar entram, com peso zero).
 - "Não verificável" fica fora da nota e aparece na cobertura, lado a lado.
-- Só entram no ranking órgãos com pelo menos 10 bases e ao menos uma base verificável. Sem nenhuma base verificável, a nota é nula.
+- Só entram no ranking órgãos com pelo menos 10 bases e pelo menos 5 bases verificáveis (decisão 45). Sem nenhuma base verificável, a nota é nula; com poucas, a nota existe, mas o órgão fica fora do ranking.
 - A fórmula é publicada na página de metodologia do site.
 - Hoje a nota é calculada ao gerar a API (`publicar/gerar_api.py`, decisão 43) e sai em `orgaos.json`, `orgaos/{slug}.json` e `ranking.json`; a tabela Gold `fato_nota_orgao_diario` fica para quando houver histórico de nota.
 
@@ -220,7 +220,7 @@ Enquanto o status por conteúdo não tem histórico, a API traz só o que a Silv
 |---|---|
 | `api/resumo.json` | Totais do Brasil: bases, recursos, órgãos, links (testados, respondendo bem, em observação, quebrados, porcentagem e cobertura), bases fora do ar, status, esferas e periodicidades |
 | `api/orgaos.json` | O cabeçalho e, na chave `orgaos`, um resumo por órgão publicador, dos que têm mais bases para os que têm menos, sem a lista de bases, com a nota e a cobertura de cada um |
-| `api/ranking.json` | Os órgãos com pelo menos 10 bases e uma base verificável, da maior nota para a menor (empate: mais cobertura, depois o nome) |
+| `api/ranking.json` | Os órgãos com pelo menos 10 bases e 5 bases verificáveis, da maior nota para a menor (empate: mais cobertura, depois o nome) |
 | `api/orgaos/{slug}.json` | O órgão e as bases dele (título, periodicidade, links, status e motivo), com as que têm problema primeiro |
 
 O `slug` do órgão é o nome sem acentos, em minúsculas e com hífens. A porcentagem de links respondendo bem só existe para órgãos com 30 ou mais links testados. Todo arquivo traz `versao`, `data_coleta` e `gerado_em`, e o contrato versão 1 (chaves, tipos e valores possíveis) está em [API.md](API.md), com testes que fixam o conjunto de chaves (decisão 37). O `api/bases/{slug}.json` fica para a Fase 6. O site em `site/` (`index.html`, `estilo.css` e `app.js`) lê esses arquivos e tem a página inicial, a de cada órgão, a de cada base, a metodologia e a da API.

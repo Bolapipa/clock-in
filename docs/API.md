@@ -76,7 +76,7 @@ A nota é uma medida pelo **conteúdo** das bases, diferente de `percentual_ok`,
 
 ## `ranking.json`
 
-Além do cabeçalho, traz `minimo_bases` (hoje, `10`) e a lista `orgaos`, da maior nota para a menor (empate: maior cobertura, depois o nome). Só entram órgãos com `entra_ranking = true`; enquanto nenhum entra, a lista fica vazia.
+Além do cabeçalho, traz `minimo_bases` (hoje, `10`), `minimo_verificaveis` (hoje, `5`) e a lista `orgaos`, da maior nota para a menor (empate: maior cobertura, depois o nome). Só entram órgãos com `entra_ranking = true`, isto é, com pelo menos `minimo_bases` bases e pelo menos `minimo_verificaveis` bases verificáveis (decisão 45); enquanto nenhum entra, a lista fica vazia.
 
 | Chave | Tipo | Significado |
 |---|---|---|

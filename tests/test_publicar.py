@@ -291,10 +291,23 @@ def test_ranking_so_tem_orgaos_com_10_bases_ordenados_pela_nota():
     pasta, _ = gerar()
 
     ranking = ler(pasta, "ranking.json")
-    assert CABECALHO <= set(ranking) and ranking["minimo_bases"] == 10
+    assert CABECALHO <= set(ranking) and (ranking["minimo_bases"], ranking["minimo_verificaveis"]) == (10, 5)
     # C tem nota 100, mas só 9 bases; D não tem nota
     assert [(o["posicao"], o["nome"], o["nota"]) for o in ranking["orgaos"]] == [(1, "Órgão B", 100.0), (2, "Órgão A", 62.5)]
     assert set(ranking["orgaos"][0]) == {"posicao", "nome", "slug", "esfera", "nota", "cobertura", "qtd_bases", "bases_verificaveis"}
+
+
+def test_orgao_com_poucas_bases_verificaveis_tem_nota_mas_fica_fora_do_ranking():
+    # E tem 10 bases e nota 100, mas só 4 verificáveis (abaixo do mínimo de 5); F tem exatamente 5 e entra
+    e, linhas_e = montar_orgao_com_status("Órgão E", "e", ["EM_DIA"] * 4 + ["NAO_VERIFICAVEL"] * 6)
+    f, linhas_f = montar_orgao_com_status("Órgão F", "f", ["EM_DIA"] * 4 + ["PARADA"] + ["NAO_VERIFICAVEL"] * 5)
+    montar(*e, *f)
+    gravar_status(*linhas_e, *linhas_f)
+
+    pasta, _ = gerar()
+
+    assert orgao_por_nome(pasta, "Órgão E")["nota"] == 100.0
+    assert [o["nome"] for o in ler(pasta, "ranking.json")["orgaos"]] == ["Órgão F"]
 
 
 def test_ranking_desempata_pela_cobertura_e_depois_pelo_nome():

@@ -66,7 +66,7 @@ const CONTEUDO = {
           nota = 100 × (em dia + 0,5 × atrasadas) ÷ bases verificáveis<br />
           cobertura = 100 × bases verificáveis ÷ bases do órgão
         </p>
-        <p>Base parada ou fora do ar conta como zero. Base <strong>não verificável</strong> fica fora da nota e aparece na cobertura, ao lado dela: esconder dados não vira vantagem. Só entram no ranking os órgãos com pelo menos 10 bases, e um órgão sem nenhuma base verificável fica sem nota.</p>
+        <p>Base parada ou fora do ar conta como zero. Base <strong>não verificável</strong> fica fora da nota e aparece na cobertura, ao lado dela: esconder dados não vira vantagem. Só entram no ranking os órgãos com pelo menos 10 bases e pelo menos 5 bases verificáveis, porque com poucas bases lidas a nota seria sorte de amostra. Um órgão sem nenhuma base verificável fica sem nota.</p>
       </>
     ),
     periodicidade: "Periodicidade",
@@ -120,7 +120,7 @@ const CONTEUDO = {
           score = 100 × (up to date + 0.5 × late) ÷ verifiable datasets<br />
           coverage = 100 × verifiable datasets ÷ agency datasets
         </p>
-        <p>Stalled or offline datasets count as zero. <strong>Not verifiable</strong> datasets stay out of the score and show up in the coverage, next to it: hiding data is no advantage. Only agencies with at least 10 datasets enter the ranking, and an agency with no verifiable dataset has no score.</p>
+        <p>Stalled or offline datasets count as zero. <strong>Not verifiable</strong> datasets stay out of the score and show up in the coverage, next to it: hiding data is no advantage. Only agencies with at least 10 datasets and at least 5 verifiable datasets enter the ranking, because with few datasets read the score would be sampling luck. An agency with no verifiable dataset has no score.</p>
       </>
     ),
     periodicidade: "Frequency",
