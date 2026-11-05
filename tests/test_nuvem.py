@@ -176,6 +176,21 @@ def test_historico_leva_junto_os_eventos_recentes_para_os_feeds(github):
     assert nomes == ["dados/estado/evento_recente.parquet", f"dados/silver/link_status/data={DIA}/link_status.parquet"]
 
 
+def test_historico_leva_junto_a_serie_diaria_para_a_evolucao(github):
+    gravar(f"silver/link_status/data={DIA}/link_status.parquet", b"status")
+    gravar("estado/nota_orgao_historico.parquet", b"nota")
+    gravar("estado/brasil_historico.parquet", b"brasil")
+
+    nuvem.historico(DIA)
+
+    pacote = portal.RAIZ / "dia.tar.gz"
+    pacote.write_bytes(github.releases["historico-2026-10"]["dia-2026-10-26.tar.gz"])
+    with tarfile.open(pacote) as tar:
+        nomes = sorted(tar.getnames())
+    assert nomes == ["dados/estado/brasil_historico.parquet", "dados/estado/nota_orgao_historico.parquet",
+                     f"dados/silver/link_status/data={DIA}/link_status.parquet"]
+
+
 def test_historico_sem_nada_produzido_nao_envia(github):
     nuvem.historico(DIA)
 
@@ -183,8 +198,10 @@ def test_historico_sem_nada_produzido_nao_envia(github):
 
 
 def test_eventos_recentes_sozinhos_nao_contam_como_producao_do_dia(github):
-    # O arquivo vem do estado de ontem: sem Silver, Gold ou Bronze de hoje, nada foi produzido
+    # Os arquivos vêm do estado de ontem: sem Silver, Gold ou Bronze de hoje, nada foi produzido
     gravar("estado/evento_recente.parquet", b"eventos")
+    gravar("estado/nota_orgao_historico.parquet", b"nota")
+    gravar("estado/brasil_historico.parquet", b"brasil")
 
     nuvem.historico(DIA)
 

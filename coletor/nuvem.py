@@ -170,10 +170,14 @@ def arquivos_do_dia(data):
         dados.glob(f"bronze/catalogo_lista/data={data}/*.parquet"),
     ]
     arquivos = [arquivo for padrao in padroes for arquivo in padrao]
-    # Os eventos dos últimos 30 dias vão junto, porque os feeds RSS leem deles (decisão 44). Nunca sozinhos:
-    # o arquivo persiste de um dia para o outro e faria um dia sem produção parecer ter produzido algo
+    # Os eventos dos últimos 30 dias vão junto, porque os feeds RSS leem deles (decisão 44), e a série diária
+    # inteira (nota por órgão e totais do Brasil, decisão 48), porque a evolução é publicada a partir dela.
+    # Nunca sozinhos: esses arquivos persistem de um dia para o outro e fariam um dia sem produção parecer
+    # ter produzido algo
     if arquivos:
         arquivos += dados.glob("estado/evento_recente.parquet")
+        arquivos += dados.glob("estado/nota_orgao_historico.parquet")
+        arquivos += dados.glob("estado/brasil_historico.parquet")
     return sorted(arquivos)
 
 

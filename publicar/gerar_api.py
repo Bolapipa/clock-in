@@ -37,6 +37,8 @@ import gold_eventos
 import gold_status
 import portal
 import silver
+# A fórmula da nota e os mínimos do ranking vivem em nota.py, para a API e a Gold usarem exatamente a mesma
+from nota import MINIMO_BASES_NO_RANKING, MINIMO_VERIFICAVEIS_NO_RANKING, calcular_nota, percentual
 
 # Pasta de saída padrão e arquivo SQL que lista as bases
 PASTA_SAIDA = portal.RAIZ / "web" / "public" / "api"
@@ -50,36 +52,9 @@ VERSAO_DA_API = 1
 # fariam o órgão parecer muito pior (ou melhor) do que ele é
 MINIMO_TESTADOS_PARA_PERCENTUAL = 30
 
-# Só entram no ranking os órgãos com pelo menos esta quantidade de bases (decisão 17)
-MINIMO_BASES_NO_RANKING = 10
-
-# E pelo menos esta quantidade de bases verificáveis: com 1 ou 2 bases lidas, a nota 100 seria sorte de amostra
-# e passaria na frente de órgãos grandes e bem medidos (decisão 45)
-MINIMO_VERIFICAVEIS_NO_RANKING = 5
-
-# Peso de uma base atrasada na nota: em dia vale 1, atrasada vale metade, parada e fora do ar valem zero
-PESO_ATRASADA = 0.5
-
 # O endereço de uma base vira nome de arquivo (bases/<slug>.json), então só vale se tiver o formato de um slug:
 # letras, números e . _ ~ - (o mesmo que o site aceita no endereço)
 SLUG_DE_BASE_VALIDO = re.compile(r"[A-Za-z0-9._~-]{1,200}")
-
-
-def calcular_nota(status, qtd_bases):
-    """Nota e cobertura de um órgão a partir da quantidade de bases por status (decisão 17).
-
-    nota      = 100 x (em_dia + 0,5 x atrasada) / bases_verificaveis
-    cobertura = 100 x bases_verificaveis / bases_total
-    "Não verificável" fica fora da nota e aparece na cobertura. Sem nenhuma base verificável, a nota é nula.
-    """
-    verificaveis = qtd_bases - status.get("NAO_VERIFICAVEL", 0)
-    pontos = status.get("EM_DIA", 0) + PESO_ATRASADA * status.get("ATRASADA", 0)
-    return {
-        "nota": round(100 * pontos / verificaveis, 1) if verificaveis else None,
-        "cobertura": percentual(verificaveis, qtd_bases),
-        "bases_verificaveis": verificaveis,
-        "entra_ranking": qtd_bases >= MINIMO_BASES_NO_RANKING and verificaveis >= MINIMO_VERIFICAVEIS_NO_RANKING,
-    }
 
 
 def montar_ranking(orgaos):
@@ -182,11 +157,6 @@ def montar_arquivo_da_base(base, orgao, detalhe, eventos):
         # Linha do tempo dos últimos 30 dias, do mais novo para o mais antigo
         "eventos": [{"data": str(evento["data"]), "tipo": evento["tipo_evento"], "detalhe": evento["detalhe"]} for evento in eventos],
     }
-
-
-def percentual(parte, total):
-    """Porcentagem com 1 casa decimal; nulo quando não há total."""
-    return round(100 * parte / total, 1) if total else None
 
 
 def agrupar_por_orgao(bases):

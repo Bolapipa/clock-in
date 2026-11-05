@@ -61,6 +61,7 @@ def test_roda_todos_os_passos_em_ordem_com_a_mesma_data(monkeypatch):
         ("silver_conteudo.py", DATA),
         ("gold_status.py", DATA),
         ("gold_eventos.py", DATA),
+        ("gold_serie.py", DATA),
     ]
 
 
@@ -81,11 +82,11 @@ def test_continua_quando_o_painel_falha(monkeypatch):
 
     assert [script for script, _ in chamadas] == [
         "catalogo_lista.py", "painel_cgu.py", "catalogo_detalhe.py", "silver.py", "links.py", "silver_links.py",
-        "conteudo_baixar.py", "silver_conteudo.py", "gold_status.py", "gold_eventos.py",
+        "conteudo_baixar.py", "silver_conteudo.py", "gold_status.py", "gold_eventos.py", "gold_serie.py",
     ]
 
 
-@pytest.mark.parametrize("opcional", ["painel_cgu.py", "conteudo_baixar.py", "silver_conteudo.py", "gold_status.py", "gold_eventos.py"])
+@pytest.mark.parametrize("opcional", ["painel_cgu.py", "conteudo_baixar.py", "silver_conteudo.py", "gold_status.py", "gold_eventos.py", "gold_serie.py"])
 def test_passo_opcional_que_falha_nao_derruba_o_dia_e_avisa_no_github(monkeypatch, capsys, opcional):
     chamadas = motor_falso(monkeypatch, falham={opcional})
 
@@ -106,7 +107,7 @@ def test_conteudo_roda_depois_da_silver_dos_links(monkeypatch):
 
     scripts = [script for script, _ in chamadas]
     assert scripts.index("silver_links.py") < scripts.index("conteudo_baixar.py")
-    assert scripts.index("conteudo_baixar.py") < scripts.index("silver_conteudo.py") < scripts.index("gold_status.py") < scripts.index("gold_eventos.py")
+    assert scripts.index("conteudo_baixar.py") < scripts.index("silver_conteudo.py") < scripts.index("gold_status.py") < scripts.index("gold_eventos.py") < scripts.index("gold_serie.py")
 
 
 def test_desde_retoma_a_partir_de_um_passo(monkeypatch):
@@ -116,7 +117,7 @@ def test_desde_retoma_a_partir_de_um_passo(monkeypatch):
 
     assert [script for script, _ in chamadas] == [
         "catalogo_detalhe.py", "silver.py", "links.py", "silver_links.py",
-        "conteudo_baixar.py", "silver_conteudo.py", "gold_status.py", "gold_eventos.py",
+        "conteudo_baixar.py", "silver_conteudo.py", "gold_status.py", "gold_eventos.py", "gold_serie.py",
     ]
 
 
@@ -213,7 +214,7 @@ def test_sem_tempo_os_passos_com_tempo_sao_pulados_e_o_resto_continua(monkeypatc
     assert "links.py" not in scripts
     assert "conteudo_baixar.py" not in scripts
     assert "silver_links.py" in scripts
-    assert scripts[-1] == "gold_eventos.py"
+    assert scripts[-1] == "gold_serie.py"
 
 
 def test_so_o_conteudo_roda_se_os_links_ja_gastaram_o_tempo_deles(monkeypatch):

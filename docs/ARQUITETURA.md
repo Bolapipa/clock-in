@@ -107,6 +107,8 @@ Regra: guardar exatamente o que veio, antes de qualquer transformação.
 | `estado/conteudo_atual` | uma linha por link tabular | `link`, `servidor`, `ultima_tentativa`, `ultima_leitura` (último download que deu certo), `primeira_leitura` (primeiro download que deu certo; nunca muda), `hash_conteudo`, `tamanho_bytes`, `qtd_colunas`, `schema`, `schema_hash`, `erro_schema`, `verificacao_parcial`, `schema_anterior` (estrutura antes da última mudança), `ultima_mudanca` (dia em que o hash mudou), `ultima_mudanca_schema` (dia em que a estrutura mudou), `erro_tipo` (erro da última tentativa), `historico_mudancas` (as 12 últimas datas em que o hash mudou, da mais antiga para a mais recente; base do ritmo inferido, decisão 42). Download que falha não apaga o que já se sabia, e a primeira leitura de um link não conta como mudança. Atualizada por `coletor/conteudo_estado.py` |
 | `estado/status_base` | uma linha por base por dia (o último dia anterior e o de hoje) | `data`, `id`, `status`. É com ele que `coletor/gold_eventos.py` descobre que o status mudou desde ontem (decisão 44) |
 | `estado/evento_recente` | uma linha por evento dos últimos 30 dias | `data`, `id_base`, `slug`, `tipo_evento`, `detalhe`. Os feeds RSS leem daqui; vai junto no pacote do histórico do dia, mas nunca sozinho |
+| `estado/nota_orgao_historico` | uma linha por órgão por dia, desde o primeiro dia gravado | As mesmas colunas de `gold/fato_nota_orgao_diario`. Atualizada por `coletor/gold_serie.py`, que troca só as linhas do dia que roda; vai junto no pacote do histórico do dia, mas nunca sozinha (decisão 48) |
+| `estado/brasil_historico` | uma linha por dia, desde o primeiro dia gravado | As mesmas colunas de `gold/fato_brasil_diario`. Mesma regra do estado acima |
 
 O rodízio de 7 dias da decisão 27 escolhe os links pela data da última leitura registrada em `estado/conteudo_atual`. Quando a última tentativa falhou por um motivo passageiro (servidor fora do ar, conexão, timeout ou erro 5xx), o arquivo volta em 2 dias em vez de 7 (decisão 40).
 
@@ -136,7 +138,8 @@ Modelo dimensional (Star Schema).
 | `gold/dim_orgao` | dimensão | uma linha por publicador real | `orgao_id`, `nome`, `sigla`, `esfera` |
 | `gold/dim_data` | dimensão | uma linha por dia | `data`, `ano`, `mes`, `dia_semana` |
 | `gold/fato_status_base_diario` | fato | uma linha por base por dia | `data_coleta`, `id`, `slug`, `status`, `motivo` (frase explicável), `prazo_esperado_dias`, `origem_prazo` (`DECLARADO` ou `INFERIDO`), `ultima_mudanca_real`, `dias_sem_mudanca`, `links_total`, `janela_observacao_dias`, `links_quebrados`, `schema_mudou`, `status_portal`, `diverge_do_portal`. Gerada por `coletor/gold_status.py` a partir da Silver e do estado do conteúdo (decisão 32); o prazo vem da periodicidade declarada ou, sem ela, do ritmo inferido (decisões 32 e 42) |
-| `gold/fato_nota_orgao_diario` | fato | uma linha por órgão por dia | `data`, `orgao_id`, `bases_total`, `bases_verificaveis`, `em_dia`, `atrasada`, `parada`, `fora_do_ar`, `nao_verificavel`, `nota`, `cobertura`, `entra_ranking` |
+| `gold/fato_nota_orgao_diario` | fato | uma linha por órgão publicador por dia | `data`, `orgao` (nome do publicador; vira `orgao_id` quando existir a `dim_orgao`), `esfera`, `bases_total`, `bases_verificaveis`, `em_dia`, `atrasada`, `parada`, `fora_do_ar`, `nao_verificavel`, `nota`, `cobertura`, `entra_ranking`. Gerada por `coletor/gold_serie.py` com `sql/gold_serie_orgao.sql`; a nota sai de `coletor/nota.py`, a mesma fórmula da API (decisão 48) |
+| `gold/fato_brasil_diario` | fato | uma linha por dia | `data`, `bases`, `orgaos`, `orgaos_no_ranking`, `em_dia`, `atrasada`, `parada`, `fora_do_ar`, `nao_verificavel`, `links_total`, `links_testados`, `links_ok`, `links_em_observacao`, `links_quebrados`. Gerada por `coletor/gold_serie.py` com `sql/gold_serie_brasil.sql`; é a base da evolução diária do Brasil |
 | `gold/fato_evento_base` | fato | uma linha por acontecimento, por base e por tipo | `data`, `id_base`, `slug`, `tipo_evento` (`STATUS_MUDOU`, `CONTEUDO_MUDOU`, `SCHEMA_MUDOU`, `LINK_QUEBROU`), `detalhe`. Gerada por `coletor/gold_eventos.py` com `sql/gold_evento_base.sql` (decisão 44). `LINK_VOLTOU` ainda não existe: o estado dos links zera as falhas no sucesso e não guarda que o link estava quebrado |
 
 `fato_evento_base` alimenta a linha do tempo de cada base no site e os alertas.
@@ -195,7 +198,7 @@ cobertura = 100 x bases_verificaveis / bases_total
 - "Não verificável" fica fora da nota e aparece na cobertura, lado a lado.
 - Só entram no ranking órgãos com pelo menos 10 bases e pelo menos 5 bases verificáveis (decisão 45). Sem nenhuma base verificável, a nota é nula; com poucas, a nota existe, mas o órgão fica fora do ranking.
 - A fórmula é publicada na página de metodologia do site.
-- Hoje a nota é calculada ao gerar a API (`publicar/gerar_api.py`, decisão 43) e sai em `orgaos.json`, `orgaos/{slug}.json` e `ranking.json`; a tabela Gold `fato_nota_orgao_diario` fica para quando houver histórico de nota.
+- Hoje a nota é calculada ao gerar a API (`publicar/gerar_api.py`, decisão 43) e sai em `orgaos.json`, `orgaos/{slug}.json` e `ranking.json`; desde 04/11/2026 a tabela Gold `fato_nota_orgao_diario` também é gravada todo dia (decisão 48), com a mesma fórmula, que vive em `coletor/nota.py`; a API ainda calcula a própria nota do dia, e a evolução publicada na API vem depois.
 
 ---
 

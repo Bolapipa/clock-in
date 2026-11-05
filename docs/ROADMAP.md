@@ -40,8 +40,8 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 - [x] Fase 2: Saúde dos links e pipeline diário (execuções agendadas de 28 e 29/10/2026 completas, com as 16 etapas; o GitHub dispara cerca de 6h45 depois do horário do cron, o que não afeta a data da coleta; limite de 90 minutos por servidor desde 30/10/2026, decisão 39)
 - [ ] Fase 3: Conteúdo (hash e schema) (download medido no GitHub Actions em 28 e 29/10/2026; a primeira releitura aconteceu em 04/11/2026: 22.932 arquivos lidos, 1.896 com conteúdo mudado e 22 com estrutura mudada; 28.660 arquivos ainda sem leitura, cerca de 5 mil deles de servidores que bloqueiam o GitHub mas respondem no Brasil, decisão 46; falha passageira volta em 2 dias e o teto subiu para 3.000 por servidor, decisão 40; falta ler a data máxima dentro dos arquivos)
 - [ ] Fase 4: Atualização real e status (prazos declarados e regras de status feitos; ritmo inferido implementado em 01/11/2026, decisão 42, e só produz resultado depois de 3 mudanças de conteúdo por base; falta ter histórico de conteúdo e calibrar)
-- [ ] Fase 5: Gold, histórico e nota por órgão (nota, cobertura e ranking calculados na API em 01/11/2026, decisão 43; em 04/11/2026, com a primeira releitura, já há 266 bases em dia, 28 atrasadas e notas em 58 órgãos no ranking; o ranking passa a exigir 5 bases verificáveis, decisão 45; faltam a tabela Gold da nota, a linha do tempo por base e a evolução diária)
-- [ ] Fase 6: API estática (contrato versão 1, resumo, órgãos e ranking feitos; a publicação automática já roda; `api/bases/{slug}.json` implementado em 04/11/2026 para todas as bases, decisão 47, e testado com os dados reais, mas ainda não publicado; falta provar a publicação real com cerca de 23 mil arquivos)
+- [ ] Fase 5: Gold, histórico e nota por órgão (série diária da nota por órgão e do Brasil implementada em 04/11/2026, decisão 48, ainda sem execução agendada; nota, cobertura e ranking calculados na API em 01/11/2026, decisão 43; em 04/11/2026, com a primeira releitura, já há 266 bases em dia, 28 atrasadas e notas em 58 órgãos no ranking; o ranking passa a exigir 5 bases verificáveis, decisão 45; faltam a tabela Gold da nota, a linha do tempo por base e a evolução diária)
+- [x] Fase 6: API estática (contrato versão 1, com resumo, órgãos, ranking e `api/bases/{slug}.json` para todas as bases, decisão 47; publicada em 04/11/2026, à noite no horário de Brasília, pela execução manual do workflow com os dados de 04/11, com cerca de 23 mil arquivos aceitos pela Vercel e o artefato do site em 26 MB; o JSON Schema formal ficou como melhoria opcional)
 - [ ] Fase 7: Site público (publicado na Vercel em 30/10/2026 e refeito em Next.js com identidade própria em 30/10/2026; página do ranking `/ranking/` criada em 04/11/2026, com tabela no computador e cartões no celular, testada no build local com o ranking real e ainda não publicada)
 - [ ] Fase 8: Alertas (RSS geral, por órgão e por base implementado em 01/11/2026, decisão 44; falta webhook e a decisão sobre e-mail)
 - [ ] Fase 9: Lançamento e impacto
@@ -260,9 +260,11 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 4. Linha do tempo por base: mudanças de conteúdo, de schema e de status.
 5. Importe o censo de [validacao/resultados](../validacao/resultados) como ponto de partida histórico, se fizer sentido.
 
-**Nota por órgão, feita em 01/11/2026 (decisão 43):** `publicar/gerar_api.py` calcula a nota, a cobertura e `entra_ranking` de cada órgão e grava `api/ranking.json`; a página do órgão mostra a nota (ou explica que ainda não há) e a metodologia traz a fórmula. Testes em `tests/test_publicar.py`. Hoje nenhum órgão tem nota, porque ainda não há conteúdo lido o bastante.
+**Nota por órgão, feita em 01/11/2026 (decisão 43):** `publicar/gerar_api.py` calcula a nota, a cobertura e `entra_ranking` de cada órgão e grava `api/ranking.json`; a página do órgão mostra a nota (ou explica que ainda não há) e a metodologia traz a fórmula. Testes em `tests/test_publicar.py`. Desde a primeira releitura de conteúdo (04/11/2026) há órgãos com nota: o ranking publicado tem 29 (decisões 45 e 17), e a página `/ranking/` está no ar.
 
-**Falta na Fase 5:** a tabela `gold/fato_nota_orgao_diario` e a evolução diária da nota, a linha do tempo por base (os eventos da Fase 8 são o começo) e a página do ranking no site, que só vale a pena quando houver órgãos com nota.
+**Série diária, feita em 04/11/2026 (decisão 48):** o passo `gold_serie` (`coletor/gold_serie.py`) grava todo dia `gold/fato_nota_orgao_diario` e `gold/fato_brasil_diario` e os acumula em `estado/nota_orgao_historico` e `estado/brasil_historico`. A fórmula da nota passou a viver em `coletor/nota.py`, usada pela API e pela Gold. Com os dados reais de 04/11, os 613 órgãos da Gold são idênticos aos da API publicada. A primeira linha da série real nasce na primeira execução agendada com o passo novo.
+
+**Falta na Fase 5:** publicar a evolução (`api/evolucao.json` e o gráfico no site), que só faz sentido com alguns dias gravados; a linha do tempo por base mais longa que os 30 dias de eventos da Fase 8; e as dimensões `dim_base`, `dim_orgao` e `dim_data`.
 
 **Entregável:** tabelas Gold em Parquet, fórmula da nota documentada.
 
@@ -295,7 +297,9 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 **Feito em 04/11/2026:** `api/bases/{slug}.json` para todas as bases (decisão 47). Com os dados reais de 04/11: 19.627 arquivos, 15,4 MB, e o site passa de 41,4 MB para cerca de 57 MB, dentro do limite de 100 MB do plano gratuito da Vercel.
 
-**Falta na Fase 6:** provar a publicação real com cerca de 23 mil arquivos e, se valer a pena, um JSON Schema formal. A linha do tempo de cada base hoje são os eventos dos últimos 30 dias; uma linha do tempo mais longa depende do histórico da Gold, na Fase 5. O `api/ranking.json` e a publicação da API junto com o site já estão feitos.
+**Publicado em 04/11/2026, à noite no horário de Brasília:** a execução manual do workflow `publicar-site.yml` com os dados de 04/11 terminou bem. No site no ar, `api/bases/{slug}.json` respondeu 200 em uma base e em seis bases sorteadas, e 404 numa base inexistente; o `ranking.json` trouxe 29 órgãos com a regra de 5 bases verificáveis. O envio compactado (`--archive=tgz`) aceitou o site com cerca de 23 mil arquivos.
+
+**Ficou para depois, na Fase 6:** um JSON Schema formal, se valer a pena. A linha do tempo de cada base hoje são os eventos dos últimos 30 dias; uma linha do tempo mais longa depende do histórico da Gold, na Fase 5.
 
 **Entregável:** geração dos JSON no workflow diário, contrato documentado, testes.
 

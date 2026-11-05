@@ -11,12 +11,13 @@ Passos, nesta ordem:
     silver_conteudo -> silver_conteudo.py  tabelas versao_conteudo e mudanca_schema (opcional)
     gold_status -> gold_status.py    status de cada base (opcional)
     gold_eventos -> gold_eventos.py  eventos do dia de cada base, para os feeds RSS (opcional)
+    gold_serie -> gold_serie.py      nota de cada órgão e totais do Brasil, dia a dia (opcional)
 
 
 A data é calculada uma vez, no fuso de Brasília, e passada a todos os passos
 com --data. Se um passo obrigatório falhar, o motor para e os seguintes não rodam.
 Os passos opcionais não derrubam o dia: o painel, porque a Silver usa o último cronograma
-coletado, e os quatro últimos, porque ainda são novos.
+coletado, e os cinco últimos, porque ainda são novos.
 
 No workflow do GitHub Actions cada passo é uma etapa própria (--apenas), para aparecer com
 log e tempo separados. Como cada etapa é um processo novo, o workflow passa o início da
@@ -53,6 +54,7 @@ PASSOS = [
     ("silver_conteudo", "silver_conteudo.py", False),
     ("gold_status", "gold_status.py", False),
     ("gold_eventos", "gold_eventos.py", False),
+    ("gold_serie", "gold_serie.py", False),
 ]
 
 # Minutos do orçamento que o teste de links deixa guardados para o download de conteúdo.
