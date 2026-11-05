@@ -20,6 +20,7 @@ function useLinks() {
   return [
     { href: "/#panorama", texto: t.nav.panorama },
     { href: "/#orgaos", texto: t.nav.orgaos },
+    { href: "/ranking/", texto: t.nav.ranking },
     { href: "/metodologia/", texto: t.nav.metodologia },
     { href: "/desenvolvedores/", texto: t.nav.desenvolvedores },
   ];

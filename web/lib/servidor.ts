@@ -4,7 +4,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { ListaDeOrgaos, Resumo } from "./dados";
+import type { ListaDeOrgaos, Ranking, Resumo } from "./dados";
 
 const PASTA_API = path.join(process.cwd(), "public", "api");
 
@@ -18,3 +18,4 @@ async function lerJson<T>(...partes: string[]): Promise<T | null> {
 
 export const lerResumo = () => lerJson<Resumo>("resumo.json");
 export const lerListaDeOrgaos = () => lerJson<ListaDeOrgaos>("orgaos.json");
+export const lerRanking = () => lerJson<Ranking>("ranking.json");

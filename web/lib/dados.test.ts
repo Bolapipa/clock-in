@@ -5,7 +5,7 @@ import { describe, expect, test } from "vitest";
 import {
   EXPLICACOES_STATUS, ORDENS_BASES, ORDENS_ORGAOS, ROTULOS_PERIODICIDADE, explicarStatus, filtrarBases, filtrarOrgaos,
   formatarData, formatarNumero, formatarPercentual, fraseDaResposta, lerOrdem, linkDaBase, linkDoOrgao, normalizar, ordenar,
-  filtrarPorEstado, nomeLegivel, partesDaRegua, primeiraMaiuscula, rotulo, slugValido, temProblema, type OrgaoResumo,
+  filtrarPorEstado, nomeLegivel, partesDaRegua, primeiraMaiuscula, rotulo, slugValido, temProblema, type ItemDoRanking, type OrgaoResumo,
 } from "./dados";
 
 const ORGAOS = [
@@ -14,7 +14,7 @@ const ORGAOS = [
   { nome: "Governo do Estado de Alagoas", slug: "governo-do-estado-de-alagoas", esfera: "ESTADUAL", qtd_bases: 366, percentual_ok: 12.0 },
 ];
 // Os testes só usam algumas chaves de cada órgão
-const orgaos = ORGAOS as unknown as Parameters<typeof filtrarOrgaos>[0];
+const orgaos = ORGAOS as unknown as OrgaoResumo[];
 
 const BASES = [
   { titulo: "Frota de veículos", links_quebrados: 0, links_em_observacao: 0, fora_do_ar: false },
@@ -122,6 +122,15 @@ describe("busca, filtro e ordem", () => {
     expect(filtrarOrgaos(orgaos, { esfera: "ESTADUAL" }).map((o) => o.slug)).toEqual(["governo-do-estado-de-alagoas"]);
     expect(filtrarOrgaos(orgaos, { texto: "xyz" })).toHaveLength(0);
     expect(filtrarOrgaos(orgaos)).toHaveLength(3);
+  });
+
+  test("filtrarOrgaos também filtra os itens do ranking, sem perder a posição", () => {
+    const ranking: ItemDoRanking[] = [
+      { posicao: 1, nome: "IPEA - Instituto de Pesquisa", slug: "ipea", esfera: "FEDERAL", nota: 97.1, cobertura: 7, qtd_bases: 2461, bases_verificaveis: 171 },
+      { posicao: 2, nome: "Governo de Alagoas", slug: "alagoas", esfera: "ESTADUAL", nota: 90, cobertura: 50, qtd_bases: 20, bases_verificaveis: 10 },
+    ];
+    expect(filtrarOrgaos(ranking, { texto: "ALAGOAS" }).map((o) => o.posicao)).toEqual([2]);
+    expect(filtrarOrgaos(ranking, { esfera: "FEDERAL" }).map((o) => o.slug)).toEqual(["ipea"]);
   });
 
   test("ordenar não altera a lista, respeita a direção e deixa nulos no fim", () => {

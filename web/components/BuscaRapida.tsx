@@ -43,6 +43,7 @@ export function BuscaRapida() {
   const ir = (href: string) => { setAberta(false); router.push(href); };
   const paginas = [
     { href: "/#panorama", texto: t.nav.panorama },
+    { href: "/ranking/", texto: t.nav.ranking },
     { href: "/metodologia/", texto: t.nav.metodologia },
     { href: "/desenvolvedores/", texto: t.nav.desenvolvedores },
   ];

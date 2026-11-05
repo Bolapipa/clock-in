@@ -31,6 +31,7 @@ export function Rodape({ dataColeta }: { dataColeta: string | null }) {
         </div>
         <Coluna titulo={t.rodape.projeto}>
           <li><a className={estiloLink} href={URL_GITHUB} target="_blank" rel="noopener">GitHub</a></li>
+          <li><Link className={estiloLink} href="/ranking/">{t.nav.ranking}</Link></li>
           <li><Link className={estiloLink} href="/metodologia/">{t.nav.metodologia}</Link></li>
           <li><Link className={estiloLink} href="/desenvolvedores/">{t.nav.desenvolvedores}</Link></li>
           <li>{t.rodape.licenca}</li>

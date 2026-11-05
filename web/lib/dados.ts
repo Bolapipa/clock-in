@@ -70,6 +70,25 @@ export interface ListaDeOrgaos extends Cabecalho {
   orgaos: OrgaoResumo[];
 }
 
+// Um órgão no ranking (api/ranking.json): só entram os que passam dos mínimos de bases e de bases verificáveis
+export interface ItemDoRanking {
+  posicao: number;
+  nome: string;
+  slug: string;
+  esfera: Esfera;
+  nota: number;
+  cobertura: number;
+  qtd_bases: number;
+  bases_verificaveis: number;
+}
+
+export interface Ranking extends Cabecalho {
+  minimo_bases: number;
+  // Chave acrescentada em 04/11/2026 (decisão 45), então pode faltar em dados mais antigos
+  minimo_verificaveis?: number;
+  orgaos: ItemDoRanking[];
+}
+
 // --- Rótulos em português ---
 
 export const ROTULOS_ESFERA: Record<string, string> = {
@@ -193,7 +212,8 @@ export function slugValido(texto: string | null | undefined): string | null {
 
 // --- Busca, filtro e ordem ---
 
-export function filtrarOrgaos(orgaos: OrgaoResumo[], { texto = "", esfera = "" } = {}): OrgaoResumo[] {
+// Serve para a lista de órgãos e para o ranking: basta ter nome e esfera
+export function filtrarOrgaos<T extends Pick<OrgaoResumo, "nome" | "esfera">>(orgaos: T[], { texto = "", esfera = "" } = {}): T[] {
   const busca = normalizar(texto).trim();
   return orgaos.filter((orgao) => (!esfera || orgao.esfera === esfera) && (!busca || normalizar(orgao.nome).includes(busca)));
 }

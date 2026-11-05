@@ -38,11 +38,11 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 - [x] Fase 0: Ambiente
 - [x] Fase 1: Inventário (26/10/2026)
 - [x] Fase 2: Saúde dos links e pipeline diário (execuções agendadas de 28 e 29/10/2026 completas, com as 16 etapas; o GitHub dispara cerca de 6h45 depois do horário do cron, o que não afeta a data da coleta; limite de 90 minutos por servidor desde 30/10/2026, decisão 39)
-- [ ] Fase 3: Conteúdo (hash e schema) (download medido no GitHub Actions em 28 e 29/10/2026; a primeira releitura aconteceu em 04/11/2026: 22.932 arquivos lidos, 1.896 com conteúdo mudado e 22 com estrutura mudada; falha passageira volta em 2 dias e o teto subiu para 3.000 por servidor, decisão 40; falta ler a data máxima dentro dos arquivos)
+- [ ] Fase 3: Conteúdo (hash e schema) (download medido no GitHub Actions em 28 e 29/10/2026; a primeira releitura aconteceu em 04/11/2026: 22.932 arquivos lidos, 1.896 com conteúdo mudado e 22 com estrutura mudada; 28.660 arquivos ainda sem leitura, cerca de 5 mil deles de servidores que bloqueiam o GitHub mas respondem no Brasil, decisão 46; falha passageira volta em 2 dias e o teto subiu para 3.000 por servidor, decisão 40; falta ler a data máxima dentro dos arquivos)
 - [ ] Fase 4: Atualização real e status (prazos declarados e regras de status feitos; ritmo inferido implementado em 01/11/2026, decisão 42, e só produz resultado depois de 3 mudanças de conteúdo por base; falta ter histórico de conteúdo e calibrar)
 - [ ] Fase 5: Gold, histórico e nota por órgão (nota, cobertura e ranking calculados na API em 01/11/2026, decisão 43; em 04/11/2026, com a primeira releitura, já há 266 bases em dia, 28 atrasadas e notas em 58 órgãos no ranking; o ranking passa a exigir 5 bases verificáveis, decisão 45; faltam a tabela Gold da nota, a linha do tempo por base e a evolução diária)
 - [ ] Fase 6: API estática (contrato versão 1, resumo, órgãos e ranking feitos; a publicação automática já roda; falta `api/bases/{slug}.json`)
-- [ ] Fase 7: Site público (publicado na Vercel em 30/10/2026 e refeito em Next.js com identidade própria em 30/10/2026; falta o ranking)
+- [ ] Fase 7: Site público (publicado na Vercel em 30/10/2026 e refeito em Next.js com identidade própria em 30/10/2026; página do ranking `/ranking/` criada em 04/11/2026, com tabela no computador e cartões no celular, testada no build local com o ranking real e ainda não publicada)
 - [ ] Fase 8: Alertas (RSS geral, por órgão e por base implementado em 01/11/2026, decisão 44; falta webhook e a decisão sobre e-mail)
 - [ ] Fase 9: Lançamento e impacto
 
