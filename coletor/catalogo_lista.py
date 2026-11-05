@@ -32,6 +32,10 @@ LIMITE_PAGINAS = 5000
 # Uma listagem com menos que esta fração das bases da anterior é recusada
 MINIMO_VS_ANTERIOR = 0.95
 
+# Esperas (em segundos) antes de repetir uma página que veio vazia cedo demais: o portal às vezes
+# responde 200 com lista vazia no meio do catálogo (decisão 50). Cada item é uma nova tentativa
+ESPERAS_PAGINA_VAZIA = (60, 180, 300)
+
 
 def arquivo_da_listagem(data):
     """Caminho do arquivo da listagem de um dia na Bronze."""
@@ -87,6 +91,31 @@ def buscar_pagina(cliente, pagina):
         sys.exit(f"Página {pagina} falhou {portal.TENTATIVAS} vezes ({erro}). Nada foi gravado.")
 
 
+def repetir_pagina_vazia(cliente, pagina, total_ate_aqui, total_esperado):
+    """Repete a página que veio vazia se o fim parece cedo demais; devolve (registros, resposta).
+
+    Devolve registros vazios se a página continuar vazia depois das tentativas.
+
+    O fim é "cedo demais" na página 1 ou quando o total coletado está abaixo de 95% da listagem anterior
+    (total_esperado). Num fim de catálogo normal não há espera nenhuma.
+    """
+    for espera in ESPERAS_PAGINA_VAZIA:
+        cedo_demais = pagina == 1 or (total_esperado is not None and total_ate_aqui < MINIMO_VS_ANTERIOR * total_esperado)
+        if not cedo_demais:
+            return [], None
+
+        print(f"  Página {pagina} veio vazia com {total_ate_aqui} bases coletadas; nova tentativa em {espera} s")
+        time.sleep(espera)
+        resposta = buscar_pagina(cliente, pagina)
+        if resposta.status_code != 200:
+            sys.exit(f"Página {pagina}: HTTP {resposta.status_code}\n{resposta.text[:300]}")
+        registros = ler_registros(resposta, pagina)
+        if registros:
+            print(f"  Página {pagina} voltou com {len(registros)} bases")
+            return registros, resposta
+    return [], None
+
+
 def gravar_bronze(linhas, data_coleta):
     """Grava as páginas coletadas em Parquet, na partição do dia."""
     # Partição estilo Hive: uma pasta por data de coleta
@@ -130,6 +159,10 @@ def main():
         sys.exit(f"Já existe uma listagem de {data_coleta}. Um teste com --max-paginas não a sobrescreve; "
                  "use outra --data.")
 
+    # Total da listagem anterior, que diz se um fim de catálogo é cedo demais (sem ela, só a página 1 vazia é suspeita)
+    anterior = None if args.max_paginas or args.aceitar_queda else listagem_anterior(data_coleta)
+    total_esperado = anterior[1] if anterior else None
+
     linhas = []
     inicio = time.perf_counter()
     chegou_ao_fim = False
@@ -144,6 +177,13 @@ def main():
 
             # Lista vazia: passou da última página
             registros = ler_registros(resposta, pagina)
+            if not registros:
+                # Antes de aceitar o fim, repete a página se ele parece cedo demais (portal instável)
+                total_ate_aqui = sum(linha[2] for linha in linhas)
+                registros, nova_resposta = repetir_pagina_vazia(cliente, pagina, total_ate_aqui, total_esperado)
+                if registros:
+                    resposta = nova_resposta
+
             if not registros:
                 # Vazia já na página 1 não é o fim do catálogo: o portal está sem responder com dados
                 if pagina == 1:

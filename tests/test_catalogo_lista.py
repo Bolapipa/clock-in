@@ -31,6 +31,7 @@ def cliente_falso(respostas):
 def sem_espera(monkeypatch):
     """Zera a espera entre tentativas para os testes rodarem rápido."""
     monkeypatch.setattr(portal, "ESPERA_FALHA", 0)
+    monkeypatch.setattr(catalogo_lista, "ESPERAS_PAGINA_VAZIA", (0, 0, 0))
 
 
 def test_sucesso_na_primeira_tentativa():
@@ -194,6 +195,66 @@ def test_pagina_1_vazia_e_instabilidade_do_portal_e_nao_grava(tmp_path, monkeypa
         catalogo_lista.main()
 
     assert not catalogo_lista.arquivo_da_listagem(HOJE).exists()
+
+
+def portal_instavel(monkeypatch, tmp_path, paginas_com_dados, vazias_antes_de_voltar):
+    """Simula o portal: a página 'paginas_com_dados + 1' vem vazia N vezes e depois volta com dados.
+
+    Devolve a lista de páginas pedidas, para o teste contar as repetições.
+    """
+    monkeypatch.setattr(portal, "RAIZ", tmp_path)
+    monkeypatch.setattr(portal, "PAUSA", 0)
+    pedidas = []
+
+    def responder(requisicao):
+        pagina = int(requisicao.url.params["pagina"])
+        pedidas.append(pagina)
+        vazias_ate_agora = pedidas.count(paginas_com_dados + 1)
+        if pagina <= paginas_com_dados:
+            return httpx.Response(200, json=[{"id": f"b{pagina}-{i}"} for i in range(10)])
+        # Página do meio do catálogo: vazia nas primeiras vezes e, se pedida de novo, com dados
+        if pagina == paginas_com_dados + 1 and vazias_ate_agora > vazias_antes_de_voltar:
+            return httpx.Response(200, json=[{"id": f"b{pagina}-{i}"} for i in range(10)])
+        return httpx.Response(200, json=[])
+
+    monkeypatch.setattr(portal, "criar_cliente", lambda: httpx.Client(transport=httpx.MockTransport(responder)))
+    monkeypatch.setattr(sys, "argv", ["catalogo_lista.py", "--data", str(HOJE)])
+    return pedidas
+
+
+def test_pagina_vazia_no_meio_e_repetida_e_a_listagem_completa_e_gravada(tmp_path, monkeypatch):
+    # Anterior com 40 bases; hoje 3 páginas ok, a 4ª vem vazia uma vez e depois volta
+    pedidas = portal_instavel(monkeypatch, tmp_path, 3, vazias_antes_de_voltar=1)
+    gravar_listagem(ANTES, 40)
+
+    catalogo_lista.main()
+
+    # 3 páginas + a 4ª repetida e a 5ª (vazia, fim real) com total já acima de 95%
+    assert total_gravado(HOJE) == 40
+    assert pedidas.count(4) == 2
+
+
+def test_pagina_vazia_que_persiste_nao_grava_a_listagem_incompleta(tmp_path, monkeypatch):
+    # A 4ª página nunca volta: após as 3 repetições o fim é aceito e a trava dos 95% recusa
+    pedidas = portal_instavel(monkeypatch, tmp_path, 3, vazias_antes_de_voltar=99)
+    gravar_listagem(ANTES, 40)
+
+    with pytest.raises(SystemExit, match="menos de 95%"):
+        catalogo_lista.main()
+
+    assert pedidas.count(4) == 1 + len(catalogo_lista.ESPERAS_PAGINA_VAZIA)
+    assert not catalogo_lista.arquivo_da_listagem(HOJE).exists()
+
+
+def test_fim_normal_do_catalogo_nao_repete_nenhuma_pagina(tmp_path, monkeypatch):
+    # Hoje 30 bases, anterior 30: a 4ª página vazia é o fim real e não deve ser repetida
+    pedidas = portal_instavel(monkeypatch, tmp_path, 3, vazias_antes_de_voltar=99)
+    gravar_listagem(ANTES, 30)
+
+    catalogo_lista.main()
+
+    assert total_gravado(HOJE) == 30
+    assert pedidas.count(4) == 1
 
 
 def test_teste_parcial_nao_sobrescreve_listagem_do_dia(tmp_path, monkeypatch):
