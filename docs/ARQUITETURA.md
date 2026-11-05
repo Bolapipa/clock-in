@@ -9,7 +9,7 @@ Referência técnica do Clock-in: o que é coletado, o que é guardado, como os 
 ## Visão geral
 
 ```text
-GitHub Actions (agendado todos os dias às 03:17 de Brasília)
+GitHub Actions (agendado todos os dias às 00:17 de Brasília; o GitHub costuma largar horas depois, decisão 49)
   1. Baixa o estado de ontem          <- release "estado-atual" do GitHub
   2. Coleta o catálogo                 -> Bronze (resposta crua)
   3. Testa os links e lê o conteúdo    -> Silver (status HTTP, hash, schema)

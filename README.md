@@ -89,7 +89,7 @@ O prazo esperado vem da periodicidade declarada **ou**, quando não há (70% das
 |---|---|---|
 | 0 | Ambiente: Python, DuckDB, estrutura do projeto | Concluída |
 | 1 | Inventário: catálogo do dados.gov.br e painel da CGU (Bronze e Silver), publicador real de cada base | Concluída |
-| 2 | Saúde dos links e pipeline diário no GitHub Actions | Primeira execução completa validada (4h15); roda sozinho todo dia às 03:17 (Brasília) |
+| 2 | Saúde dos links e pipeline diário no GitHub Actions | Primeira execução completa validada (4h15); roda sozinho todo dia, agendado para 00:17 (Brasília); o GitHub atrasa a largada em horas (decisão 49) |
 | 3 | Conteúdo: hash e schema de cada arquivo | Em andamento |
 | 4 | Atualização real: prazo esperado e status de cada base | Em andamento: regras de status prontas; falta o histórico de conteúdo |
 | 5 | Modelo Gold: histórico, nota e ranking por órgão | |
