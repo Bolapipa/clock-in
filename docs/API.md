@@ -11,6 +11,7 @@ Esta é a **versão 1** do contrato. Ela ainda é um protótipo: traz a saúde d
 | `api/resumo.json` | Totais do Brasil |
 | `api/orgaos.json` | Um resumo por órgão publicador, dos que têm mais bases para os que têm menos |
 | `api/orgaos/{slug}.json` | Um órgão e as bases dele, com as que têm problema primeiro |
+| `api/bases/{slug}.json` | Uma base: status, motivo, prazo, conteúdo, links e os eventos dos últimos 30 dias. Existe para todas as bases |
 | `api/ranking.json` | Os órgãos que entram no ranking, da maior nota para a menor |
 | `rss/geral.xml`, `rss/orgaos/{slug}.xml`, `rss/bases/{slug}.xml` | Feeds RSS 2.0 do que mudou (veja "Feeds RSS"); ficam fora de `api/` porque não são JSON |
 
@@ -70,7 +71,7 @@ Além do cabeçalho, traz a chave `orgaos`, uma lista de objetos com as chaves a
 | `nota` | número ou `null` | `100 × (em dia + 0,5 × atrasadas) ÷ bases_verificaveis`, com 1 casa decimal. `null` quando o órgão não tem nenhuma base verificável |
 | `cobertura` | número ou `null` | `100 × bases_verificaveis ÷ qtd_bases`, em %. Mostra quanto do órgão a nota realmente avalia |
 | `bases_verificaveis` | inteiro | Bases com status diferente de `NAO_VERIFICAVEL` |
-| `entra_ranking` | booleano | `true` quando o órgão tem 10 ou mais bases e ao menos uma base verificável |
+| `entra_ranking` | booleano | `true` quando o órgão tem 10 ou mais bases e 5 ou mais bases verificáveis (decisão 45) |
 
 A nota é uma medida pelo **conteúdo** das bases, diferente de `percentual_ok`, que mede só se os links respondem. Enquanto o histórico de leituras cresce, a maioria dos órgãos fica sem nota. A fórmula completa está na página de metodologia do site.
 
@@ -100,6 +101,29 @@ Traz o cabeçalho, as chaves do órgão acima e a lista `bases`, com um objeto p
 | `fora_do_ar` | booleano | Tem links e todos estão quebrados |
 | `status` | texto | Veja abaixo |
 | `motivo` | texto ou `null` | O motivo do status em uma frase, quando o status já foi calculado |
+
+## `bases/{slug}.json`
+
+Uma base, com o que um engenheiro precisa para decidir se confia nela. O `slug` é o mesmo do arquivo do órgão e do feed RSS da base. Existe um arquivo para **todas** as bases do catálogo (decisão 47); a base cujo endereço não for um slug válido (letras, números e `. _ ~ -`) fica sem arquivo.
+
+| Chave | Tipo | Significado |
+|---|---|---|
+| `id`, `slug`, `titulo`, `periodicidade` | texto | Como em `orgaos/{slug}.json` |
+| `orgao` | objeto | `nome`, `slug` (o arquivo em `api/orgaos/`) e `esfera` do órgão publicador |
+| `status`, `motivo` | texto, texto ou `null` | Como em `orgaos/{slug}.json` |
+| `prazo.esperado_dias` | inteiro ou `null` | Dias sem mudança que a base aguenta antes de ficar atrasada. `null` quando não dá para calcular |
+| `prazo.origem` | texto ou `null` | `DECLARADO` (vem da periodicidade que o órgão declarou) ou `INFERIDO` (vem do ritmo de mudança observado, decisão 42) |
+| `conteudo.ultima_mudanca` | `AAAA-MM-DD` ou `null` | Última mudança de conteúdo vista em algum arquivo tabular da base |
+| `conteudo.dias_sem_mudanca` | inteiro ou `null` | Dias desde essa mudança; sem mudança vista, os dias de leitura |
+| `conteudo.janela_observacao_dias` | inteiro ou `null` | Há quantos dias a base é lida, contando pelo arquivo lido há menos tempo |
+| `conteudo.estrutura_mudou_hoje` | booleano ou `null` | As colunas de algum arquivo mudaram no dia dos dados |
+| `portal.status` | texto ou `null` | O que o próprio dados.gov.br diz sobre a atualização da base |
+| `portal.diverge` | booleano ou `null` | `true` se o Clock-in discorda do portal; `null` quando um dos lados não é verificável |
+| `links` | objeto | `total`, `testados`, `ok`, `em_observacao` e `quebrados`, como acima, para a base |
+| `fora_do_ar` | booleano | Tem links e todos estão quebrados |
+| `eventos` | lista | Os acontecimentos dos últimos 30 dias, do mais novo para o mais antigo: `data`, `tipo` e `detalhe`. Os tipos são os dos feeds RSS (`STATUS_MUDOU`, `CONTEUDO_MUDOU`, `SCHEMA_MUDOU` e `LINK_QUEBROU`). Lista vazia quando nada aconteceu |
+
+Enquanto a Gold de status do dia não existe, `prazo`, `conteudo` e `portal` ficam com valores nulos e o `status` é `NAO_VERIFICAVEL`.
 
 ## Feeds RSS
 

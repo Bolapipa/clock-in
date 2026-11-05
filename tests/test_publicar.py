@@ -7,13 +7,14 @@ import json
 import os
 import subprocess
 import sys
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 import duckdb
 import pytest
 
 import gerar_api
+import gold_eventos
 import gold_status
 import portal
 import silver
@@ -70,6 +71,22 @@ def gravar_status(*linhas):
     """Grava o status das bases (Gold) como o gold_status.py faria: (id, status, motivo)."""
     arquivo = gold_status.PASTA_GOLD / gold_status.TABELA / f"data={HOJE}" / f"{gold_status.TABELA}.parquet"
     gravar(arquivo, "id VARCHAR, status VARCHAR, motivo VARCHAR", list(linhas))
+
+
+def gravar_status_completo(*linhas):
+    """Gold de status com as colunas de detalhe que o arquivo de cada base usa:
+    (id, status, motivo, prazo_esperado_dias, origem_prazo, ultima_mudanca_real, dias_sem_mudanca,
+    janela_observacao_dias, schema_mudou, status_portal, diverge_do_portal)."""
+    arquivo = gold_status.PASTA_GOLD / gold_status.TABELA / f"data={HOJE}" / f"{gold_status.TABELA}.parquet"
+    gravar(arquivo, "id VARCHAR, status VARCHAR, motivo VARCHAR, prazo_esperado_dias INTEGER, origem_prazo VARCHAR, "
+                    "ultima_mudanca_real DATE, dias_sem_mudanca INTEGER, janela_observacao_dias INTEGER, schema_mudou BOOLEAN, "
+                    "status_portal VARCHAR, diverge_do_portal BOOLEAN", list(linhas))
+
+
+def eventos_recentes(*eventos):
+    """Grava o estado dos eventos recentes: (data, id da base, tipo, detalhe)."""
+    gravar(gold_eventos.arquivo_eventos_recentes(), "data DATE, id_base VARCHAR, slug VARCHAR, tipo_evento VARCHAR, detalhe VARCHAR",
+           [(data, i, f"base-{i}", tipo, detalhe) for data, i, tipo, detalhe in eventos])
 
 
 def gerar():
@@ -411,6 +428,101 @@ def test_contrato_valores_possiveis_do_status():
     status_validos = {"EM_DIA", "ATRASADA", "PARADA", "FORA_DO_AR", "NAO_VERIFICAVEL"}
     assert set(resumo["status"]) <= status_validos
     assert ler(pasta, "orgaos", "orgao-b.json")["bases"][0]["status"] in status_validos
+
+
+# --- Arquivo de cada base (api/bases/<slug>.json) ---
+
+CHAVES_DO_ARQUIVO_DA_BASE = CABECALHO | {"id", "slug", "titulo", "orgao", "periodicidade", "status", "motivo", "prazo", "conteudo",
+                                         "portal", "links", "fora_do_ar", "eventos"}
+
+
+def test_contrato_arquivo_da_base_tem_exatamente_estas_chaves_e_valores():
+    montar(base("a", "Órgão A", links=40, testados=30, ok=24, observacao=6, titulo="Base A"))
+    gravar_status_completo(("a", "EM_DIA", "em dia porque é mensal e mudou há 12 dias (prazo de 40 dias)",
+                            40, "DECLARADO", date(2026, 10, 14), 12, 30, False, "Atualizado", False))
+    eventos_recentes((HOJE, "a", "CONTEUDO_MUDOU", "o conteúdo de 1 arquivo mudou"),
+                     (HOJE - timedelta(days=3), "a", "LINK_QUEBROU", "1 link passou a ser considerado quebrado: https://x.gov.br/1"))
+
+    pasta, _ = gerar()
+
+    arquivo = ler(pasta, "bases", "base-a.json")
+    assert set(arquivo) == CHAVES_DO_ARQUIVO_DA_BASE
+    assert (arquivo["versao"], arquivo["data_coleta"]) == (1, "2026-10-26")
+    assert (arquivo["id"], arquivo["slug"], arquivo["titulo"], arquivo["periodicidade"]) == ("a", "base-a", "Base A", "MENSAL")
+    assert arquivo["orgao"] == {"nome": "Órgão A", "slug": "orgao-a", "esfera": "FEDERAL"}
+    assert arquivo["status"] == "EM_DIA" and arquivo["motivo"].startswith("em dia porque é mensal")
+    assert arquivo["prazo"] == {"esperado_dias": 40, "origem": "DECLARADO"}
+    assert arquivo["conteudo"] == {"ultima_mudanca": "2026-10-14", "dias_sem_mudanca": 12, "janela_observacao_dias": 30,
+                                   "estrutura_mudou_hoje": False}
+    assert arquivo["portal"] == {"status": "Atualizado", "diverge": False}
+    assert arquivo["links"] == {"total": 40, "testados": 30, "ok": 24, "em_observacao": 6, "quebrados": 0}
+    assert arquivo["fora_do_ar"] is False
+    # Do evento mais novo para o mais antigo
+    assert arquivo["eventos"] == [
+        {"data": "2026-10-26", "tipo": "CONTEUDO_MUDOU", "detalhe": "o conteúdo de 1 arquivo mudou"},
+        {"data": "2026-10-23", "tipo": "LINK_QUEBROU", "detalhe": "1 link passou a ser considerado quebrado: https://x.gov.br/1"},
+    ]
+
+
+def test_toda_base_ganha_arquivo_mesmo_sem_gold_nem_eventos():
+    montar(base("a", "Órgão A"), base("b", "Órgão B"))
+
+    pasta, _ = gerar()
+
+    assert sorted(arquivo.name for arquivo in (pasta / "bases").glob("*.json")) == ["base-a.json", "base-b.json"]
+    for id_base in ("a", "b"):
+        arquivo = ler(pasta, "bases", f"base-{id_base}.json")
+        assert arquivo["status"] == "NAO_VERIFICAVEL" and arquivo["motivo"] is None
+        assert arquivo["prazo"] == {"esperado_dias": None, "origem": None}
+        assert arquivo["conteudo"]["ultima_mudanca"] is None and arquivo["portal"]["status"] is None
+        assert arquivo["eventos"] == []
+
+
+def test_gold_sem_as_colunas_de_detalhe_ainda_gera_o_arquivo_da_base():
+    # Um Gold de um dia antigo só tem id, status e motivo
+    montar(base("a"))
+    gravar_status(("a", "ATRASADA", "atrasada porque é mensal e não muda há 73 dias (prazo de 40 dias)"))
+
+    pasta, _ = gerar()
+
+    arquivo = ler(pasta, "bases", "base-a.json")
+    assert arquivo["status"] == "ATRASADA" and arquivo["motivo"].startswith("atrasada")
+    assert arquivo["prazo"] == {"esperado_dias": None, "origem": None}
+
+
+def test_eventos_de_uma_base_nao_aparecem_na_outra():
+    montar(base("a"), base("b"))
+    eventos_recentes((HOJE, "a", "CONTEUDO_MUDOU", "o conteúdo de 1 arquivo mudou"))
+
+    pasta, _ = gerar()
+
+    assert [evento["tipo"] for evento in ler(pasta, "bases", "base-a.json")["eventos"]] == ["CONTEUDO_MUDOU"]
+    assert ler(pasta, "bases", "base-b.json")["eventos"] == []
+
+
+def test_base_com_slug_invalido_fica_sem_arquivo_e_nao_escapa_da_pasta(capsys):
+    # Um slug com "../" gravaria fora de bases/: a base fica sem arquivo, com um aviso, e as outras seguem
+    ruim = base("x")
+    ruim["slug"] = "../fora"
+    montar(base("a"), ruim)
+
+    pasta, _ = gerar()
+
+    assert [arquivo.name for arquivo in (pasta / "bases").glob("*.json")] == ["base-a.json"]
+    assert not (pasta / "fora.json").exists()
+    assert "a base x ficou sem arquivo" in capsys.readouterr().out
+
+
+def test_arquivos_de_bases_de_uma_execucao_anterior_sao_removidos():
+    montar(base("a"), base("b"))
+    pasta, _ = gerar()
+    assert (pasta / "bases" / "base-b.json").exists()
+
+    montar(base("a"))
+    gerar()
+
+    assert not (pasta / "bases" / "base-b.json").exists()
+    assert (pasta / "bases" / "base-a.json").exists()
 
 
 # --- Arquivos ---

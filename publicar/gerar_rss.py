@@ -30,7 +30,6 @@ import duckdb
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "coletor"))
 
 import gerar_api
-import gold_eventos
 import portal
 
 # Pasta de saída padrão
@@ -54,16 +53,8 @@ ROTULOS = {
 
 def ler_eventos(con):
     """Eventos recentes como lista de dicionários, dos mais novos para os mais antigos. Sem arquivo, lista vazia."""
-    arquivo = gold_eventos.arquivo_eventos_recentes()
-    if not arquivo.exists():
-        return []
-    resultado = con.execute(f"""
-        SELECT data, id_base, slug, tipo_evento, detalhe
-        FROM read_parquet('{arquivo.as_posix()}')
-        ORDER BY data DESC, id_base, tipo_evento
-    """)
-    colunas = [coluna[0] for coluna in resultado.description]
-    return [dict(zip(colunas, linha)) for linha in resultado.fetchall()]
+    # A leitura é a mesma do arquivo de cada base da API, por isso vive em gerar_api.py
+    return gerar_api.ler_eventos(con)
 
 
 def momento(data):

@@ -208,7 +208,7 @@ Arquivos JSON gerados a partir da Gold ao fim de cada execução e publicados co
 | `api/resumo.json` | Visão geral do Brasil: totais por status e evolução |
 | `api/ranking.json` | Órgãos ordenados pela nota, com a cobertura |
 | `api/orgaos/{orgao_id}.json` | Nota, cobertura e bases de um órgão |
-| `api/bases/{slug}.json` | Status atual, motivo, prazo e linha do tempo de uma base |
+| `api/bases/{slug}.json` | Status atual, motivo, prazo, conteúdo, links e a linha do tempo (eventos dos últimos 30 dias) de uma base |
 
 O contrato de cada arquivo é documentado em JSON Schema e validado por testes (Fase 6).
 
@@ -222,8 +222,9 @@ Enquanto o status por conteúdo não tem histórico, a API traz só o que a Silv
 | `api/orgaos.json` | O cabeçalho e, na chave `orgaos`, um resumo por órgão publicador, dos que têm mais bases para os que têm menos, sem a lista de bases, com a nota e a cobertura de cada um |
 | `api/ranking.json` | Os órgãos com pelo menos 10 bases e 5 bases verificáveis, da maior nota para a menor (empate: mais cobertura, depois o nome) |
 | `api/orgaos/{slug}.json` | O órgão e as bases dele (título, periodicidade, links, status e motivo), com as que têm problema primeiro |
+| `api/bases/{slug}.json` | Uma base, para todas as bases (decisão 47): status, motivo, prazo esperado e sua origem, última mudança de conteúdo, o que o portal diz, links e os eventos dos últimos 30 dias |
 
-O `slug` do órgão é o nome sem acentos, em minúsculas e com hífens. A porcentagem de links respondendo bem só existe para órgãos com 30 ou mais links testados. Todo arquivo traz `versao`, `data_coleta` e `gerado_em`, e o contrato versão 1 (chaves, tipos e valores possíveis) está em [API.md](API.md), com testes que fixam o conjunto de chaves (decisão 37). O `api/bases/{slug}.json` fica para a Fase 6. O site em `site/` (`index.html`, `estilo.css` e `app.js`) lê esses arquivos e tem a página inicial, a de cada órgão, a de cada base, a metodologia e a da API.
+O `slug` do órgão é o nome sem acentos, em minúsculas e com hífens. A porcentagem de links respondendo bem só existe para órgãos com 30 ou mais links testados. Todo arquivo traz `versao`, `data_coleta` e `gerado_em`, e o contrato versão 1 (chaves, tipos e valores possíveis) está em [API.md](API.md), com testes que fixam o conjunto de chaves (decisão 37). O site em `site/` (`index.html`, `estilo.css` e `app.js`) lê esses arquivos e tem a página inicial, a de cada órgão, a de cada base, a metodologia e a da API.
 
 ## Alertas
 

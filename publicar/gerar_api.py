@@ -5,6 +5,7 @@ das bases (Gold). Grava, por padrão em web/public/api/ (o Next.js a leva para o
     resumo.json           totais do Brasil
     orgaos.json           um resumo por órgão publicador (a lista fica na chave "orgaos")
     orgaos/<slug>.json    o órgão e a lista das bases dele
+    bases/<slug>.json     uma base: status, motivo, prazo, conteúdo, links e eventos dos últimos 30 dias
     ranking.json          os órgãos ordenados pela nota (decisão 17)
 
 Todo arquivo traz "versao", "data_coleta" e "gerado_em". O contrato de cada um está em docs/API.md.
@@ -19,6 +20,7 @@ Uso:
 import argparse
 import json
 import re
+import shutil
 import sys
 import unicodedata
 from collections import Counter
@@ -31,6 +33,7 @@ import duckdb
 # própria pasta, então coletor/ entra no caminho de importação antes dos imports abaixo
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "coletor"))
 
+import gold_eventos
 import gold_status
 import portal
 import silver
@@ -56,6 +59,10 @@ MINIMO_VERIFICAVEIS_NO_RANKING = 5
 
 # Peso de uma base atrasada na nota: em dia vale 1, atrasada vale metade, parada e fora do ar valem zero
 PESO_ATRASADA = 0.5
+
+# O endereço de uma base vira nome de arquivo (bases/<slug>.json), então só vale se tiver o formato de um slug:
+# letras, números e . _ ~ - (o mesmo que o site aceita no endereço)
+SLUG_DE_BASE_VALIDO = re.compile(r"[A-Za-z0-9._~-]{1,200}")
 
 
 def calcular_nota(status, qtd_bases):
@@ -102,7 +109,9 @@ def criar_views_entrada(con, data):
     if status.exists():
         con.execute(f"CREATE OR REPLACE VIEW status_base AS SELECT * FROM read_parquet('{status.as_posix()}')")
     else:
-        con.execute("CREATE OR REPLACE TABLE status_base (id VARCHAR, status VARCHAR, motivo VARCHAR)")
+        con.execute("CREATE OR REPLACE TABLE status_base (id VARCHAR, status VARCHAR, motivo VARCHAR, prazo_esperado_dias INTEGER, "
+                    "origem_prazo VARCHAR, ultima_mudanca_real DATE, dias_sem_mudanca INTEGER, janela_observacao_dias INTEGER, "
+                    "schema_mudou BOOLEAN, status_portal VARCHAR, diverge_do_portal BOOLEAN)")
 
 
 def ler_bases(con):
@@ -111,6 +120,68 @@ def ler_bases(con):
     resultado = con.execute(consulta)
     colunas = [coluna[0] for coluna in resultado.description]
     return [dict(zip(colunas, linha)) for linha in resultado.fetchall()]
+
+
+def ler_eventos(con):
+    """Eventos recentes como lista de dicionários, dos mais novos para os mais antigos. Sem arquivo, lista vazia."""
+    arquivo = gold_eventos.arquivo_eventos_recentes()
+    if not arquivo.exists():
+        return []
+    resultado = con.execute(f"""
+        SELECT data, id_base, slug, tipo_evento, detalhe
+        FROM read_parquet('{arquivo.as_posix()}')
+        ORDER BY data DESC, id_base, tipo_evento
+    """)
+    colunas = [coluna[0] for coluna in resultado.description]
+    return [dict(zip(colunas, linha)) for linha in resultado.fetchall()]
+
+
+def ler_detalhe_do_status(con):
+    """Tudo o que a Gold de status sabe de cada base, por id. Coluna que a Gold do dia não tem fica fora do dicionário."""
+    resultado = con.execute("SELECT * FROM status_base")
+    colunas = [coluna[0] for coluna in resultado.description]
+    return {linha[colunas.index("id")]: dict(zip(colunas, linha)) for linha in resultado.fetchall()}
+
+
+def data_iso(valor):
+    """Data ou momento no formato AAAA-MM-DD; nulo continua nulo."""
+    return None if valor is None else str(valor)[:10]
+
+
+def montar_arquivo_da_base(base, orgao, detalhe, eventos):
+    """O conteúdo de bases/<slug>.json (sem o cabeçalho): o que um engenheiro precisa para decidir se confia na base.
+
+    'detalhe' vem da Gold de status; sem ela, os campos de prazo, conteúdo e portal ficam nulos.
+    """
+    return {
+        "id": base["id"],
+        "slug": base["slug"],
+        "titulo": base["titulo"],
+        "orgao": {"nome": orgao["nome"], "slug": orgao["slug"], "esfera": orgao["esfera"]},
+        "periodicidade": base["periodicidade"],
+        "status": base["status"],
+        "motivo": base["motivo"],
+        # Prazo esperado entre mudanças, e se veio da periodicidade declarada ou do ritmo inferido (decisão 42)
+        "prazo": {"esperado_dias": detalhe.get("prazo_esperado_dias"), "origem": detalhe.get("origem_prazo")},
+        "conteudo": {
+            "ultima_mudanca": data_iso(detalhe.get("ultima_mudanca_real")),
+            "dias_sem_mudanca": detalhe.get("dias_sem_mudanca"),
+            "janela_observacao_dias": detalhe.get("janela_observacao_dias"),
+            "estrutura_mudou_hoje": detalhe.get("schema_mudou"),
+        },
+        # O que o próprio portal diz e se o Clock-in discorda dele
+        "portal": {"status": detalhe.get("status_portal"), "diverge": detalhe.get("diverge_do_portal")},
+        "links": {
+            "total": base["links_total"],
+            "testados": base["links_testados"],
+            "ok": base["links_ok"],
+            "em_observacao": base["links_em_observacao"],
+            "quebrados": base["links_quebrados"],
+        },
+        "fora_do_ar": base["fora_do_ar"],
+        # Linha do tempo dos últimos 30 dias, do mais novo para o mais antigo
+        "eventos": [{"data": str(evento["data"]), "tipo": evento["tipo_evento"], "detalhe": evento["detalhe"]} for evento in eventos],
+    }
 
 
 def percentual(parte, total):
@@ -224,7 +295,21 @@ def gerar(con, data, saida):
         bases_do_orgao = sorted(orgao["bases"], key=lambda base: (-base["links_quebrados"], -base["links_em_observacao"], base["titulo"] or ""))
         gravar_json(saida / "orgaos" / f"{orgao['slug']}.json", {**cabecalho, **resumo_do_orgao, "bases": bases_do_orgao})
 
-    # Ranking: só os órgãos com bases suficientes e ao menos uma base verificável, da maior nota para a menor
+    # Um arquivo por base, de todas as bases: o detalhe do status e os eventos dos últimos 30 dias
+    shutil.rmtree(saida / "bases", ignore_errors=True)
+    detalhes = ler_detalhe_do_status(con)
+    eventos_por_base = {}
+    for evento in ler_eventos(con):
+        eventos_por_base.setdefault(evento["id_base"], []).append(evento)
+    for orgao in orgaos.values():
+        for base in orgao["bases"]:
+            if not SLUG_DE_BASE_VALIDO.fullmatch(base["slug"] or ""):
+                print(f"Aviso: a base {base['id']} ficou sem arquivo em bases/ porque o endereço dela não é um slug válido")
+                continue
+            arquivo_da_base = montar_arquivo_da_base(base, orgao, detalhes.get(base["id"], {}), eventos_por_base.get(base["id"], []))
+            gravar_json(saida / "bases" / f"{base['slug']}.json", {**cabecalho, **arquivo_da_base})
+
+    # Ranking: só os órgãos com bases suficientes e bases verificáveis suficientes, da maior nota para a menor
     gravar_json(saida / "ranking.json", {**cabecalho, "minimo_bases": MINIMO_BASES_NO_RANKING,
                                        "minimo_verificaveis": MINIMO_VERIFICAVEIS_NO_RANKING, "orgaos": montar_ranking(orgaos)})
 

@@ -41,7 +41,7 @@ O Clock-in deve ser **gratuito para quem constrói e para quem usa**. Toda escol
 - [ ] Fase 3: Conteúdo (hash e schema) (download medido no GitHub Actions em 28 e 29/10/2026; a primeira releitura aconteceu em 04/11/2026: 22.932 arquivos lidos, 1.896 com conteúdo mudado e 22 com estrutura mudada; 28.660 arquivos ainda sem leitura, cerca de 5 mil deles de servidores que bloqueiam o GitHub mas respondem no Brasil, decisão 46; falha passageira volta em 2 dias e o teto subiu para 3.000 por servidor, decisão 40; falta ler a data máxima dentro dos arquivos)
 - [ ] Fase 4: Atualização real e status (prazos declarados e regras de status feitos; ritmo inferido implementado em 01/11/2026, decisão 42, e só produz resultado depois de 3 mudanças de conteúdo por base; falta ter histórico de conteúdo e calibrar)
 - [ ] Fase 5: Gold, histórico e nota por órgão (nota, cobertura e ranking calculados na API em 01/11/2026, decisão 43; em 04/11/2026, com a primeira releitura, já há 266 bases em dia, 28 atrasadas e notas em 58 órgãos no ranking; o ranking passa a exigir 5 bases verificáveis, decisão 45; faltam a tabela Gold da nota, a linha do tempo por base e a evolução diária)
-- [ ] Fase 6: API estática (contrato versão 1, resumo, órgãos e ranking feitos; a publicação automática já roda; falta `api/bases/{slug}.json`)
+- [ ] Fase 6: API estática (contrato versão 1, resumo, órgãos e ranking feitos; a publicação automática já roda; `api/bases/{slug}.json` implementado em 04/11/2026 para todas as bases, decisão 47, e testado com os dados reais, mas ainda não publicado; falta provar a publicação real com cerca de 23 mil arquivos)
 - [ ] Fase 7: Site público (publicado na Vercel em 30/10/2026 e refeito em Next.js com identidade própria em 30/10/2026; página do ranking `/ranking/` criada em 04/11/2026, com tabela no computador e cartões no celular, testada no build local com o ranking real e ainda não publicada)
 - [ ] Fase 8: Alertas (RSS geral, por órgão e por base implementado em 01/11/2026, decisão 44; falta webhook e a decisão sobre e-mail)
 - [ ] Fase 9: Lançamento e impacto
@@ -281,7 +281,7 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
    - `api/resumo.json`: visão geral do Brasil;
    - `api/ranking.json`: órgãos ordenados pela nota;
    - `api/orgaos/{id}.json`: nota e bases de um órgão;
-   - `api/bases/{slug}.json`: status atual e histórico de uma base.
+   - `api/bases/{slug}.json`: status atual e linha do tempo (eventos dos últimos 30 dias) de uma base.
 2. Defina e documente o formato de cada arquivo (um "contrato"), com versão (`"versao": 1`), para não quebrar quem usar.
 3. Publique os JSON junto com o site (Vercel). Quem quiser integrar faz um `GET` simples, como em qualquer API.
 4. Escreva testes que validam os JSON gerados contra o contrato.
@@ -293,7 +293,9 @@ Ritmo real até aqui: as fases 0, 1 e 2 levaram cerca de um dia cada. As fases 3
 
 **Feito em 30/10/2026:** o workflow `publicar-site.yml` gera a API com os dados do dia, tirados do release de histórico (etapa "Site | Gera a API com os dados do dia", em `web/public/api`). Ensaio em cópia limpa do repositório com os dados reais de 29/10: 613 arquivos, 611 órgãos, 3.586 links quebrados e 505 bases fora do ar.
 
-**Falta na Fase 6:** `api/bases/{slug}.json` com a linha do tempo (depende do histórico) e, se valer a pena, um JSON Schema formal. O `api/ranking.json` e a publicação da API junto com o site já estão feitos.
+**Feito em 04/11/2026:** `api/bases/{slug}.json` para todas as bases (decisão 47). Com os dados reais de 04/11: 19.627 arquivos, 15,4 MB, e o site passa de 41,4 MB para cerca de 57 MB, dentro do limite de 100 MB do plano gratuito da Vercel.
+
+**Falta na Fase 6:** provar a publicação real com cerca de 23 mil arquivos e, se valer a pena, um JSON Schema formal. A linha do tempo de cada base hoje são os eventos dos últimos 30 dias; uma linha do tempo mais longa depende do histórico da Gold, na Fase 5. O `api/ranking.json` e a publicação da API junto com o site já estão feitos.
 
 **Entregável:** geração dos JSON no workflow diário, contrato documentado, testes.
 
